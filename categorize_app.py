@@ -44,10 +44,20 @@ if 'data_loaded' not in st.session_state:
 
 
 def load_data(data_file: str = "clients_data.json") -> Optional[Dict]:
-    """Load client data from JSON file"""
+    """Load client data from JSON file, create empty structure if it doesn't exist"""
     if not os.path.exists(data_file):
-        st.error(f"❌ {data_file} not found! Please run main.py first to add clients.")
-        return None
+        # Create empty structure for new deployments
+        empty_data = {
+            "clients": {},
+            "pages": {}
+        }
+        try:
+            with open(data_file, 'w', encoding='utf-8') as f:
+                json.dump(empty_data, f, indent=2, ensure_ascii=False)
+            st.info(f"📝 Created new {data_file}. You can start adding clients and pages.")
+        except Exception as e:
+            st.error(f"❌ Could not create {data_file}: {str(e)}")
+            return None
     
     with open(data_file, 'r', encoding='utf-8') as f:
         return json.load(f)
