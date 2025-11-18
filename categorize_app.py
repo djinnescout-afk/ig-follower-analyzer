@@ -43,8 +43,21 @@ if 'data_loaded' not in st.session_state:
     st.session_state.data_loaded = False
 
 
-def load_data(data_file: str = "clients_data.json") -> Optional[Dict]:
+def get_data_file_path() -> str:
+    """Get the data file path, checking for Railway volume first"""
+    # Check for Railway volume mount (persistent storage)
+    volume_path = "/data/clients_data.json"
+    if os.path.exists(volume_path):
+        return volume_path
+    # Fall back to local file
+    return "clients_data.json"
+
+
+def load_data(data_file: str = None) -> Optional[Dict]:
     """Load client data from JSON file, create empty structure if it doesn't exist"""
+    if data_file is None:
+        data_file = get_data_file_path()
+    
     if not os.path.exists(data_file):
         # Create empty structure for new deployments
         empty_data = {
@@ -52,6 +65,8 @@ def load_data(data_file: str = "clients_data.json") -> Optional[Dict]:
             "pages": {}
         }
         try:
+            # Ensure directory exists (for volume path)
+            os.makedirs(os.path.dirname(data_file) if os.path.dirname(data_file) else ".", exist_ok=True)
             with open(data_file, 'w', encoding='utf-8') as f:
                 json.dump(empty_data, f, indent=2, ensure_ascii=False)
             st.info(f"📝 Created new {data_file}. You can start adding clients and pages.")
@@ -63,9 +78,13 @@ def load_data(data_file: str = "clients_data.json") -> Optional[Dict]:
         return json.load(f)
 
 
-def save_data(data: Dict, data_file: str = "clients_data.json"):
+def save_data(data: Dict, data_file: str = None):
     """Save client data to JSON file"""
+    if data_file is None:
+        data_file = get_data_file_path()
     data["last_updated"] = datetime.now().isoformat()
+    # Ensure directory exists (for volume path)
+    os.makedirs(os.path.dirname(data_file) if os.path.dirname(data_file) else ".", exist_ok=True)
     with open(data_file, 'w', encoding='utf-8') as f:
         json.dump(data, f, indent=2, ensure_ascii=False)
 
@@ -197,7 +216,7 @@ def main():
     st.markdown("---")
     
     # Main tabs
-    tab1, tab2, tab3 = st.tabs(["🔍 Categorize Pages", "✏️ Edit Page Details", "📂 View by Category"])
+    tab1, tab2, tab3, tab4 = st.tabs(["🔍 Categorize Pages", "✏️ Edit Page Details", "📂 View by Category", "📤 Data Management"])
     
     # TAB 1: Categorize Pages
     with tab1:
@@ -655,6 +674,113 @@ def main():
                         if st.button(f"✏️ Quick Edit", key=f"edit_{username}_{category}"):
                             st.session_state.edit_page = username
                             st.rerun()
+
+
+    # TAB 4: Data Management
+    with tab4:
+        st.markdown("### 📤 Upload & Sync Data")
+        st.markdown("Upload your local `clients_data.json` to sync with Railway. VA's work will be preserved.")
+        
+        uploaded_file = st.file_uploader(
+            "Choose clients_data.json file",
+            type=['json'],
+            help="Upload your local clients_data.json file. It will be merged with existing data, preserving VA's categorization work."
+        )
+        
+        if uploaded_file is not None:
+            try:
+                # Read uploaded file
+                new_data = json.load(uploaded_file)
+                
+                # Load current data
+                current_data = load_data()
+                
+                if current_data:
+                    st.info("🔄 Merging uploaded data with existing data (preserving VA's work)...")
+                    
+                    # Merge data (preserve VA's work)
+                    merged_data = merge_data_smart(current_data, new_data)
+                    
+                    # Save merged data
+                    save_data(merged_data)
+                    
+                    st.success("✅ Data uploaded and merged successfully! VA's work has been preserved.")
+                    st.info("🔄 Refresh the page to see updated data.")
+                else:
+                    # No existing data, just save the uploaded file
+                    save_data(new_data)
+                    st.success("✅ Data uploaded successfully!")
+                    
+            except json.JSONDecodeError:
+                st.error("❌ Invalid JSON file. Please upload a valid clients_data.json file.")
+            except Exception as e:
+                st.error(f"❌ Error uploading file: {str(e)}")
+        
+        st.markdown("---")
+        st.markdown("### 📊 Current Data Status")
+        data_file = get_data_file_path()
+        if os.path.exists(data_file):
+            file_size = os.path.getsize(data_file) / (1024 * 1024)  # MB
+            st.info(f"📁 Data file: `{data_file}` ({file_size:.2f} MB)")
+            
+            data = load_data()
+            if data:
+                st.metric("Total Pages", len(data.get("pages", {})))
+                st.metric("Total Clients", len(data.get("clients", {})))
+        else:
+            st.warning(f"⚠️ Data file not found at `{data_file}`")
+
+
+def merge_data_smart(existing: Dict, new: Dict) -> Dict:
+    """
+    Smart merge: Preserves VA's work (categories, contact info) while updating scraped data
+    """
+    merged = {
+        "clients": new.get("clients", {}),
+        "pages": {}
+    }
+    
+    existing_pages = existing.get("pages", {})
+    new_pages = new.get("pages", {})
+    
+    for username, new_page_data in new_pages.items():
+        existing_page_data = existing_pages.get(username, {})
+        
+        # Start with new scraped data
+        merged_page = new_page_data.copy()
+        
+        # Preserve VA's categorization work
+        if "category" in existing_page_data:
+            merged_page["category"] = existing_page_data["category"]
+        if "category_confidence" in existing_page_data:
+            merged_page["category_confidence"] = existing_page_data["category_confidence"]
+        
+        # Preserve contact information (VA's edits)
+        for field in [
+            "known_contact_methods",
+            "successful_contact_method",
+            "current_main_contact_method",
+            "ig_account_for_dm",
+            "promo_price",
+            "promo_status",  # Manual override
+            "website_url"
+        ]:
+            if field in existing_page_data and existing_page_data[field]:
+                merged_page[field] = existing_page_data[field]
+        
+        # Preserve website_promo_info if it exists
+        if "website_promo_info" in existing_page_data:
+            if "website_promo_info" not in new_page_data or not new_page_data.get("website_promo_info"):
+                merged_page["website_promo_info"] = existing_page_data["website_promo_info"]
+        
+        merged["pages"][username] = merged_page
+    
+    # Add any pages that exist in old data but not in new
+    for username, existing_page_data in existing_pages.items():
+        if username not in merged["pages"]:
+            merged["pages"][username] = existing_page_data
+    
+    return merged
 
 
 if __name__ == "__main__":
