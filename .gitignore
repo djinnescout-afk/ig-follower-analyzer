@@ -1,0 +1,39 @@
+# Environment variables
+.env
+config.py
+run.bat
+set_permanent_env.bat
+set_permanent_env.ps1
+setup.bat
+setup.ps1
+
+# Data files
+clients_data.json
+*.csv
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+env/
+venv/
+ENV/
+build/
+dist/
+*.egg-info/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+
+
