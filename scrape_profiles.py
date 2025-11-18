@@ -254,6 +254,20 @@ def scrape_pages(data: Dict, prioritized_list: List[Tuple[str, Dict, int]], data
         print(f"❌ Failures: {failed_list}")
     
     print(f"💾 Data saved to {data_file}")
+    
+    # Auto-sync to Railway (always try, but don't fail if it doesn't work)
+    try:
+        from railway_sync import sync_to_railway
+        print("\n🔄 Auto-syncing to Railway...")
+        sync_to_railway(data_file, preserve_va_work=True)
+    except ImportError:
+        print("\n💡 Tip: Install Railway CLI and enable auto-sync:")
+        print("   npm install -g @railway/cli")
+        print("   railway login")
+        print("   Then set AUTO_SYNC_RAILWAY=true or use manual upload in Streamlit app")
+    except Exception as e:
+        print(f"\n⚠️  Auto-sync failed: {str(e)[:100]}")
+        print("💡 You can manually upload via the Streamlit app's 'Data Management' tab.")
 
 
 def priority_scrape(data_file: str = "clients_data.json"):
