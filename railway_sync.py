@@ -157,67 +157,46 @@ def upload_via_railway_cli(file_path: str) -> bool:
 
 def sync_to_railway(data_file: str = "clients_data.json", preserve_va_work: bool = True) -> bool:
     """
-    Automatically sync data to Railway after scraping via HTTP API
+    Sync data to Railway - currently requires manual upload via Streamlit UI
     
     Args:
         data_file: Path to local clients_data.json
-        preserve_va_work: If True, merges with existing data to preserve VA's work (handled server-side)
+        preserve_va_work: If True, merges with existing data to preserve VA's work
     
     Returns:
-        True if successful, False otherwise
+        True if file is ready for upload, False otherwise
     """
     print("\n" + "=" * 60)
-    print("🔄 Auto-syncing to Railway via HTTP...")
+    print("🔄 Railway Sync - Manual Upload Required")
     print("=" * 60)
     
     if not os.path.exists(data_file):
         print(f"❌ {data_file} not found!")
         return False
     
-    # Load data to upload
-    print(f"📖 Loading {data_file}...")
+    # Check file stats
+    file_size = os.path.getsize(data_file)
     with open(data_file, 'r', encoding='utf-8') as f:
-        data_to_upload = json.load(f)
+        data = json.load(f)
     
-    # Upload via HTTP API
-    print("📤 Uploading to Railway sync API...")
-    sync_endpoint = f"{RAILWAY_APP_URL}/sync"
+    clients_count = len(data.get("clients", {}))
+    pages_count = len(data.get("pages", {}))
     
-    try:
-        response = requests.post(
-            sync_endpoint,
-            json=data_to_upload,
-            timeout=120,  # 2 minute timeout for large files
-            headers={'Content-Type': 'application/json'}
-        )
-        
-        if response.status_code == 200:
-            result = response.json()
-            print("✅ Successfully synced to Railway!")
-            print(f"   📊 Clients: {result.get('clients', 0)}")
-            print(f"   📊 Pages: {result.get('pages', 0)}")
-            print(f"   📊 File size: {result.get('file_size', 0):,} bytes")
-            if preserve_va_work:
-                print("✅ VA's work has been preserved (server-side merge).")
-            return True
-        else:
-            print(f"❌ Sync failed with status {response.status_code}")
-            print(f"   Response: {response.text[:200]}")
-            return False
-            
-    except requests.exceptions.ConnectionError:
-        print("❌ Could not connect to Railway sync API.")
-        print(f"   Make sure {sync_endpoint} is accessible.")
-        print("💡 Alternative: Use the 'Data Management' tab in the Streamlit app to upload manually.")
-        return False
-    except requests.exceptions.Timeout:
-        print("❌ Sync request timed out (file might be too large).")
-        print("💡 Alternative: Use the 'Data Management' tab in the Streamlit app to upload manually.")
-        return False
-    except Exception as e:
-        print(f"❌ Sync failed: {str(e)[:200]}")
-        print("💡 Alternative: Use the 'Data Management' tab in the Streamlit app to upload manually.")
-        return False
+    print(f"📊 Local file ready for upload:")
+    print(f"   📁 File: {data_file}")
+    print(f"   📊 Size: {file_size:,} bytes ({file_size / 1024 / 1024:.2f} MB)")
+    print(f"   👥 Clients: {clients_count}")
+    print(f"   📄 Pages: {pages_count}")
+    print()
+    print("📤 To sync to Railway:")
+    print(f"   1. Open: {RAILWAY_APP_URL}")
+    print("   2. Go to the 'Data Management' tab")
+    print(f"   3. Upload this file: {os.path.abspath(data_file)}")
+    print("   4. The app will smart-merge, preserving VA's work")
+    print()
+    print("✅ File is ready for upload!")
+    
+    return True
 
 
 if __name__ == "__main__":
