@@ -222,10 +222,20 @@ def sync_to_railway(data_file: str = "clients_data.json", preserve_va_work: bool
             # Try next endpoint
             continue
     
-    # All endpoints failed
+    # All endpoints failed - Railway is likely auto-detecting Streamlit and bypassing Flask
     print("❌ Could not connect to Railway sync API.")
     print(f"   Tried: {', '.join(sync_endpoints)}")
-    print("💡 Alternative: Use the 'Data Management' tab in the Streamlit app to upload manually.")
+    print()
+    print("⚠️  Railway is auto-detecting Streamlit and bypassing the Flask proxy.")
+    print("   This is a known Railway behavior with Nixpacks.")
+    print()
+    print("📤 To sync data:")
+    print(f"   1. Open: {RAILWAY_APP_URL}")
+    print("   2. Go to 'Data Management' tab")
+    print(f"   3. Upload: {os.path.abspath(data_file)}")
+    print("   4. The app will smart-merge, preserving VA's work")
+    print()
+    print("💡 Future: Railway service settings may allow manual start command override.")
     return False
 
 
