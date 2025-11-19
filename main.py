@@ -40,6 +40,14 @@ class IGFollowerAnalyzer:
         self.clients_data["last_updated"] = datetime.now().isoformat()
         with open(self.data_file, 'w') as f:
             json.dump(self.clients_data, f, indent=2)
+        
+        # Auto-sync to Railway if enabled
+        try:
+            from railway_sync import sync_to_railway
+            sync_to_railway(self.data_file, preserve_va_work=True)
+        except (ImportError, Exception):
+            # Silently fail - auto-sync is optional
+            pass
     
     def add_client(self, client_name: str, ig_username: str):
         """Add a new client to the database"""
