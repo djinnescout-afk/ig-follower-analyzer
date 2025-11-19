@@ -1023,14 +1023,22 @@ def main():
 
     # TAB 4: Data Management
     with tab4:
-        st.markdown("### 📤 Upload & Sync Data")
+        st.header("📤 Data Management")
         st.markdown("Upload your local `clients_data.json` to sync with Railway. VA's work will be preserved.")
+        st.markdown("---")
+        
+        st.markdown("### 📁 Upload File")
+        st.markdown("Click the button below to select and upload your `clients_data.json` file:")
         
         uploaded_file = st.file_uploader(
             "Choose clients_data.json file",
             type=['json'],
-            help="Upload your local clients_data.json file. It will be merged with existing data, preserving VA's categorization work."
+            help="Upload your local clients_data.json file. It will be merged with existing data, preserving VA's categorization work.",
+            label_visibility="visible"
         )
+        
+        if uploaded_file is None:
+            st.info("👆 Use the file picker above to upload your `clients_data.json` file")
         
         if uploaded_file is not None:
             try:
