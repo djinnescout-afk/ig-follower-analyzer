@@ -902,15 +902,16 @@ def main():
     
     # TAB 3: View by Category
     with tab3:
-        st.header("View Pages by Category")
-        
-        # Category tabs
-        category_list = ["UNCATEGORIZED"] + list(CATEGORIES.keys())
-        category_tabs = st.tabs([cat.replace("_", " ").title() for cat in category_list])
-        
-        for idx, category in enumerate(category_list):
-            with category_tabs[idx]:
-                pages_in_category = get_pages_by_category(data, category, min_clients=1)
+        try:
+            st.header("View Pages by Category")
+            
+            # Category tabs
+            category_list = ["UNCATEGORIZED"] + list(CATEGORIES.keys())
+            category_tabs = st.tabs([cat.replace("_", " ").title() for cat in category_list])
+            
+            for idx, category in enumerate(category_list):
+                with category_tabs[idx]:
+                    pages_in_category = get_pages_by_category(data, category, min_clients=1)
                 
                 if not pages_in_category:
                     st.info(f"No pages found in category: {category}")
@@ -1019,7 +1020,10 @@ def main():
                         if st.button(f"✏️ Quick Edit", key=f"edit_{username}_{category}"):
                             st.session_state.edit_page = username
                             st.rerun()
-
+        except Exception as e:
+            st.error(f"Error in View by Category tab: {str(e)}")
+            import traceback
+            st.code(traceback.format_exc())
 
     # TAB 4: Data Management
     with tab4:
