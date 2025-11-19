@@ -1027,8 +1027,13 @@ def main():
 
     # TAB 4: Data Management
     with tab4:
-        # Debug: Test if tab renders at all
-        st.write("TEST: Tab is rendering")
+        # Force render test
+        st.error("🔴 IF YOU SEE THIS, TAB4 IS RENDERING!")
+        st.success("✅ Tab4 content is executing!")
+        st.warning("⚠️ This is a test message")
+        st.info("ℹ️ If you see all these messages, the tab works!")
+        st.markdown("---")
+        
         st.header("📤 Data Management")
         st.markdown("Upload your local `clients_data.json` to sync with Railway. VA's work will be preserved.")
         st.markdown("---")
