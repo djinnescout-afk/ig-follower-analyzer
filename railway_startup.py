@@ -35,16 +35,20 @@ streamlit_process = subprocess.Popen([
 
 # Give Streamlit a moment to start
 time.sleep(3)
+print("✅ Streamlit started")
 
 # Start Flask sync API (foreground - handles /sync and proxies to Streamlit)
-print("🚀 Starting Flask sync API (proxy mode) on port $PORT...")
 main_port = os.environ.get("PORT", "8080")
-flask_process = subprocess.run([
-    sys.executable, "sync_api.py"],
-    env={**os.environ, "SYNC_PORT": main_port, "STREAMLIT_URL": f"http://localhost:{streamlit_port}"}
-)
+print(f"🚀 Starting Flask sync API (proxy mode) on port {main_port}...")
+print(f"   Streamlit URL: http://localhost:{streamlit_port}")
 
-# If Streamlit exits, kill Flask too
-flask_process.terminate()
-flask_process.wait()
+try:
+    flask_process = subprocess.run([
+        sys.executable, "sync_api.py"],
+        env={**os.environ, "SYNC_PORT": main_port, "STREAMLIT_URL": f"http://localhost:{streamlit_port}"}
+    )
+except KeyboardInterrupt:
+    print("\n🛑 Shutting down...")
+    streamlit_process.terminate()
+    streamlit_process.wait()
 
