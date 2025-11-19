@@ -1028,6 +1028,7 @@ def main():
         st.markdown("---")
         
         # Show current data status
+        current_data = None
         try:
             current_data = load_data()
             if current_data:
@@ -1039,6 +1040,8 @@ def main():
                     st.warning("⚠️ No data currently loaded. Upload your `clients_data.json` file to get started.")
         except Exception as e:
             st.warning(f"Could not load current data: {str(e)}")
+            import traceback
+            st.code(traceback.format_exc())
         
         st.markdown("### 📁 Upload File")
         st.markdown("**Method 1: File Uploader**")
