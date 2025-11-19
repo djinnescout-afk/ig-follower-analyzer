@@ -1023,74 +1023,98 @@ def main():
 
     # TAB 4: Data Management
     with tab4:
+        st.header("📤 Data Management")
+        st.markdown("Upload your local `clients_data.json` to sync with Railway. VA's work will be preserved.")
+        st.markdown("---")
+        
+        # Show current data status
         try:
-            st.header("📤 Data Management")
-            st.markdown("Upload your local `clients_data.json` to sync with Railway. VA's work will be preserved.")
-            st.markdown("---")
-            
-            st.markdown("### 📁 Upload File")
-            st.markdown("**Click the button below to select and upload your `clients_data.json` file:**")
-            
-            # Show current data status (with error handling)
-            try:
-                current_data = load_data()
-                if current_data:
-                    clients_count = len(current_data.get("clients", {}))
-                    pages_count = len(current_data.get("pages", {}))
-                    if clients_count > 0 or pages_count > 0:
-                        st.info(f"📊 Current data: {clients_count} clients, {pages_count} pages")
-                    else:
-                        st.warning("⚠️ No data currently loaded. Upload your `clients_data.json` file to get started.")
-            except Exception as e:
-                st.warning(f"Could not load current data: {str(e)}")
-            
-            # File uploader - make it very explicit
-            st.markdown("**File Upload:**")
-            uploaded_file = st.file_uploader(
-                "Choose clients_data.json file",
-                type=['json'],
-                help="Upload your local clients_data.json file. It will be merged with existing data, preserving VA's categorization work.",
-                label_visibility="visible",
-                key="data_upload_file"
-            )
-            
-            if uploaded_file is None:
-                st.info("👆 **Use the 'Browse files' button above to select and upload your `clients_data.json` file**")
-                st.markdown("---")
-                
-                # Alternative: Paste JSON directly if file uploader doesn't work
-                st.markdown("### 🔄 Alternative: Paste JSON Data")
-                st.markdown("If the file uploader above doesn't work, you can paste your JSON data here:")
-                json_text = st.text_area(
-                    "Paste your clients_data.json content here:",
-                    height=200,
-                    help="Copy the entire contents of your clients_data.json file and paste it here",
-                    key="json_paste_area"
-                )
-                
-                if json_text.strip():
-                    if st.button("📤 Upload Pasted JSON", key="upload_pasted_json"):
-                        try:
-                            new_data = json.loads(json_text)
-                            current_data = load_data()
-                            
-                            if current_data and (current_data.get("clients") or current_data.get("pages")):
-                                merged_data = merge_data_smart(current_data, new_data)
-                                save_data(merged_data)
-                                st.success("✅ Data uploaded and merged successfully! VA's work has been preserved.")
-                                st.info("🔄 Refresh the page to see updated data.")
-                            else:
-                                save_data(new_data)
-                                st.success("✅ Data uploaded successfully!")
-                                st.info("🔄 Refresh the page to see updated data.")
-                        except json.JSONDecodeError as e:
-                            st.error(f"❌ Invalid JSON: {str(e)}")
-                        except Exception as e:
-                            st.error(f"❌ Error: {str(e)}")
+            current_data = load_data()
+            if current_data:
+                clients_count = len(current_data.get("clients", {}))
+                pages_count = len(current_data.get("pages", {}))
+                if clients_count > 0 or pages_count > 0:
+                    st.info(f"📊 Current data: {clients_count} clients, {pages_count} pages")
+                else:
+                    st.warning("⚠️ No data currently loaded. Upload your `clients_data.json` file to get started.")
         except Exception as e:
-            st.error(f"Error loading Data Management tab: {str(e)}")
-            import traceback
-            st.code(traceback.format_exc())
+            st.warning(f"Could not load current data: {str(e)}")
+        
+        st.markdown("### 📁 Upload File")
+        st.markdown("**Method 1: File Uploader**")
+        
+        # File uploader
+        uploaded_file = st.file_uploader(
+            "Choose clients_data.json file",
+            type=['json'],
+            help="Upload your local clients_data.json file. It will be merged with existing data, preserving VA's categorization work.",
+            key="data_upload_file"
+        )
+        
+        if uploaded_file is not None:
+            try:
+                # Read uploaded file
+                new_data = json.load(uploaded_file)
+                
+                # Load current data
+                current_data = load_data()
+                
+                if current_data and (current_data.get("clients") or current_data.get("pages")):
+                    st.info("🔄 Merging uploaded data with existing data (preserving VA's work)...")
+                    
+                    # Merge data (preserve VA's work)
+                    merged_data = merge_data_smart(current_data, new_data)
+                    
+                    # Save merged data
+                    save_data(merged_data)
+                    
+                    st.success("✅ Data uploaded and merged successfully! VA's work has been preserved.")
+                    st.info("🔄 Refresh the page to see updated data.")
+                else:
+                    # No existing data, just save the uploaded file
+                    save_data(new_data)
+                    st.success("✅ Data uploaded successfully!")
+                    st.info("🔄 Refresh the page to see updated data.")
+                    
+            except json.JSONDecodeError:
+                st.error("❌ Invalid JSON file. Please upload a valid clients_data.json file.")
+            except Exception as e:
+                st.error(f"❌ Error uploading file: {str(e)}")
+                import traceback
+                st.code(traceback.format_exc())
+        
+        st.markdown("---")
+        st.markdown("### 🔄 Method 2: Paste JSON Data")
+        st.markdown("If the file uploader doesn't work, paste your JSON data here:")
+        
+        json_text = st.text_area(
+            "Paste your clients_data.json content here:",
+            height=200,
+            help="Copy the entire contents of your clients_data.json file and paste it here",
+            key="json_paste_area"
+        )
+        
+        if json_text.strip():
+            if st.button("📤 Upload Pasted JSON", key="upload_pasted_json"):
+                try:
+                    new_data = json.loads(json_text)
+                    current_data = load_data()
+                    
+                    if current_data and (current_data.get("clients") or current_data.get("pages")):
+                        merged_data = merge_data_smart(current_data, new_data)
+                        save_data(merged_data)
+                        st.success("✅ Data uploaded and merged successfully! VA's work has been preserved.")
+                        st.info("🔄 Refresh the page to see updated data.")
+                    else:
+                        save_data(new_data)
+                        st.success("✅ Data uploaded successfully!")
+                        st.info("🔄 Refresh the page to see updated data.")
+                except json.JSONDecodeError as e:
+                    st.error(f"❌ Invalid JSON: {str(e)}")
+                except Exception as e:
+                    st.error(f"❌ Error: {str(e)}")
+                    import traceback
+                    st.code(traceback.format_exc())
         
         if uploaded_file is not None:
             try:
