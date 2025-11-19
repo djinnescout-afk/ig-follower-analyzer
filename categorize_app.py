@@ -460,7 +460,7 @@ def main():
                     data["clients"] = clients
                     save_data(data)
                     st.success(f"✅ Added client @{normalized}")
-                    st.experimental_rerun()
+                    st.rerun()
         
         st.markdown("### 📋 Client Status")
         if not clients:
@@ -504,7 +504,7 @@ def main():
                     run_client_scrape(client_usernames)
             with scrape_col3:
                 if st.button("Refresh Client Table"):
-                    st.experimental_rerun()
+                    st.rerun()
         
         st.markdown("---")
         st.subheader("📸 Profile Scraper (Posts, Bios, Promo Signals)")
@@ -716,189 +716,195 @@ def main():
     
     # TAB 2: Edit Page Details
     with tab2:
-        st.header("Edit Page Details")
-        
-        # Search/select page
-        pages = data.get("pages", {})
-        page_usernames = sorted(pages.keys())
-        
-        if not page_usernames:
-            st.info("No pages available yet. Run the scraper first.")
-        else:
-            # Handle quick-edit jumps
-            if st.session_state.edit_page and st.session_state.edit_page in page_usernames:
-                st.session_state.edit_page_select = st.session_state.edit_page
-                st.session_state.edit_page = None
+        try:
+            st.error("🔴 TAB2 TEST - IF YOU SEE THIS, TAB2 IS WORKING!")
+            st.header("Edit Page Details")
             
-            # Jump-to-page controls
-            jump_col1, jump_col2 = st.columns([3, 1])
-            with jump_col1:
-                jump_input = st.text_input(
-                    "Go directly to username",
-                    value="",
-                    key="page_jump_input",
-                    placeholder="@username or username"
+            # Search/select page
+            pages = data.get("pages", {})
+            page_usernames = sorted(pages.keys())
+            
+            if not page_usernames:
+                st.info("No pages available yet. Run the scraper first.")
+            else:
+                # Handle quick-edit jumps
+                if st.session_state.edit_page and st.session_state.edit_page in page_usernames:
+                    st.session_state.edit_page_select = st.session_state.edit_page
+                    st.session_state.edit_page = None
+                
+                # Jump-to-page controls
+                jump_col1, jump_col2 = st.columns([3, 1])
+                with jump_col1:
+                    jump_input = st.text_input(
+                        "Go directly to username",
+                        value="",
+                        key="page_jump_input",
+                        placeholder="@username or username"
+                    )
+                with jump_col2:
+                    if st.button("Go", key="page_jump_button"):
+                        normalized = jump_input.strip().lstrip('@').lower()
+                        match = next((u for u in page_usernames if u.lower() == normalized), None)
+                        if match:
+                            st.session_state.edit_page_select = match
+                            st.success(f"Jumped to @{match}")
+                            st.rerun()
+                        else:
+                            st.warning("Username not found in current dataset.")
+                
+                selected_username = st.selectbox(
+                    "Select Page",
+                    page_usernames,
+                    key="edit_page_select",
+                    help="Type to search or use the jump box above for exact usernames."
                 )
-            with jump_col2:
-                if st.button("Go", key="page_jump_button"):
-                    normalized = jump_input.strip().lstrip('@').lower()
-                    match = next((u for u in page_usernames if u.lower() == normalized), None)
-                    if match:
-                        st.session_state.edit_page_select = match
-                        st.success(f"Jumped to @{match}")
-                        st.experimental_rerun()
-                    else:
-                        st.warning("Username not found in current dataset.")
-            
-            selected_username = st.selectbox(
-                "Select Page",
-                page_usernames,
-                key="edit_page_select",
-                help="Type to search or use the jump box above for exact usernames."
-            )
-            
-            if selected_username:
-                page_data = pages[selected_username]
                 
-                st.markdown(f"### @{selected_username}")
-                st.markdown(f"**{page_data.get('full_name', 'N/A')}**")
-                
-                col1, col2 = st.columns(2)
-                
-                with col1:
-                    st.markdown("#### Contact Information")
+                if selected_username:
+                    page_data = pages[selected_username]
                     
-                    # Known contact methods
-                    known_methods = page_data.get("known_contact_methods", [])
-                    selected_known = st.multiselect(
-                        "Known Contact Methods",
-                        CONTACT_METHODS,
-                        default=known_methods,
-                        key="known_methods"
-                    )
+                    st.markdown(f"### @{selected_username}")
+                    st.markdown(f"**{page_data.get('full_name', 'N/A')}**")
                     
-                    # Successful contact method
-                    successful_method = page_data.get("successful_contact_method")
-                    selected_successful = st.selectbox(
-                        "Successful Contact Method",
-                        [None] + CONTACT_METHODS,
-                        index=0 if successful_method is None else CONTACT_METHODS.index(successful_method) + 1,
-                        key="successful_method"
-                    )
+                    col1, col2 = st.columns(2)
                     
-                    # Current main contact method
-                    current_main = page_data.get("current_main_contact_method")
-                    selected_main = st.selectbox(
-                        "Current Main Contact Method",
-                        [None] + CONTACT_METHODS,
-                        index=0 if current_main is None else CONTACT_METHODS.index(current_main) + 1,
-                        key="main_method"
-                    )
-                    
-                    # IG Account for DM (only show if IG DM is in known methods or is the main method)
-                    ig_account_dm = page_data.get("ig_account_for_dm", "")
-                    if "IG DM" in selected_known or selected_main == "IG DM":
-                        ig_account_input = st.text_input(
-                            "IG Account Used for DM",
-                            value=ig_account_dm,
-                            placeholder="e.g., @your_account",
-                            key="ig_account_dm",
-                            help="Which Instagram account username you use to DM this page"
+                    with col1:
+                        st.markdown("#### Contact Information")
+                        
+                        # Known contact methods
+                        known_methods = page_data.get("known_contact_methods", [])
+                        selected_known = st.multiselect(
+                            "Known Contact Methods",
+                            CONTACT_METHODS,
+                            default=known_methods,
+                            key="known_methods"
                         )
-                    else:
-                        ig_account_input = ""
-                
-                with col2:
-                    st.markdown("#### Pricing & Promo Status")
+                        
+                        # Successful contact method
+                        successful_method = page_data.get("successful_contact_method")
+                        selected_successful = st.selectbox(
+                            "Successful Contact Method",
+                            [None] + CONTACT_METHODS,
+                            index=0 if successful_method is None else CONTACT_METHODS.index(successful_method) + 1,
+                            key="successful_method"
+                        )
+                        
+                        # Current main contact method
+                        current_main = page_data.get("current_main_contact_method")
+                        selected_main = st.selectbox(
+                            "Current Main Contact Method",
+                            [None] + CONTACT_METHODS,
+                            index=0 if current_main is None else CONTACT_METHODS.index(current_main) + 1,
+                            key="main_method"
+                        )
+                        
+                        # IG Account for DM (only show if IG DM is in known methods or is the main method)
+                        ig_account_dm = page_data.get("ig_account_for_dm", "")
+                        if "IG DM" in selected_known or selected_main == "IG DM":
+                            ig_account_input = st.text_input(
+                                "IG Account Used for DM",
+                                value=ig_account_dm,
+                                placeholder="e.g., @your_account",
+                                key="ig_account_dm",
+                                help="Which Instagram account username you use to DM this page"
+                            )
+                        else:
+                            ig_account_input = ""
                     
-                    # Promo price
-                    promo_price = page_data.get("promo_price")
-                    new_price = st.number_input(
-                        "Promo Price ($)",
-                        min_value=0.0,
-                        value=float(promo_price) if promo_price else 0.0,
-                        step=10.0,
-                        key="promo_price"
-                    )
+                    with col2:
+                        st.markdown("#### Pricing & Promo Status")
+                        
+                        # Promo price
+                        promo_price = page_data.get("promo_price")
+                        new_price = st.number_input(
+                            "Promo Price ($)",
+                            min_value=0.0,
+                            value=float(promo_price) if promo_price else 0.0,
+                            step=10.0,
+                            key="promo_price"
+                        )
+                        
+                        # Promo status (manual override)
+                        current_promo_status = page_data.get("promo_status", "Unknown")
+                        promo_status_options = ["Unknown", "Warm", "Not Open"]
+                        selected_promo_status = st.selectbox(
+                            "Promo Status",
+                            promo_status_options,
+                            index=promo_status_options.index(current_promo_status) if current_promo_status in promo_status_options else 0,
+                            key="promo_status",
+                            help="Manually set or override the promo status detected from bio/highlights"
+                        )
+                        
+                        # Display current promo indicators
+                        promo_indicators = page_data.get("promo_indicators", [])
+                        if promo_indicators:
+                            st.markdown("**Auto-detected Indicators:**")
+                            for indicator in promo_indicators:
+                                st.text(f"  • {indicator}")
+                        
+                        # Website URL
+                        website_url = page_data.get("website_url", "")
+                        website_input = st.text_input(
+                            "Website URL",
+                            value=website_url,
+                            placeholder="https://example.com",
+                            key="website_url",
+                            help="Website URL from bio or link in bio (auto-detected during scraping)"
+                        )
+                        
+                        # Website Promo Info (auto-detected)
+                        website_promo_info = page_data.get("website_promo_info")
+                        if website_promo_info:
+                            st.markdown("**🌐 Website Promo Detection:**")
+                            if website_promo_info.get("has_promo_mention"):
+                                st.success("✅ Website mentions promo/advertising")
+                            if website_promo_info.get("has_promo_page"):
+                                st.success("✅ Website has promo/buy page")
+                                promo_urls = website_promo_info.get("promo_page_urls", [])
+                                if promo_urls:
+                                    for url in promo_urls[:3]:  # Show first 3
+                                        st.text(f"  • {url}")
+                            if website_promo_info.get("has_contact_email"):
+                                st.success("✅ Website has contact email for promo")
+                                emails = website_promo_info.get("contact_emails", [])
+                                if emails:
+                                    for email in emails:
+                                        st.text(f"  • {email}")
+                            if website_promo_info.get("has_contact_form"):
+                                st.success("✅ Website has contact form")
+                                forms = website_promo_info.get("contact_forms", [])
+                                if forms:
+                                    for form in forms[:3]:  # Show first 3
+                                        form_details = []
+                                        if form.get("has_email_field"):
+                                            form_details.append("email field")
+                                        if form.get("has_message_field"):
+                                            form_details.append("message field")
+                                        details_str = f" ({', '.join(form_details)})" if form_details else ""
+                                        st.text(f"  • {form.get('url', 'N/A')}{details_str}")
+                        
+                        # Display current values
+                        st.markdown("#### Current Values")
+                        st.text(f"Category: {page_data.get('category', 'N/A')}")
+                        st.text(f"Followers: {page_data.get('follower_count', 0):,}")
+                        st.text(f"Clients Following: {len(page_data.get('clients_following', []))}")
                     
-                    # Promo status (manual override)
-                    current_promo_status = page_data.get("promo_status", "Unknown")
-                    promo_status_options = ["Unknown", "Warm", "Not Open"]
-                    selected_promo_status = st.selectbox(
-                        "Promo Status",
-                        promo_status_options,
-                        index=promo_status_options.index(current_promo_status) if current_promo_status in promo_status_options else 0,
-                        key="promo_status",
-                        help="Manually set or override the promo status detected from bio/highlights"
-                    )
-                    
-                    # Display current promo indicators
-                    promo_indicators = page_data.get("promo_indicators", [])
-                    if promo_indicators:
-                        st.markdown("**Auto-detected Indicators:**")
-                        for indicator in promo_indicators:
-                            st.text(f"  • {indicator}")
-                    
-                    # Website URL
-                    website_url = page_data.get("website_url", "")
-                    website_input = st.text_input(
-                        "Website URL",
-                        value=website_url,
-                        placeholder="https://example.com",
-                        key="website_url",
-                        help="Website URL from bio or link in bio (auto-detected during scraping)"
-                    )
-                    
-                    # Website Promo Info (auto-detected)
-                    website_promo_info = page_data.get("website_promo_info")
-                    if website_promo_info:
-                        st.markdown("**🌐 Website Promo Detection:**")
-                        if website_promo_info.get("has_promo_mention"):
-                            st.success("✅ Website mentions promo/advertising")
-                        if website_promo_info.get("has_promo_page"):
-                            st.success("✅ Website has promo/buy page")
-                            promo_urls = website_promo_info.get("promo_page_urls", [])
-                            if promo_urls:
-                                for url in promo_urls[:3]:  # Show first 3
-                                    st.text(f"  • {url}")
-                        if website_promo_info.get("has_contact_email"):
-                            st.success("✅ Website has contact email for promo")
-                            emails = website_promo_info.get("contact_emails", [])
-                            if emails:
-                                for email in emails:
-                                    st.text(f"  • {email}")
-                        if website_promo_info.get("has_contact_form"):
-                            st.success("✅ Website has contact form")
-                            forms = website_promo_info.get("contact_forms", [])
-                            if forms:
-                                for form in forms[:3]:  # Show first 3
-                                    form_details = []
-                                    if form.get("has_email_field"):
-                                        form_details.append("email field")
-                                    if form.get("has_message_field"):
-                                        form_details.append("message field")
-                                    details_str = f" ({', '.join(form_details)})" if form_details else ""
-                                    st.text(f"  • {form.get('url', 'N/A')}{details_str}")
-                    
-                    # Display current values
-                    st.markdown("#### Current Values")
-                    st.text(f"Category: {page_data.get('category', 'N/A')}")
-                    st.text(f"Followers: {page_data.get('follower_count', 0):,}")
-                    st.text(f"Clients Following: {len(page_data.get('clients_following', []))}")
-                
-                # Save button
-                if st.button("💾 Save Changes", type="primary"):
-                    page_data["known_contact_methods"] = selected_known
-                    page_data["successful_contact_method"] = selected_successful
-                    page_data["current_main_contact_method"] = selected_main
-                    page_data["ig_account_for_dm"] = ig_account_input if ig_account_input else None
-                    page_data["promo_price"] = new_price if new_price > 0 else None
-                    page_data["promo_status"] = selected_promo_status
-                    page_data["website_url"] = website_input if website_input else None
-                    
-                    save_data(data)
-                    st.success("✅ Changes saved!")
-                    st.rerun()
+                    # Save button
+                    if st.button("💾 Save Changes", type="primary"):
+                        page_data["known_contact_methods"] = selected_known
+                        page_data["successful_contact_method"] = selected_successful
+                        page_data["current_main_contact_method"] = selected_main
+                        page_data["ig_account_for_dm"] = ig_account_input if ig_account_input else None
+                        page_data["promo_price"] = new_price if new_price > 0 else None
+                        page_data["promo_status"] = selected_promo_status
+                        page_data["website_url"] = website_input if website_input else None
+                        
+                        save_data(data)
+                        st.success("✅ Changes saved!")
+                        st.rerun()
+        except Exception as e:
+            st.error(f"Error in Edit Page Details tab: {str(e)}")
+            import traceback
+            st.code(traceback.format_exc())
     
     # TAB 4: View by Category (temporarily moved to last position)
     with tab4:
