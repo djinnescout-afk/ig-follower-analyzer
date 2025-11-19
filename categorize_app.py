@@ -652,6 +652,11 @@ def main():
                             data["pages"][username]["category"] = selected_cat
                             data["pages"][username]["last_categorized"] = datetime.now().isoformat()
                             save_data(data)
+                            
+                            # Update session state cache
+                            st.session_state.cached_data = data
+                            load_data_cached.clear()  # Clear Streamlit cache
+                            
                             st.success("💾 Saved!")
                     
                     st.session_state.current_page_idx = min(total_pages - 1, st.session_state.current_page_idx + 1)
@@ -965,6 +970,11 @@ def main():
                         page_data["website_url"] = website_input if website_input else None
                         
                         save_data(data)
+                        
+                        # Update session state cache
+                        st.session_state.cached_data = data
+                        load_data_cached.clear()  # Clear Streamlit cache
+                        
                         st.success("✅ Changes saved!")
                         st.rerun()
         except Exception as e:
@@ -1152,6 +1162,10 @@ def main():
                     
                     # Save merged data
                     save_data(merged_data)
+                    
+                    # Update session state cache
+                    st.session_state.cached_data = merged_data
+                    load_data_cached.clear()  # Clear Streamlit cache
                     
                     st.success("✅ Data uploaded and merged successfully! VA's work has been preserved.")
                     st.info("🔄 Refresh the page to see updated data.")
