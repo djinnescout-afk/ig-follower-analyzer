@@ -520,16 +520,23 @@ def main():
                 help="Select specific clients or use the buttons below for batch actions."
             )
             
+            # Option to skip validation (validation can give false negatives)
+            skip_validation = st.checkbox(
+                "Skip account validation (faster, but may attempt to scrape private accounts)",
+                value=False,
+                help="If validation is giving false 'account does not exist' errors, enable this to skip validation and attempt scraping directly."
+            )
+            
             scrape_col1, scrape_col2, scrape_col3 = st.columns([1, 1, 1])
             with scrape_col1:
                 if st.button("Scrape Selected Clients", type="primary"):
                     if not selected_clients:
                         st.warning("Select at least one client.")
                     else:
-                        run_client_scrape(selected_clients)
+                        run_client_scrape(selected_clients, skip_validation=skip_validation)
             with scrape_col2:
                 if st.button("Scrape All Clients"):
-                    run_client_scrape(client_usernames)
+                    run_client_scrape(client_usernames, skip_validation=skip_validation)
             with scrape_col3:
                 if st.button("Refresh Client Table"):
                     st.rerun()
