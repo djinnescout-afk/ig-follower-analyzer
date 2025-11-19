@@ -227,7 +227,10 @@ def load_data(data_file: str = None) -> Optional[Dict]:
             return None
     
     with open(data_file, 'r', encoding='utf-8') as f:
-        return json.load(f)
+        data = json.load(f)
+        # Debug: Show actual counts
+        st.caption(f"✅ Loaded {len(data.get('clients', {}))} clients, {len(data.get('pages', {}))} pages from file")
+        return data
 
 
 def save_data(data: Dict, data_file: str = None):
