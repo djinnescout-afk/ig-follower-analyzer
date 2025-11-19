@@ -602,17 +602,17 @@ def main():
             
             # Display current page
             if st.session_state.current_page_idx < len(pages_list):
-            username, page_data = pages_list[st.session_state.current_page_idx]
-            
-            # Check if hotlist
-            is_hotlist = matches_hotlist(page_data)
-            if is_hotlist:
-                st.markdown("### 🔥 **PRIORITY PAGE** (Matches hotlist keywords)")
-            
-            # Profile info
-            col1, col2 = st.columns([1, 2])
-            
-            with col1:
+                username, page_data = pages_list[st.session_state.current_page_idx]
+                
+                # Check if hotlist
+                is_hotlist = matches_hotlist(page_data)
+                if is_hotlist:
+                    st.markdown("### 🔥 **PRIORITY PAGE** (Matches hotlist keywords)")
+                
+                # Profile info
+                col1, col2 = st.columns([1, 2])
+                
+                with col1:
                 # Profile picture - try base64 first, fallback to URL
                 profile_data = page_data.get("profile_data")
                 if profile_data and isinstance(profile_data, dict):
@@ -640,87 +640,87 @@ def main():
                 else:
                     st.info("📷 Profile picture not scraped yet. Run scrape_profiles.py")
                 
-                # Basic stats
-                st.metric("Followers", f"{page_data.get('follower_count', 0):,}")
-                st.metric("Clients Following", len(page_data.get("clients_following", [])))
-            
-            with col2:
-                st.markdown(f"### @{username}")
-                st.markdown(f"**{page_data.get('full_name', 'N/A')}**")
+                    # Basic stats
+                    st.metric("Followers", f"{page_data.get('follower_count', 0):,}")
+                    st.metric("Clients Following", len(page_data.get("clients_following", [])))
                 
-                # Bio
-                if profile_data and isinstance(profile_data, dict) and profile_data.get("bio"):
-                    st.markdown("**Bio:**")
-                    st.markdown(profile_data["bio"])
+                with col2:
+                    st.markdown(f"### @{username}")
+                    st.markdown(f"**{page_data.get('full_name', 'N/A')}**")
+                    
+                    # Bio
+                    if profile_data and isinstance(profile_data, dict) and profile_data.get("bio"):
+                        st.markdown("**Bio:**")
+                        st.markdown(profile_data["bio"])
+                    else:
+                        st.info("Bio not available. Run scrape_profiles.py")
+                
+                # Recent posts
+                st.markdown("---")
+                st.markdown("### Recent Posts")
+                
+                show_captions = st.checkbox("Show Captions", value=False)
+                
+                if profile_data and isinstance(profile_data, dict) and profile_data.get("posts"):
+                    posts = profile_data["posts"][:12]  # Show up to 12 posts
+                    
+                    # Display in grid
+                    cols = st.columns(3)
+                    for idx, post in enumerate(posts):
+                        col_idx = idx % 3
+                        with cols[col_idx]:
+                            # Try base64 first (doesn't expire), fallback to URL
+                            image_displayed = False
+                            if post.get("image_base64") and post.get("image_mime_type"):
+                                try:
+                                    # Display base64 image
+                                    data_uri = f"data:{post['image_mime_type']};base64,{post['image_base64']}"
+                                    st.image(data_uri, use_container_width=True)
+                                    image_displayed = True
+                                except Exception as e:
+                                    # Fallback to URL if base64 fails
+                                    pass
+                            
+                            # Fallback to URL if base64 not available
+                            if not image_displayed and post.get("image_url"):
+                                try:
+                                    st.image(post["image_url"], use_container_width=True)
+                                    image_displayed = True
+                                except Exception as e:
+                                    st.error("Image unavailable (URL expired)")
+                            
+                            if not image_displayed:
+                                st.info("📷 Image not available")
+                            
+                            if show_captions and post.get("caption"):
+                                caption = post["caption"][:100] + "..." if len(post.get("caption", "")) > 100 else post.get("caption", "")
+                                st.caption(caption)
                 else:
-                    st.info("Bio not available. Run scrape_profiles.py")
-            
-            # Recent posts
-            st.markdown("---")
-            st.markdown("### Recent Posts")
-            
-            show_captions = st.checkbox("Show Captions", value=False)
-            
-            if profile_data and isinstance(profile_data, dict) and profile_data.get("posts"):
-                posts = profile_data["posts"][:12]  # Show up to 12 posts
+                    st.info("📸 Posts not scraped yet. Run scrape_profiles.py")
                 
-                # Display in grid
-                cols = st.columns(3)
-                for idx, post in enumerate(posts):
-                    col_idx = idx % 3
-                    with cols[col_idx]:
-                        # Try base64 first (doesn't expire), fallback to URL
-                        image_displayed = False
-                        if post.get("image_base64") and post.get("image_mime_type"):
-                            try:
-                                # Display base64 image
-                                data_uri = f"data:{post['image_mime_type']};base64,{post['image_base64']}"
-                                st.image(data_uri, use_container_width=True)
-                                image_displayed = True
-                            except Exception as e:
-                                # Fallback to URL if base64 fails
-                                pass
-                        
-                        # Fallback to URL if base64 not available
-                        if not image_displayed and post.get("image_url"):
-                            try:
-                                st.image(post["image_url"], use_container_width=True)
-                                image_displayed = True
-                            except Exception as e:
-                                st.error("Image unavailable (URL expired)")
-                        
-                        if not image_displayed:
-                            st.info("📷 Image not available")
-                        
-                        if show_captions and post.get("caption"):
-                            caption = post["caption"][:100] + "..." if len(post.get("caption", "")) > 100 else post.get("caption", "")
-                            st.caption(caption)
+                # Category selection
+                st.markdown("---")
+                st.markdown("### Select Category")
+                
+                current_category = page_data.get("category", "UNKNOWN")
+                category_options = ["UNKNOWN"] + list(CATEGORIES.keys())
+                
+                selected = st.selectbox(
+                    "Category",
+                    category_options,
+                    index=category_options.index(current_category) if current_category in category_options else 0,
+                    key=f"category_{username}"
+                )
+                
+                # Store selection
+                st.session_state.selected_category[username] = selected
+                
+                # Show category description
+                if selected != "UNKNOWN" and selected in CATEGORIES:
+                    st.info(f"**{selected.replace('_', ' ')}**: {CATEGORIES[selected]}")
             else:
-                st.info("📸 Posts not scraped yet. Run scrape_profiles.py")
-            
-            # Category selection
-            st.markdown("---")
-            st.markdown("### Select Category")
-            
-            current_category = page_data.get("category", "UNKNOWN")
-            category_options = ["UNKNOWN"] + list(CATEGORIES.keys())
-            
-            selected = st.selectbox(
-                "Category",
-                category_options,
-                index=category_options.index(current_category) if current_category in category_options else 0,
-                key=f"category_{username}"
-            )
-            
-            # Store selection
-            st.session_state.selected_category[username] = selected
-            
-            # Show category description
-            if selected != "UNKNOWN" and selected in CATEGORIES:
-                st.info(f"**{selected.replace('_', ' ')}**: {CATEGORIES[selected]}")
-        else:
-            # No pages to display
-            st.info("No pages to display. Adjust your filters or add more pages.")
+                # No pages to display
+                st.info("No pages to display. Adjust your filters or add more pages.")
     
     # TAB 2: Edit Page Details
     with tab2:
