@@ -1028,17 +1028,28 @@ def main():
         st.markdown("---")
         
         st.markdown("### 📁 Upload File")
-        st.markdown("Click the button below to select and upload your `clients_data.json` file:")
+        st.markdown("**Click the button below to select and upload your `clients_data.json` file:**")
+        
+        # Show current data status
+        current_data = load_data()
+        if current_data:
+            clients_count = len(current_data.get("clients", {}))
+            pages_count = len(current_data.get("pages", {}))
+            if clients_count > 0 or pages_count > 0:
+                st.info(f"📊 Current data: {clients_count} clients, {pages_count} pages")
+            else:
+                st.warning("⚠️ No data currently loaded. Upload your `clients_data.json` file to get started.")
         
         uploaded_file = st.file_uploader(
-            "Choose clients_data.json file",
+            "📎 Choose clients_data.json file",
             type=['json'],
             help="Upload your local clients_data.json file. It will be merged with existing data, preserving VA's categorization work.",
             label_visibility="visible"
         )
         
         if uploaded_file is None:
-            st.info("👆 Use the file picker above to upload your `clients_data.json` file")
+            st.info("👆 **Use the 'Browse files' button above to select and upload your `clients_data.json` file**")
+            st.markdown("---")
         
         if uploaded_file is not None:
             try:
