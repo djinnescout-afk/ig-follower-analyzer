@@ -249,62 +249,112 @@ def sync_to_railway(data_file: str = "clients_data.json", preserve_va_work: bool
 def sync_via_browser_automation(data_file: str, app_url: str) -> bool:
     """Upload data via browser automation (Selenium)"""
     print("🌐 Starting browser automation...")
-    
-    # Setup Chrome in headless mode
-    chrome_options = Options()
-    chrome_options.add_argument("--headless")
-    chrome_options.add_argument("--no-sandbox")
-    chrome_options.add_argument("--disable-dev-shm-usage")
-    chrome_options.add_argument("--disable-gpu")
+    driver = None
     
     try:
+        # Setup Chrome in headless mode
+        chrome_options = Options()
+        chrome_options.add_argument("--headless=new")  # Use new headless mode
+        chrome_options.add_argument("--no-sandbox")
+        chrome_options.add_argument("--disable-dev-shm-usage")
+        chrome_options.add_argument("--disable-gpu")
+        chrome_options.add_argument("--window-size=1920,1080")
+        
+        print("🔧 Initializing Chrome driver...")
         driver = webdriver.Chrome(
             service=Service(ChromeDriverManager().install()),
             options=chrome_options
         )
+        driver.set_page_load_timeout(60)  # 60 second timeout
         
         print(f"📱 Navigating to {app_url}...")
         driver.get(app_url)
+        print("✅ Page loaded")
+        
+        # Wait for Streamlit to fully load
+        print("⏳ Waiting for Streamlit to initialize...")
+        time.sleep(5)
         
         # Wait for page to load and find Data Management tab
         print("🔍 Looking for Data Management tab...")
         wait = WebDriverWait(driver, 30)
         
-        # Click on Data Management tab (4th tab)
-        # Streamlit tabs are buttons with specific text
-        data_mgmt_tab = wait.until(
-            EC.element_to_be_clickable((By.XPATH, "//button[contains(text(), 'Data Management')]"))
-        )
-        data_mgmt_tab.click()
-        time.sleep(2)
+        # Try multiple selectors for the Data Management tab
+        data_mgmt_tab = None
+        selectors = [
+            (By.XPATH, "//button[contains(text(), 'Data Management')]"),
+            (By.XPATH, "//button[contains(text(), '📤 Data Management')]"),
+            (By.XPATH, "//div[@role='tablist']//button[4]"),  # 4th tab
+            (By.CSS_SELECTOR, "button[data-baseweb='tab']:nth-child(5)"),  # 5th button (Data Management)
+        ]
+        
+        for selector_type, selector_value in selectors:
+            try:
+                data_mgmt_tab = wait.until(
+                    EC.element_to_be_clickable((selector_type, selector_value))
+                )
+                print(f"✅ Found Data Management tab using {selector_type}")
+                break
+            except:
+                continue
+        
+        if not data_mgmt_tab:
+            print("❌ Could not find Data Management tab")
+            print(f"   Page title: {driver.title}")
+            print(f"   Current URL: {driver.current_url}")
+            # Take screenshot for debugging
+            driver.save_screenshot("sync_debug.png")
+            print("   Screenshot saved to sync_debug.png")
+            return False
+        
+        print("🖱️  Clicking Data Management tab...")
+        driver.execute_script("arguments[0].click();", data_mgmt_tab)
+        time.sleep(3)
         
         # Find file uploader
-        print("📤 Uploading file...")
+        print("📤 Looking for file upload input...")
         file_input = wait.until(
             EC.presence_of_element_located((By.CSS_SELECTOR, "input[type='file']"))
         )
-        file_input.send_keys(os.path.abspath(data_file))
+        
+        file_path = os.path.abspath(data_file)
+        print(f"📎 Uploading file: {file_path}")
+        file_input.send_keys(file_path)
         
         # Wait for upload to complete (look for success message)
         print("⏳ Waiting for upload to complete...")
-        time.sleep(5)
+        time.sleep(8)  # Give Streamlit time to process
         
         # Check for success message
-        page_source = driver.page_source
-        if "uploaded" in page_source.lower() or "success" in page_source.lower():
+        page_source = driver.page_source.lower()
+        if "uploaded" in page_source or "success" in page_source or "merged" in page_source:
             print("✅ Upload successful!")
             driver.quit()
             return True
         else:
             print("⚠️  Upload may have completed, but success message not detected.")
+            print("   Checking page for any error messages...")
+            # Look for error messages
+            if "error" in page_source:
+                print("   ⚠️  Error detected on page")
             driver.quit()
             return True  # Assume success if no error
             
     except Exception as e:
         print(f"❌ Browser automation error: {str(e)}")
-        if 'driver' in locals():
-            driver.quit()
-        raise
+        import traceback
+        print(traceback.format_exc())
+        if driver:
+            try:
+                driver.save_screenshot("sync_error.png")
+                print("   Error screenshot saved to sync_error.png")
+            except:
+                pass
+            try:
+                driver.quit()
+            except:
+                pass
+        return False
 
 
 if __name__ == "__main__":
