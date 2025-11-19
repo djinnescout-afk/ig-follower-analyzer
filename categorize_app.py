@@ -1057,6 +1057,36 @@ def main():
             if uploaded_file is None:
                 st.info("👆 **Use the 'Browse files' button above to select and upload your `clients_data.json` file**")
                 st.markdown("---")
+                
+                # Alternative: Paste JSON directly if file uploader doesn't work
+                st.markdown("### 🔄 Alternative: Paste JSON Data")
+                st.markdown("If the file uploader above doesn't work, you can paste your JSON data here:")
+                json_text = st.text_area(
+                    "Paste your clients_data.json content here:",
+                    height=200,
+                    help="Copy the entire contents of your clients_data.json file and paste it here",
+                    key="json_paste_area"
+                )
+                
+                if json_text.strip():
+                    if st.button("📤 Upload Pasted JSON", key="upload_pasted_json"):
+                        try:
+                            new_data = json.loads(json_text)
+                            current_data = load_data()
+                            
+                            if current_data and (current_data.get("clients") or current_data.get("pages")):
+                                merged_data = merge_data_smart(current_data, new_data)
+                                save_data(merged_data)
+                                st.success("✅ Data uploaded and merged successfully! VA's work has been preserved.")
+                                st.info("🔄 Refresh the page to see updated data.")
+                            else:
+                                save_data(new_data)
+                                st.success("✅ Data uploaded successfully!")
+                                st.info("🔄 Refresh the page to see updated data.")
+                        except json.JSONDecodeError as e:
+                            st.error(f"❌ Invalid JSON: {str(e)}")
+                        except Exception as e:
+                            st.error(f"❌ Error: {str(e)}")
         except Exception as e:
             st.error(f"Error loading Data Management tab: {str(e)}")
             import traceback
