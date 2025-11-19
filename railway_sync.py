@@ -9,6 +9,18 @@ import sys
 import requests
 import time
 from typing import Dict, Optional
+
+# Fix Windows console encoding for emojis
+if sys.platform == 'win32':
+    try:
+        if hasattr(sys.stdout, 'reconfigure'):
+            sys.stdout.reconfigure(encoding='utf-8')
+        elif hasattr(sys.stdout, 'encoding'):
+            # Force UTF-8 if possible
+            import io
+            sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding='utf-8', errors='replace')
+    except:
+        pass  # Fallback to default encoding
 from selenium import webdriver
 from selenium.webdriver.common.by import By
 from selenium.webdriver.support.ui import WebDriverWait
@@ -95,24 +107,91 @@ def download_current_data() -> Optional[Dict]:
 
 def find_railway_cli() -> Optional[str]:
     """Find the railway CLI executable"""
+    # On Windows, try to find via PowerShell first
+    if sys.platform == 'win32':
+        try:
+            result = subprocess.run(
+                ["powershell", "-Command", "Get-Command railway -ErrorAction SilentlyContinue | Select-Object -ExpandProperty Source"],
+                capture_output=True,
+                text=True,
+                timeout=5
+            )
+            if result.returncode == 0 and result.stdout.strip():
+                railway_path = result.stdout.strip()
+                # Return the path - we found it via PowerShell, so it should work
+                return railway_path
+        except Exception:
+            pass
+    
     # Try common locations
     possible_paths = [
-        "railway",  # In PATH
+        "npx",  # Try npx railway first (works on Windows)
+        "railway",  # In PATH (try first)
+        "railway.cmd",  # Windows cmd wrapper
+        os.path.expandvars(r"%APPDATA%\npm\railway.ps1"),  # Windows npm PowerShell script
         os.path.expandvars(r"%APPDATA%\npm\railway.cmd"),  # Windows npm global
+        os.path.expandvars(r"%LOCALAPPDATA%\npm\railway.cmd"),  # Windows npm local
         "/usr/local/bin/railway",  # macOS/Linux
         os.path.expanduser("~/.railway/bin/railway"),  # Alternative location
     ]
     
     for path in possible_paths:
         try:
-            result = subprocess.run(
-                [path, "--version"],
-                capture_output=True,
-                text=True,
-                timeout=5
-            )
-            if result.returncode == 0:
-                return path
+            # Special handling for npx
+            if path == "npx":
+                result = subprocess.run(
+                    ["npx", "railway", "--version"],
+                    capture_output=True,
+                    text=True,
+                    timeout=5,
+                    shell=False
+                )
+                if result.returncode == 0:
+                    return "npx"
+                continue
+            
+            # On Windows, try with .cmd extension if needed
+            if sys.platform == 'win32' and not path.endswith('.cmd') and not path.endswith('.exe'):
+                # Try both .cmd and .exe versions
+                for ext in ['', '.cmd', '.exe']:
+                    test_path = path + ext
+                    try:
+                        result = subprocess.run(
+                            [test_path, "--version"],
+                            capture_output=True,
+                            text=True,
+                            timeout=5,
+                            shell=False
+                        )
+                        if result.returncode == 0:
+                            return test_path
+                    except (FileNotFoundError, subprocess.TimeoutExpired):
+                        continue
+            else:
+                # Handle .ps1 files via PowerShell
+                if path.endswith('.ps1'):
+                    try:
+                        result = subprocess.run(
+                            ["powershell", "-Command", f"& '{path}' --version"],
+                            capture_output=True,
+                            text=True,
+                            timeout=5,
+                            shell=False
+                        )
+                        if result.returncode == 0:
+                            return path
+                    except (FileNotFoundError, subprocess.TimeoutExpired):
+                        continue
+                else:
+                    result = subprocess.run(
+                        [path, "--version"],
+                        capture_output=True,
+                        text=True,
+                        timeout=5,
+                        shell=False
+                    )
+                    if result.returncode == 0:
+                        return path
         except (FileNotFoundError, subprocess.TimeoutExpired):
             continue
     
@@ -122,38 +201,94 @@ def find_railway_cli() -> Optional[str]:
 def upload_via_railway_cli(file_path: str) -> bool:
     """Upload file to Railway using CLI by copying file contents via stdin"""
     try:
-        # Find Railway CLI
+        # Try to find Railway CLI
         railway_cmd = find_railway_cli()
+        
+        # If not found, try finding via PowerShell on Windows
+        if not railway_cmd and sys.platform == 'win32':
+            try:
+                # Use PowerShell to find railway
+                result = subprocess.run(
+                    ["powershell", "-Command", "Get-Command railway | Select-Object -ExpandProperty Source"],
+                    capture_output=True,
+                    text=True,
+                    timeout=5
+                )
+                if result.returncode == 0 and result.stdout.strip():
+                    railway_path = result.stdout.strip()
+                    # Test if it works
+                    test_result = subprocess.run(
+                        ["powershell", "-Command", f"& '{railway_path}' --version"],
+                        capture_output=True,
+                        text=True,
+                        timeout=5
+                    )
+                    if test_result.returncode == 0:
+                        railway_cmd = railway_path
+            except:
+                pass
+        
         if not railway_cmd:
             print(f"  ⚠️  Railway CLI not found. Install: npm install -g @railway/cli")
             return False
         
-        # Read the file content
-        with open(file_path, 'r', encoding='utf-8') as f:
-            file_content = f.read()
+        # Read the file content as bytes
+        with open(file_path, 'rb') as f:
+            file_bytes = f.read()
         
         # Use Railway CLI to write file using Python
-        # Create a Python one-liner that reads from stdin and writes to the file
-        # Also ensure the /data directory exists
-        python_cmd = "import sys, os; os.makedirs('/data', exist_ok=True); open('/data/clients_data.json', 'w', encoding='utf-8').write(sys.stdin.read())"
+        # Read from stdin (binary) and write to file
+        # This avoids command line length limits
+        python_cmd = "import sys, os; os.makedirs('/data', exist_ok=True); open('/data/clients_data.json', 'wb').write(sys.stdin.buffer.read())"
         
+        # On Windows, use shell=True to handle npm-installed commands
+        use_shell = sys.platform == 'win32'
+        
+        # Build the command
+        if railway_cmd == "npx":
+            full_cmd = ["npx", "railway", "run", "--service", "web", "python", "-c", python_cmd]
+        elif railway_cmd.endswith('.ps1'):
+            # PowerShell script - execute via PowerShell
+            # Use single quotes in PowerShell to avoid escaping issues
+            # Replace single quotes with double single quotes for PowerShell
+            escaped_cmd = python_cmd.replace("'", "''")
+            # Build PowerShell command - use single quotes around the Python command
+            ps_cmd = f"& '{railway_cmd}' run --service web python -c '{escaped_cmd}'"
+            full_cmd = ["powershell", "-Command", ps_cmd]
+        else:
+            full_cmd = [railway_cmd, "run", "--service", "web", "python", "-c", python_cmd]
+        
+        print(f"  Uploading file to Railway (this may take 1-2 minutes)...")
+        # Use stdin to pipe the file bytes directly
         result = subprocess.run(
-            [railway_cmd, "run", "--service", "web", "python", "-c", python_cmd],
-            input=file_content,
+            full_cmd,
+            input=file_bytes,  # Pipe file bytes via stdin
             capture_output=True,
-            text=True,
-            encoding='utf-8',
-            timeout=120
+            text=False,  # Binary mode for stdin
+            timeout=180  # Increased timeout for large files
         )
         
         if result.returncode == 0:
+            print(f"  ✅ Successfully uploaded to Railway!")
             return True
         else:
-            print(f"  ⚠️  Railway CLI returned error: {result.stderr[:200]}")
+            print(f"  ⚠️  Railway CLI returned error (code {result.returncode})")
+            if result.stderr:
+                try:
+                    error_text = result.stderr.decode('utf-8', errors='replace')[:300]
+                    print(f"  Error: {error_text}")
+                except:
+                    print(f"  Error: (binary data)")
+            if result.stdout:
+                try:
+                    output_text = result.stdout.decode('utf-8', errors='replace')[:300]
+                    print(f"  Output: {output_text}")
+                except:
+                    pass
             return False
             
-    except FileNotFoundError:
-        print(f"  ⚠️  Railway CLI executable not found")
+    except FileNotFoundError as e:
+        print(f"  ⚠️  Railway CLI executable not found: {str(e)}")
         return False
     except subprocess.TimeoutExpired:
         print(f"  ⚠️  Railway CLI upload timed out")
@@ -230,14 +365,14 @@ def sync_to_railway(data_file: str = "clients_data.json", preserve_va_work: bool
             # Try next endpoint
             continue
     
-    # All HTTP endpoints failed - try browser automation as fallback
+    # All HTTP endpoints failed - try Railway CLI direct write as fallback
     print("❌ HTTP sync API not available (Railway auto-detects Streamlit).")
-    print("🔄 Attempting browser automation upload...")
+    print("🔄 Attempting direct Railway CLI upload...")
     
     try:
-        return sync_via_browser_automation(data_file, RAILWAY_APP_URL)
+        return upload_via_railway_cli(data_file)
     except Exception as e:
-        print(f"❌ Browser automation failed: {str(e)[:200]}")
+        print(f"❌ Railway CLI upload failed: {str(e)[:200]}")
         print()
         print("📤 Manual upload required:")
         print(f"   1. Open: {RAILWAY_APP_URL}")
@@ -263,12 +398,16 @@ def sync_via_browser_automation(data_file: str, app_url: str) -> bool:
         chrome_options.add_argument("--window-size=1920,1080")
         chrome_options.add_argument("--disable-blink-features=AutomationControlled")
         
-        print("🔧 Initializing Chrome driver...")
+        print("Initializing Chrome driver...")
+        print("   (Downloading ChromeDriver on first run - this may take 30-60 seconds)")
+        print("   Please wait...")
+        
         driver = webdriver.Chrome(
             service=Service(ChromeDriverManager().install()),
             options=chrome_options
         )
         driver.set_page_load_timeout(60)  # 60 second timeout
+        print("Chrome browser initialized")
         
         print(f"📱 Navigating to {app_url}...")
         driver.get(app_url)
@@ -329,17 +468,98 @@ def sync_via_browser_automation(data_file: str, app_url: str) -> bool:
         
         print("🖱️  Clicking Data Management tab...")
         driver.execute_script("arguments[0].click();", data_mgmt_tab)
-        time.sleep(3)
+        print("   Waiting for tab content to load...")
+        time.sleep(5)  # Give Streamlit more time to render the tab content
         
-        # Find file uploader
-        print("📤 Looking for file upload input...")
-        file_input = wait.until(
-            EC.presence_of_element_located((By.CSS_SELECTOR, "input[type='file']"))
-        )
+        # Scroll to top to ensure we're looking at the right area
+        driver.execute_script("window.scrollTo(0, 0);")
+        time.sleep(1)
+        
+        # Find file uploader - Streamlit file inputs are often hidden
+        # First, try to click the upload button/label to trigger the file input
+        print("📤 Looking for file upload area...")
         
         file_path = os.path.abspath(data_file)
-        print(f"📎 Uploading file: {file_path}")
-        file_input.send_keys(file_path)
+        print(f"📎 File to upload: {file_path}")
+        
+        # Try to find and click the upload button/label first
+        upload_button = None
+        button_selectors = [
+            (By.XPATH, "//button[contains(text(), 'Choose')]"),
+            (By.XPATH, "//button[contains(text(), 'Browse')]"),
+            (By.XPATH, "//label[contains(text(), 'Choose')]"),
+            (By.XPATH, "//label[contains(text(), 'clients_data.json')]"),
+            (By.CSS_SELECTOR, "button[data-testid='stFileUploaderDropzone']"),
+            (By.CSS_SELECTOR, "label[data-testid='stFileUploaderDropzone']"),
+        ]
+        
+        for selector_type, selector_value in button_selectors:
+            try:
+                elements = driver.find_elements(selector_type, selector_value)
+                if elements:
+                    upload_button = elements[0]
+                    print(f"   Found upload button/label: {selector_value}")
+                    break
+            except:
+                continue
+        
+        if upload_button:
+            print("   Clicking upload button to trigger file input...")
+            driver.execute_script("arguments[0].click();", upload_button)
+            time.sleep(2)
+        
+        # Now try to find the file input
+        print("   Looking for file input element...")
+        file_input = None
+        
+        # Use JavaScript to find file inputs (including hidden ones)
+        file_inputs_count = driver.execute_script("""
+            return document.querySelectorAll('input[type="file"]').length;
+        """)
+        print(f"   Found {file_inputs_count} file input(s) in DOM")
+        
+        # Try to find file input using Selenium
+        file_selectors = [
+            (By.CSS_SELECTOR, "input[type='file']"),
+            (By.XPATH, "//input[@type='file']"),
+        ]
+        
+        for selector_type, selector_value in file_selectors:
+            try:
+                elements = driver.find_elements(selector_type, selector_value)
+                if elements:
+                    file_input = elements[0]
+                    print(f"   ✅ Found file input using: {selector_value}")
+                    break
+            except:
+                continue
+        
+        if not file_input:
+            # Wait for file input to appear (Streamlit may need time to render)
+            print("   Waiting for file input to appear (up to 20 seconds)...")
+            try:
+                file_input = wait.until(
+                    EC.presence_of_element_located((By.CSS_SELECTOR, "input[type='file']"))
+                )
+                print("   ✅ File input appeared after wait")
+            except:
+                # Take screenshot and save page source for debugging
+                driver.save_screenshot("sync_file_input_not_found.png")
+                with open("sync_page_source.html", "w", encoding="utf-8") as f:
+                    f.write(driver.page_source)
+                print("   Screenshot saved to sync_file_input_not_found.png")
+                print("   Page source saved to sync_page_source.html")
+                raise Exception("Could not find file upload input. Check screenshot and page source.")
+        
+        # Upload the file
+        print(f"   Uploading file: {file_path}")
+        try:
+            driver.execute_script("arguments[0].scrollIntoView(true);", file_input)
+            time.sleep(1)
+            file_input.send_keys(file_path)
+            print("   ✅ File path sent to input")
+        except Exception as e:
+            raise Exception(f"Could not upload file: {str(e)}")
         
         # Wait for upload to complete (look for success message)
         print("⏳ Waiting for upload to complete...")
