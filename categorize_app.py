@@ -1023,33 +1023,44 @@ def main():
 
     # TAB 4: Data Management
     with tab4:
-        st.header("📤 Data Management")
-        st.markdown("Upload your local `clients_data.json` to sync with Railway. VA's work will be preserved.")
-        st.markdown("---")
-        
-        st.markdown("### 📁 Upload File")
-        st.markdown("**Click the button below to select and upload your `clients_data.json` file:**")
-        
-        # Show current data status
-        current_data = load_data()
-        if current_data:
-            clients_count = len(current_data.get("clients", {}))
-            pages_count = len(current_data.get("pages", {}))
-            if clients_count > 0 or pages_count > 0:
-                st.info(f"📊 Current data: {clients_count} clients, {pages_count} pages")
-            else:
-                st.warning("⚠️ No data currently loaded. Upload your `clients_data.json` file to get started.")
-        
-        uploaded_file = st.file_uploader(
-            "📎 Choose clients_data.json file",
-            type=['json'],
-            help="Upload your local clients_data.json file. It will be merged with existing data, preserving VA's categorization work.",
-            label_visibility="visible"
-        )
-        
-        if uploaded_file is None:
-            st.info("👆 **Use the 'Browse files' button above to select and upload your `clients_data.json` file**")
+        try:
+            st.header("📤 Data Management")
+            st.markdown("Upload your local `clients_data.json` to sync with Railway. VA's work will be preserved.")
             st.markdown("---")
+            
+            st.markdown("### 📁 Upload File")
+            st.markdown("**Click the button below to select and upload your `clients_data.json` file:**")
+            
+            # Show current data status (with error handling)
+            try:
+                current_data = load_data()
+                if current_data:
+                    clients_count = len(current_data.get("clients", {}))
+                    pages_count = len(current_data.get("pages", {}))
+                    if clients_count > 0 or pages_count > 0:
+                        st.info(f"📊 Current data: {clients_count} clients, {pages_count} pages")
+                    else:
+                        st.warning("⚠️ No data currently loaded. Upload your `clients_data.json` file to get started.")
+            except Exception as e:
+                st.warning(f"Could not load current data: {str(e)}")
+            
+            # File uploader - make it very explicit
+            st.markdown("**File Upload:**")
+            uploaded_file = st.file_uploader(
+                "Choose clients_data.json file",
+                type=['json'],
+                help="Upload your local clients_data.json file. It will be merged with existing data, preserving VA's categorization work.",
+                label_visibility="visible",
+                key="data_upload_file"
+            )
+            
+            if uploaded_file is None:
+                st.info("👆 **Use the 'Browse files' button above to select and upload your `clients_data.json` file**")
+                st.markdown("---")
+        except Exception as e:
+            st.error(f"Error loading Data Management tab: {str(e)}")
+            import traceback
+            st.code(traceback.format_exc())
         
         if uploaded_file is not None:
             try:
