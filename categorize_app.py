@@ -243,8 +243,8 @@ def load_data(data_file: str = None) -> Optional[Dict]:
         return None
 
 
-def save_data(data: Dict, data_file: str = None):
-    """Save client data to JSON file"""
+def save_data(data: Dict, data_file: str = None, sync_remote: bool = False):
+    """Save client data to JSON file and optionally sync to Railway"""
     if data_file is None:
         data_file = get_data_file_path()
     data["last_updated"] = datetime.now().isoformat()
@@ -252,6 +252,29 @@ def save_data(data: Dict, data_file: str = None):
     os.makedirs(os.path.dirname(data_file) if os.path.dirname(data_file) else ".", exist_ok=True)
     with open(data_file, 'w', encoding='utf-8') as f:
         json.dump(data, f, indent=2, ensure_ascii=False)
+    
+    # Auto-sync to Railway if requested and we're running locally (not on Railway)
+    if sync_remote and not data_file.startswith('/data/'):
+        try:
+            # Import here to avoid issues if railway_sync isn't available
+            from railway_sync import upload_via_railway_cli
+            # Run sync in background thread to avoid blocking UI
+            import threading
+            def sync_thread():
+                try:
+                    # Use direct CLI upload (faster and more reliable than HTTP)
+                    upload_via_railway_cli(data_file)
+                except Exception as e:
+                    # Silently fail - user can manually upload if needed
+                    pass
+            thread = threading.Thread(target=sync_thread, daemon=True)
+            thread.start()
+        except ImportError:
+            # railway_sync not available - that's okay
+            pass
+        except Exception:
+            # Any other error - fail silently
+            pass
 
 
 def matches_hotlist(page_data: Dict) -> bool:
@@ -458,8 +481,12 @@ def main():
                         "last_scraped": None
                     }
                     data["clients"] = clients
-                    save_data(data)
+                    save_data(data, sync_remote=True)
                     st.success(f"✅ Added client @{normalized}")
+                    # Check if we're running locally (not on Railway)
+                    data_file = get_data_file_path()
+                    if not data_file.startswith('/data/'):
+                        st.info("🔄 Auto-syncing to Railway in the background...")
                     st.rerun()
         
         st.markdown("### 📋 Client Status")
