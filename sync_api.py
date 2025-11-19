@@ -3,14 +3,16 @@ Simple HTTP API for syncing data to Railway volume
 Runs alongside Streamlit to accept data uploads from terminal
 """
 
-from flask import Flask, request, jsonify
+from flask import Flask, request, jsonify, Response
 import json
 import os
+import requests
 from datetime import datetime
 
 app = Flask(__name__)
 
 DATA_FILE = "/data/clients_data.json" if os.path.exists("/data") else "clients_data.json"
+STREAMLIT_URL = os.environ.get("STREAMLIT_URL", "http://localhost:8080")
 
 
 def merge_data_smart(existing: dict, new: dict) -> dict:
@@ -40,6 +42,11 @@ def merge_data_smart(existing: dict, new: dict) -> dict:
         ]:
             if field in existing_page_data and existing_page_data[field]:
                 merged_page[field] = existing_page_data[field]
+        
+        # Preserve website_promo_info if it exists
+        if "website_promo_info" in existing_page_data:
+            if "website_promo_info" not in new_page_data or not new_page_data.get("website_promo_info"):
+                merged_page["website_promo_info"] = existing_page_data["website_promo_info"]
         
         merged["pages"][username] = merged_page
     
@@ -107,7 +114,42 @@ def health():
     })
 
 
+@app.route('/', defaults={'path': ''}, methods=['GET', 'POST', 'PUT', 'DELETE', 'PATCH'])
+@app.route('/<path:path>', methods=['GET', 'POST', 'PUT', 'DELETE', 'PATCH'])
+def proxy_streamlit(path):
+    """Proxy all other requests to Streamlit"""
+    try:
+        # Forward request to Streamlit
+        streamlit_path = f"/{path}" if path else "/"
+        if request.query_string:
+            streamlit_path += f"?{request.query_string.decode()}"
+        
+        # Forward the request
+        resp = requests.request(
+            method=request.method,
+            url=f"{STREAMLIT_URL}{streamlit_path}",
+            headers={key: value for (key, value) in request.headers if key != 'Host'},
+            data=request.get_data(),
+            cookies=request.cookies,
+            allow_redirects=False,
+            timeout=30
+        )
+        
+        # Return response
+        excluded_headers = ['content-encoding', 'content-length', 'transfer-encoding', 'connection']
+        headers = [(name, value) for (name, value) in resp.raw.headers.items()
+                   if name.lower() not in excluded_headers]
+        
+        return Response(resp.content, resp.status_code, headers)
+    except Exception as e:
+        return jsonify({"error": f"Proxy error: {str(e)}"}), 500
+
+
 if __name__ == "__main__":
-    port = int(os.environ.get("SYNC_PORT", 8081))
-    app.run(host="0.0.0.0", port=port)
+    port = int(os.environ.get("SYNC_PORT", 8080))
+    print(f"🌐 Flask sync API listening on port {port}")
+    print(f"   /sync - Data sync endpoint")
+    print(f"   /health - Health check")
+    print(f"   /* - Proxied to Streamlit")
+    app.run(host="0.0.0.0", port=port, threaded=True)
 

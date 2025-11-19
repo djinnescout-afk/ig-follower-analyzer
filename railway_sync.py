@@ -157,46 +157,76 @@ def upload_via_railway_cli(file_path: str) -> bool:
 
 def sync_to_railway(data_file: str = "clients_data.json", preserve_va_work: bool = True) -> bool:
     """
-    Sync data to Railway - currently requires manual upload via Streamlit UI
+    Automatically sync data to Railway via HTTP API
     
     Args:
         data_file: Path to local clients_data.json
-        preserve_va_work: If True, merges with existing data to preserve VA's work
+        preserve_va_work: If True, merges with existing data to preserve VA's work (handled server-side)
     
     Returns:
-        True if file is ready for upload, False otherwise
+        True if successful, False otherwise
     """
     print("\n" + "=" * 60)
-    print("🔄 Railway Sync - Manual Upload Required")
+    print("🔄 Auto-syncing to Railway via HTTP...")
     print("=" * 60)
     
     if not os.path.exists(data_file):
         print(f"❌ {data_file} not found!")
         return False
     
-    # Check file stats
-    file_size = os.path.getsize(data_file)
+    # Load data to upload
+    print(f"📖 Loading {data_file}...")
     with open(data_file, 'r', encoding='utf-8') as f:
-        data = json.load(f)
+        data_to_upload = json.load(f)
     
-    clients_count = len(data.get("clients", {}))
-    pages_count = len(data.get("pages", {}))
+    # Flask API handles /sync on the main port (proxies other requests to Streamlit)
+    sync_endpoints = [
+        f"{RAILWAY_APP_URL}/sync",  # Main endpoint
+    ]
     
-    print(f"📊 Local file ready for upload:")
-    print(f"   📁 File: {data_file}")
-    print(f"   📊 Size: {file_size:,} bytes ({file_size / 1024 / 1024:.2f} MB)")
-    print(f"   👥 Clients: {clients_count}")
-    print(f"   📄 Pages: {pages_count}")
-    print()
-    print("📤 To sync to Railway:")
-    print(f"   1. Open: {RAILWAY_APP_URL}")
-    print("   2. Go to the 'Data Management' tab")
-    print(f"   3. Upload this file: {os.path.abspath(data_file)}")
-    print("   4. The app will smart-merge, preserving VA's work")
-    print()
-    print("✅ File is ready for upload!")
+    for endpoint in sync_endpoints:
+        print(f"📤 Uploading to {endpoint}...")
+        try:
+            response = requests.post(
+                endpoint,
+                json=data_to_upload,
+                timeout=180,  # 3 minute timeout for large files
+                headers={'Content-Type': 'application/json'}
+            )
+            
+            if response.status_code == 200:
+                result = response.json()
+                print("✅ Successfully synced to Railway!")
+                print(f"   📊 Clients: {result.get('clients', 0)}")
+                print(f"   📊 Pages: {result.get('pages', 0)}")
+                print(f"   📊 File size: {result.get('file_size', 0):,} bytes")
+                if preserve_va_work:
+                    print("✅ VA's work has been preserved (server-side merge).")
+                return True
+            elif response.status_code == 404:
+                # Try next endpoint
+                continue
+            else:
+                print(f"❌ Sync failed with status {response.status_code}")
+                print(f"   Response: {response.text[:200]}")
+                continue
+                
+        except requests.exceptions.ConnectionError:
+            # Try next endpoint
+            continue
+        except requests.exceptions.Timeout:
+            print("❌ Sync request timed out (file might be too large).")
+            print("💡 Alternative: Use the 'Data Management' tab in the Streamlit app to upload manually.")
+            return False
+        except Exception as e:
+            # Try next endpoint
+            continue
     
-    return True
+    # All endpoints failed
+    print("❌ Could not connect to Railway sync API.")
+    print(f"   Tried: {', '.join(sync_endpoints)}")
+    print("💡 Alternative: Use the 'Data Management' tab in the Streamlit app to upload manually.")
+    return False
 
 
 if __name__ == "__main__":
