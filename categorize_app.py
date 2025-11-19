@@ -559,46 +559,49 @@ def main():
             st.info("✅ No pages found matching the filter criteria!")
             # Don't use st.stop() - it stops the entire script and prevents other tabs from rendering!
             # Just show the message and let the user continue to other tabs
+            total_pages = 0
+        else:
+            total_pages = len(pages_list)
         
-        total_pages = len(pages_list)
-        
-        # Navigation
-        col1, col2, col3, col4 = st.columns([1, 1, 2, 1])
-        
-        with col1:
-            if st.button("◀ Previous", disabled=st.session_state.current_page_idx == 0):
-                st.session_state.current_page_idx = max(0, st.session_state.current_page_idx - 1)
-                st.rerun()
-        
-        with col2:
-            jump_to = st.number_input("Jump to", min_value=1, max_value=total_pages, 
-                                     value=st.session_state.current_page_idx + 1, key="jump_input")
-            if jump_to != st.session_state.current_page_idx + 1:
-                st.session_state.current_page_idx = jump_to - 1
-                st.rerun()
-        
-        with col3:
-            st.markdown(f"**Page {st.session_state.current_page_idx + 1} of {total_pages}**")
-        
-        with col4:
-            if st.button("Next ▶", disabled=st.session_state.current_page_idx >= total_pages - 1):
-                # Save current selection before moving
-                if st.session_state.current_page_idx < len(pages_list):
-                    username, _ = pages_list[st.session_state.current_page_idx]
-                    selected_cat = st.session_state.selected_category.get(username)
-                    if selected_cat:
-                        data["pages"][username]["category"] = selected_cat
-                        data["pages"][username]["last_categorized"] = datetime.now().isoformat()
-                        save_data(data)
-                        st.success("💾 Saved!")
-                
-                st.session_state.current_page_idx = min(total_pages - 1, st.session_state.current_page_idx + 1)
-                st.rerun()
-        
-        st.markdown("---")
-        
-        # Display current page
-        if st.session_state.current_page_idx < len(pages_list):
+        # Only show navigation if there are pages
+        if total_pages > 0:
+            # Navigation
+            col1, col2, col3, col4 = st.columns([1, 1, 2, 1])
+            
+            with col1:
+                if st.button("◀ Previous", disabled=st.session_state.current_page_idx == 0):
+                    st.session_state.current_page_idx = max(0, st.session_state.current_page_idx - 1)
+                    st.rerun()
+            
+            with col2:
+                jump_to = st.number_input("Jump to", min_value=1, max_value=total_pages, 
+                                         value=st.session_state.current_page_idx + 1, key="jump_input")
+                if jump_to != st.session_state.current_page_idx + 1:
+                    st.session_state.current_page_idx = jump_to - 1
+                    st.rerun()
+            
+            with col3:
+                st.markdown(f"**Page {st.session_state.current_page_idx + 1} of {total_pages}**")
+            
+            with col4:
+                if st.button("Next ▶", disabled=st.session_state.current_page_idx >= total_pages - 1):
+                    # Save current selection before moving
+                    if st.session_state.current_page_idx < len(pages_list):
+                        username, _ = pages_list[st.session_state.current_page_idx]
+                        selected_cat = st.session_state.selected_category.get(username)
+                        if selected_cat:
+                            data["pages"][username]["category"] = selected_cat
+                            data["pages"][username]["last_categorized"] = datetime.now().isoformat()
+                            save_data(data)
+                            st.success("💾 Saved!")
+                    
+                    st.session_state.current_page_idx = min(total_pages - 1, st.session_state.current_page_idx + 1)
+                    st.rerun()
+            
+            st.markdown("---")
+            
+            # Display current page
+            if st.session_state.current_page_idx < len(pages_list):
             username, page_data = pages_list[st.session_state.current_page_idx]
             
             # Check if hotlist
@@ -715,6 +718,9 @@ def main():
             # Show category description
             if selected != "UNKNOWN" and selected in CATEGORIES:
                 st.info(f"**{selected.replace('_', ' ')}**: {CATEGORIES[selected]}")
+        else:
+            # No pages to display
+            st.info("No pages to display. Adjust your filters or add more pages.")
     
     # TAB 2: Edit Page Details
     with tab2:
