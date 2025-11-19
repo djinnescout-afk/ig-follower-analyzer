@@ -252,13 +252,16 @@ def sync_via_browser_automation(data_file: str, app_url: str) -> bool:
     driver = None
     
     try:
-        # Setup Chrome in headless mode
+        # Setup Chrome - try headless first, fallback to visible for debugging
         chrome_options = Options()
-        chrome_options.add_argument("--headless=new")  # Use new headless mode
+        # Check if we should run headless (set HEADLESS=false to see browser)
+        if os.environ.get("HEADLESS", "true").lower() != "false":
+            chrome_options.add_argument("--headless=new")
         chrome_options.add_argument("--no-sandbox")
         chrome_options.add_argument("--disable-dev-shm-usage")
         chrome_options.add_argument("--disable-gpu")
         chrome_options.add_argument("--window-size=1920,1080")
+        chrome_options.add_argument("--disable-blink-features=AutomationControlled")
         
         print("🔧 Initializing Chrome driver...")
         driver = webdriver.Chrome(
