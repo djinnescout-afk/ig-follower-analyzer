@@ -5,6 +5,7 @@ Analyzes which pages your clients follow to identify high-value promotional oppo
 
 import json
 import os
+import sys
 import time
 from datetime import datetime
 from typing import Dict, List, Tuple, Optional
@@ -12,6 +13,17 @@ from collections import defaultdict
 import requests
 from apify_client import ApifyClient
 from categorizer import InstagramCategorizer, CATEGORIES
+
+# Fix Windows console encoding for emojis
+if sys.platform == 'win32':
+    try:
+        if hasattr(sys.stdout, 'reconfigure'):
+            sys.stdout.reconfigure(encoding='utf-8')
+        elif hasattr(sys.stdout, 'encoding'):
+            import io
+            sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding='utf-8', errors='replace')
+    except:
+        pass  # Fallback to default encoding
 
 
 class IGFollowerAnalyzer:
@@ -27,7 +39,7 @@ class IGFollowerAnalyzer:
     def load_data(self) -> Dict:
         """Load existing client data from JSON file"""
         if os.path.exists(self.data_file):
-            with open(self.data_file, 'r') as f:
+            with open(self.data_file, 'r', encoding='utf-8') as f:
                 return json.load(f)
         return {
             "clients": {},
@@ -38,8 +50,8 @@ class IGFollowerAnalyzer:
     def save_data(self, sync_remote: bool = False, sync_reason: Optional[str] = None, silent_sync: bool = False):
         """Save client data to JSON file and optionally sync to Railway"""
         self.clients_data["last_updated"] = datetime.now().isoformat()
-        with open(self.data_file, 'w') as f:
-            json.dump(self.clients_data, f, indent=2)
+        with open(self.data_file, 'w', encoding='utf-8') as f:
+            json.dump(self.clients_data, f, indent=2, ensure_ascii=False)
         
         if sync_remote:
             self._sync_to_railway(reason=sync_reason, silent=silent_sync)
