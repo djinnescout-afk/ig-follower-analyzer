@@ -346,8 +346,15 @@ def main():
     
     # Load data
     data_file_path = get_data_file_path()
-    # Debug info (comment out later)
-    # st.caption(f"📁 Data file: {data_file_path}")
+    # Debug info
+    st.caption(f"📁 Loading from: {data_file_path} | Exists: {os.path.exists(data_file_path)}")
+    if os.path.exists(data_file_path):
+        try:
+            with open(data_file_path, 'r', encoding='utf-8') as f:
+                preview = f.read(200)
+                st.caption(f"📄 File preview: {preview[:100]}...")
+        except Exception as e:
+            st.caption(f"⚠️ Error reading file: {str(e)}")
     
     data = load_data()
     if data is None:
