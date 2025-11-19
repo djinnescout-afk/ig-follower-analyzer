@@ -212,36 +212,56 @@ def get_data_file_path() -> str:
     return "clients_data.json"
 
 
-def load_data(data_file: str = None) -> Optional[Dict]:
-    """Load client data from JSON file, create empty structure if it doesn't exist"""
-    if data_file is None:
-        data_file = get_data_file_path()
-    
+@st.cache_data(ttl=60, show_spinner=False)  # Cache for 60 seconds, no spinner
+def load_data_cached(data_file: str) -> Optional[Dict]:
+    """Cached version of load_data - only reads file if it changed"""
     if not os.path.exists(data_file):
-        # File doesn't exist - DON'T create empty, return empty structure
-        # This prevents overwriting data uploaded via railway CLI
-        st.warning(f"⚠️ {data_file} not found. Returning empty structure. Upload data via 'Data Management' tab or sync from terminal.")
         return {
             "clients": {},
             "pages": {}
         }
     
     try:
-        file_size = os.path.getsize(data_file)
-        st.caption(f"📊 File size: {file_size:,} bytes ({file_size / 1024 / 1024:.2f} MB)")
-        
         with open(data_file, 'r', encoding='utf-8') as f:
-            content = f.read()
-            st.caption(f"📏 Read {len(content):,} characters from file")
-            
-            data = json.loads(content)
-            st.caption(f"✅ Parsed JSON: {len(data.get('clients', {}))} clients, {len(data.get('pages', {}))} pages")
+            data = json.load(f)
             return data
     except Exception as e:
-        st.error(f"❌ Error loading data: {str(e)}")
-        import traceback
-        st.code(traceback.format_exc())
+        # Return None on error - caller will handle
         return None
+
+
+def load_data(data_file: str = None, show_debug: bool = False) -> Optional[Dict]:
+    """Load client data from JSON file, create empty structure if it doesn't exist"""
+    if data_file is None:
+        data_file = get_data_file_path()
+    
+    # Use cached version for performance
+    data = load_data_cached(data_file)
+    
+    if data is None:
+        # Check if file exists for error message
+        if not os.path.exists(data_file):
+            if show_debug:
+                st.warning(f"⚠️ {data_file} not found. Returning empty structure. Upload data via 'Data Management' tab or sync from terminal.")
+            return {
+                "clients": {},
+                "pages": {}
+            }
+        else:
+            # File exists but failed to load
+            if show_debug:
+                st.error(f"❌ Error loading data from {data_file}")
+                import traceback
+                st.code(traceback.format_exc())
+            return None
+    
+    # Only show debug info if requested (reduces UI lag)
+    if show_debug:
+        file_size = os.path.getsize(data_file)
+        st.caption(f"📊 File size: {file_size:,} bytes ({file_size / 1024 / 1024:.2f} MB)")
+        st.caption(f"✅ Loaded: {len(data.get('clients', {}))} clients, {len(data.get('pages', {}))} pages")
+    
+    return data
 
 
 def save_data(data: Dict, data_file: str = None, sync_remote: bool = False):
@@ -398,23 +418,28 @@ def main():
     st.markdown("**Human-Assisted Categorization Tool for Instagram Pages**")
     st.markdown("---")
     
-    # Load data
+    # Load data (cached for performance)
     data_file_path = get_data_file_path()
-    # Debug info
-    st.caption(f"📁 Loading from: {data_file_path} | Exists: {os.path.exists(data_file_path)}")
-    if os.path.exists(data_file_path):
-        try:
-            with open(data_file_path, 'r', encoding='utf-8') as f:
-                preview = f.read(200)
-                st.caption(f"📄 File preview: {preview[:100]}...")
-        except Exception as e:
-            st.caption(f"⚠️ Error reading file: {str(e)}")
     
-    data = load_data()
-    if data is None:
-        st.stop()
+    # Use session state to avoid reloading on every interaction
+    if 'cached_data' not in st.session_state or 'data_file_path' not in st.session_state or st.session_state.data_file_path != data_file_path:
+        # Load fresh data
+        data = load_data(show_debug=True)  # Show debug only on first load
+        if data is None:
+            st.stop()
+        st.session_state.cached_data = data
+        st.session_state.data_file_path = data_file_path
+        st.session_state.data_loaded = True
+    else:
+        # Use cached data from session state
+        data = st.session_state.cached_data
     
-    st.session_state.data_loaded = True
+    # Clear cache button (for debugging)
+    if st.sidebar.button("🔄 Clear Cache & Reload Data"):
+        if 'cached_data' in st.session_state:
+            del st.session_state.cached_data
+        load_data_cached.clear()  # Clear Streamlit cache
+        st.rerun()
     
     # Show quick stats
     pages = data.get("pages", {})
@@ -1113,8 +1138,11 @@ def main():
                 # Read uploaded file
                 new_data = json.load(uploaded_file)
                 
-                # Load current data
-                current_data = load_data()
+                # Load current data (use cached if available)
+                if 'cached_data' in st.session_state:
+                    current_data = st.session_state.cached_data
+                else:
+                    current_data = load_data(show_debug=False)
                 
                 if current_data and (current_data.get("clients") or current_data.get("pages")):
                     st.info("🔄 Merging uploaded data with existing data (preserving VA's work)...")
@@ -1130,6 +1158,11 @@ def main():
                 else:
                     # No existing data, just save the uploaded file
                     save_data(new_data)
+                    
+                    # Update session state cache
+                    st.session_state.cached_data = new_data
+                    load_data_cached.clear()  # Clear Streamlit cache
+                    
                     st.success("✅ Data uploaded successfully!")
                     st.info("🔄 Refresh the page to see updated data.")
                     
@@ -1155,15 +1188,29 @@ def main():
             if st.button("📤 Upload Pasted JSON", key="upload_pasted_json"):
                 try:
                     new_data = json.loads(json_text)
-                    current_data = load_data()
+                    # Use cached data from session state if available
+                    if 'cached_data' in st.session_state:
+                        current_data = st.session_state.cached_data
+                    else:
+                        current_data = load_data(show_debug=False)
                     
                     if current_data and (current_data.get("clients") or current_data.get("pages")):
                         merged_data = merge_data_smart(current_data, new_data)
                         save_data(merged_data)
+                        
+                        # Update session state cache
+                        st.session_state.cached_data = merged_data
+                        load_data_cached.clear()  # Clear Streamlit cache
+                        
                         st.success("✅ Data uploaded and merged successfully! VA's work has been preserved.")
                         st.info("🔄 Refresh the page to see updated data.")
                     else:
                         save_data(new_data)
+                        
+                        # Update session state cache
+                        st.session_state.cached_data = new_data
+                        load_data_cached.clear()  # Clear Streamlit cache
+                        
                         st.success("✅ Data uploaded successfully!")
                         st.info("🔄 Refresh the page to see updated data.")
                 except json.JSONDecodeError as e:
