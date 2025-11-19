@@ -150,6 +150,7 @@ class IGFollowerAnalyzer:
         Validate that an Instagram account exists and is public before scraping
         Returns: (is_valid, error_message)
         """
+        profile_data = None  # Initialize outside try block
         try:
             # Use Instagram Profile Scraper to check account status
             # Actor: apify/instagram-profile-scraper
@@ -162,7 +163,6 @@ class IGFollowerAnalyzer:
             run = self.client.actor("apify/instagram-profile-scraper").call(run_input=run_input)
             
             # Check if we got any results
-            profile_data = None
             for item in self.client.dataset(run["defaultDatasetId"]).iterate_items():
                 profile_data = item
                 break
@@ -198,8 +198,9 @@ class IGFollowerAnalyzer:
                     print(f"  ✅ Account @{ig_username} exists (validation error was false negative)")
                     return True, None
                 else:
-                    # No data, likely doesn't exist
-                    return False, "Account does not exist (404)"
+                    # No data, likely doesn't exist - but allow scraping anyway (might be false negative)
+                    print(f"  ⚠️  Validation returned 404, but allowing scrape attempt (might be false negative): {error_msg[:100]}")
+                    return True, None  # Allow scraping to proceed - validation is unreliable
             else:
                 # If validation fails, we'll still try scraping (might be temporary)
                 print(f"  ⚠️  Validation check failed: {error_msg[:100]}, will attempt scrape anyway...")
