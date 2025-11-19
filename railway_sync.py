@@ -239,7 +239,8 @@ def upload_via_railway_cli(file_path: str) -> bool:
         # Use Railway CLI to write file using Python
         # Read from stdin (binary) and write to file
         # This avoids command line length limits
-        python_cmd = "import sys, os; os.makedirs('/data', exist_ok=True); open('/data/clients_data.json', 'wb').write(sys.stdin.buffer.read())"
+        # Also verify the write by reading back the file size
+        python_cmd = "import sys, os, json; os.makedirs('/data', exist_ok=True); data=sys.stdin.buffer.read(); f=open('/data/clients_data.json', 'wb'); f.write(data); f.close(); verify=json.load(open('/data/clients_data.json','r',encoding='utf-8')); clients_count=len(verify.get('clients',{})); pages_count=len(verify.get('pages',{})); print('Written:', clients_count, 'clients,', pages_count, 'pages')"
         
         # On Windows, use shell=True to handle npm-installed commands
         use_shell = sys.platform == 'win32'
@@ -269,7 +270,17 @@ def upload_via_railway_cli(file_path: str) -> bool:
         )
         
         if result.returncode == 0:
+            # Check stdout for verification message
+            if result.stdout:
+                try:
+                    output_text = result.stdout.decode('utf-8', errors='replace').strip()
+                    if output_text:
+                        print(f"  {output_text}")
+                except:
+                    pass
             print(f"  ✅ Successfully uploaded to Railway!")
+            print(f"  ⚠️  Note: If data doesn't appear, refresh the Streamlit app or restart the Railway service.")
+            print(f"  💡 For initial sync, use the 'Data Management' tab in the Streamlit app for guaranteed results.")
             return True
         else:
             print(f"  ⚠️  Railway CLI returned error (code {result.returncode})")
