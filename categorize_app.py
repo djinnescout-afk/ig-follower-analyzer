@@ -1023,6 +1023,8 @@ def main():
 
     # TAB 4: Data Management
     with tab4:
+        # Debug: Test if tab renders at all
+        st.write("TEST: Tab is rendering")
         st.header("📤 Data Management")
         st.markdown("Upload your local `clients_data.json` to sync with Railway. VA's work will be preserved.")
         st.markdown("---")
