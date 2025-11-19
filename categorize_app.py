@@ -367,7 +367,6 @@ def handle_sync_api():
 
 
 def main():
-    st.write("🔵 MAIN FUNCTION EXECUTING")
     # Check for API sync request
     handle_sync_api()
     
@@ -724,9 +723,7 @@ def main():
     
     # TAB 2: Edit Page Details
     with tab2:
-        st.write("TAB2 START")
         try:
-            st.error("🔴 TAB2 TEST - IF YOU SEE THIS, TAB2 IS WORKING!")
             st.header("Edit Page Details")
             
             # Search/select page
@@ -917,7 +914,6 @@ def main():
     
     # TAB 4: View by Category (temporarily moved to last position)
     with tab4:
-        st.write("TAB4 START")
         try:
             st.header("View Pages by Category")
             
@@ -1046,14 +1042,6 @@ def main():
 
     # TAB 3: Data Management (temporarily moved to 4th position to test)
     with tab3:
-        st.write("TAB3 START")
-        # Force render test
-        st.error("🔴 IF YOU SEE THIS, TAB3 IS RENDERING!")
-        st.success("✅ Tab4 content is executing!")
-        st.warning("⚠️ This is a test message")
-        st.info("ℹ️ If you see all these messages, the tab works!")
-        st.markdown("---")
-        
         st.header("📤 Data Management")
         st.markdown("Upload your local `clients_data.json` to sync with Railway. VA's work will be preserved.")
         st.markdown("---")
