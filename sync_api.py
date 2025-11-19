@@ -4,12 +4,14 @@ Runs alongside Streamlit to accept data uploads from terminal
 """
 
 from flask import Flask, request, jsonify, Response
+from flask_cors import CORS
 import json
 import os
 import requests
 from datetime import datetime
 
 app = Flask(__name__)
+CORS(app)  # Enable CORS for all routes
 
 DATA_FILE = "/data/clients_data.json" if os.path.exists("/data") else "clients_data.json"
 STREAMLIT_URL = os.environ.get("STREAMLIT_URL", "http://localhost:8080")
