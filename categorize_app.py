@@ -408,13 +408,13 @@ def main():
     
     st.markdown("---")
     
-    # Main tabs
+    # Main tabs - TEMPORARILY SWAPPED to test if last tab is the issue
     tab_workflow, tab1, tab2, tab3, tab4 = st.tabs([
         "🚀 Workflow Control",
         "🔍 Categorize Pages",
         "✏️ Edit Page Details",
-        "📂 View by Category",
-        "📤 Data Management"
+        "📤 Data Management",  # MOVED TO 4TH POSITION
+        "📂 View by Category"   # MOVED TO LAST
     ])
     
     # TAB 0: Workflow control (add clients, run scrapers)
@@ -900,8 +900,8 @@ def main():
                     st.success("✅ Changes saved!")
                     st.rerun()
     
-    # TAB 3: View by Category
-    with tab3:
+    # TAB 4: View by Category (temporarily moved to last position)
+    with tab4:
         try:
             st.header("View Pages by Category")
             
@@ -1025,8 +1025,8 @@ def main():
             import traceback
             st.code(traceback.format_exc())
 
-    # TAB 4: Data Management
-    with tab4:
+    # TAB 3: Data Management (temporarily moved to 4th position to test)
+    with tab3:
         # Force render test
         st.error("🔴 IF YOU SEE THIS, TAB4 IS RENDERING!")
         st.success("✅ Tab4 content is executing!")
