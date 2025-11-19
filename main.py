@@ -321,8 +321,26 @@ class IGFollowerAnalyzer:
                 error_msg = str(e)
                 last_error = error_msg
                 
+                # Check for Apify actor authentication issues
+                if "authentication token is not valid" in error_msg.lower() or "token is not valid" in error_msg.lower():
+                    error_type = "Apify actor authentication issue"
+                    # This could be:
+                    # 1. The actor's Instagram session expired (temporary - retry might help)
+                    # 2. Instagram is blocking the actor (permanent for this account)
+                    # 3. The actor needs reconfiguration (permanent until fixed)
+                    # Since we can't distinguish, we'll retry once but then mark as permanent
+                    if attempt >= 2:
+                        permanent_failure = True
+                        print(f"  ❌ {error_type}: The Apify actor's Instagram authentication may be expired or blocked")
+                        print(f"  💡 This usually means:")
+                        print(f"     - The actor's Instagram session expired (try again later)")
+                        print(f"     - Instagram is blocking the actor's requests")
+                        print(f"     - The account might be private or restricted")
+                    else:
+                        print(f"  ❌ {error_type}: {error_msg[:100]}")
+                        print(f"  💡 Retrying - this might be a temporary authentication issue")
                 # Categorize the error and determine if it's permanent
-                if "401" in error_msg or "unauthorized" in error_msg.lower():
+                elif "401" in error_msg or "unauthorized" in error_msg.lower():
                     error_type = "Account not found/private (401)"
                     permanent_failure = True  # 401 is permanent - don't retry
                     print(f"  ❌ {error_type}: Account is private or doesn't exist")
