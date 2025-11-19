@@ -912,114 +912,117 @@ def main():
             for idx, category in enumerate(category_list):
                 with category_tabs[idx]:
                     pages_in_category = get_pages_by_category(data, category, min_clients=1)
-                
-                if not pages_in_category:
-                    st.info(f"No pages found in category: {category}")
-                    continue
-                
-                st.metric("Total Pages", len(pages_in_category))
-                
-                # Search/filter
-                search_term = st.text_input("🔍 Search pages", key=f"search_{category}")
-                
-                # Display pages
-                for page_info in pages_in_category:
-                    username = page_info["username"]
-                    page_data = page_info["page_data"]
                     
-                    # Filter by search
-                    if search_term:
-                        if search_term.lower() not in username.lower() and \
-                           search_term.lower() not in page_data.get("full_name", "").lower():
-                            continue
+                    if not pages_in_category:
+                        st.info(f"No pages found in category: {category}")
+                        continue
                     
-                    with st.expander(f"@{username} - {page_data.get('full_name', 'N/A')}", expanded=False):
-                        col1, col2, col3 = st.columns(3)
+                    st.metric("Total Pages", len(pages_in_category))
+                    
+                    # Search/filter
+                    search_term = st.text_input("🔍 Search pages", key=f"search_{category}")
+                    
+                    # Display pages
+                    for page_info in pages_in_category:
+                        username = page_info["username"]
+                        page_data = page_info["page_data"]
                         
-                        with col1:
-                            # Profile picture - try base64 first, fallback to URL
-                            profile_data = page_data.get("profile_data")
-                            if profile_data and isinstance(profile_data, dict):
-                                pic_displayed = False
+                        # Filter by search
+                        if search_term:
+                            if search_term.lower() not in username.lower() and \
+                               search_term.lower() not in page_data.get("full_name", "").lower():
+                                continue
+                        
+                        with st.expander(f"@{username} - {page_data.get('full_name', 'N/A')}", expanded=False):
+                            col1, col2, col3 = st.columns(3)
+                            
+                        with st.expander(f"@{username} - {page_data.get('full_name', 'N/A')}", expanded=False):
+                            col1, col2, col3 = st.columns(3)
+                            
+                            with col1:
+                                # Profile picture - try base64 first, fallback to URL
+                                profile_data = page_data.get("profile_data")
+                                if profile_data and isinstance(profile_data, dict):
+                                    pic_displayed = False
+                                    
+                                    # Try base64 first
+                                    if profile_data.get("profile_pic_base64") and profile_data.get("profile_pic_mime_type"):
+                                        try:
+                                            data_uri = f"data:{profile_data['profile_pic_mime_type']};base64,{profile_data['profile_pic_base64']}"
+                                            st.image(data_uri, width=150)
+                                            pic_displayed = True
+                                        except:
+                                            pass
+                                    
+                                    # Fallback to URL
+                                    if not pic_displayed and profile_data.get("profile_pic_url"):
+                                        try:
+                                            st.image(profile_data["profile_pic_url"], width=150)
+                                            pic_displayed = True
+                                        except:
+                                            pass
+                                    
+                                    if not pic_displayed:
+                                        st.text("Image unavailable")
                                 
-                                # Try base64 first
-                                if profile_data.get("profile_pic_base64") and profile_data.get("profile_pic_mime_type"):
-                                    try:
-                                        data_uri = f"data:{profile_data['profile_pic_mime_type']};base64,{profile_data['profile_pic_base64']}"
-                                        st.image(data_uri, width=150)
-                                        pic_displayed = True
-                                    except:
-                                        pass
+                                # Instagram link
+                                st.markdown(f"[🔗 View on Instagram](https://instagram.com/{username})")
+                            
+                            with col2:
+                                st.markdown("**Stats:**")
+                                st.text(f"Followers: {page_info['follower_count']:,}")
+                                st.text(f"Clients Following: {page_info['client_count']}")
+                                st.text(f"Concentration: {page_info['concentration']:.2e}")
                                 
-                                # Fallback to URL
-                                if not pic_displayed and profile_data.get("profile_pic_url"):
-                                    try:
-                                        st.image(profile_data["profile_pic_url"], width=150)
-                                        pic_displayed = True
-                                    except:
-                                        pass
+                                if page_info["promo_price"]:
+                                    st.text(f"Price: ${page_info['promo_price']:,.2f}")
+                                    if page_info["concentration_per_dollar"]:
+                                        st.text(f"Value: {page_info['concentration_per_dollar']:.2e} conc/$")
+                            
+                            with col3:
+                                st.markdown("**Contact Info:**")
+                                known = page_data.get("known_contact_methods", [])
+                                if known:
+                                    st.text(f"Known: {', '.join(known)}")
                                 
-                                if not pic_displayed:
-                                    st.text("Image unavailable")
+                                successful = page_data.get("successful_contact_method")
+                                if successful:
+                                    st.text(f"✅ Successful: {successful}")
+                                
+                                main = page_data.get("current_main_contact_method")
+                                if main:
+                                    st.text(f"📞 Current: {main}")
+                                
+                                ig_account = page_data.get("ig_account_for_dm")
+                                if ig_account:
+                                    st.text(f"📱 IG Account: {ig_account}")
+                                
+                                website = page_data.get("website_url")
+                                if website:
+                                    st.markdown(f"🌐 [Website]({website})")
+                                
+                                # Show website promo info if available
+                                website_promo = page_data.get("website_promo_info")
+                                if website_promo:
+                                    promo_flags = []
+                                    if website_promo.get("has_promo_mention"):
+                                        promo_flags.append("Mentions promo")
+                                    if website_promo.get("has_promo_page"):
+                                        promo_flags.append("Has promo page")
+                                    if website_promo.get("has_contact_email"):
+                                        promo_flags.append("Contact email")
+                                    if website_promo.get("has_contact_form"):
+                                        promo_flags.append("Contact form")
+                                    if promo_flags:
+                                        st.text(f"🌐 Website: {', '.join(promo_flags)}")
+                                
+                                if not known and not successful and not main and not website:
+                                    st.text("No contact info")
                             
-                            # Instagram link
-                            st.markdown(f"[🔗 View on Instagram](https://instagram.com/{username})")
-                        
-                        with col2:
-                            st.markdown("**Stats:**")
-                            st.text(f"Followers: {page_info['follower_count']:,}")
-                            st.text(f"Clients Following: {page_info['client_count']}")
-                            st.text(f"Concentration: {page_info['concentration']:.2e}")
-                            
-                            if page_info["promo_price"]:
-                                st.text(f"Price: ${page_info['promo_price']:,.2f}")
-                                if page_info["concentration_per_dollar"]:
-                                    st.text(f"Value: {page_info['concentration_per_dollar']:.2e} conc/$")
-                        
-                        with col3:
-                            st.markdown("**Contact Info:**")
-                            known = page_data.get("known_contact_methods", [])
-                            if known:
-                                st.text(f"Known: {', '.join(known)}")
-                            
-                            successful = page_data.get("successful_contact_method")
-                            if successful:
-                                st.text(f"✅ Successful: {successful}")
-                            
-                            main = page_data.get("current_main_contact_method")
-                            if main:
-                                st.text(f"📞 Current: {main}")
-                            
-                            ig_account = page_data.get("ig_account_for_dm")
-                            if ig_account:
-                                st.text(f"📱 IG Account: {ig_account}")
-                            
-                            website = page_data.get("website_url")
-                            if website:
-                                st.markdown(f"🌐 [Website]({website})")
-                            
-                            # Show website promo info if available
-                            website_promo = page_data.get("website_promo_info")
-                            if website_promo:
-                                promo_flags = []
-                                if website_promo.get("has_promo_mention"):
-                                    promo_flags.append("Mentions promo")
-                                if website_promo.get("has_promo_page"):
-                                    promo_flags.append("Has promo page")
-                                if website_promo.get("has_contact_email"):
-                                    promo_flags.append("Contact email")
-                                if website_promo.get("has_contact_form"):
-                                    promo_flags.append("Contact form")
-                                if promo_flags:
-                                    st.text(f"🌐 Website: {', '.join(promo_flags)}")
-                            
-                            if not known and not successful and not main and not website:
-                                st.text("No contact info")
-                        
-                        # Quick edit button
-                        if st.button(f"✏️ Quick Edit", key=f"edit_{username}_{category}"):
-                            st.session_state.edit_page = username
-                            st.rerun()
+                            # Quick edit button
+                            if st.button(f"✏️ Quick Edit", key=f"edit_{username}_{category}"):
+                                st.session_state.edit_page = username
+                                st.rerun()
         except Exception as e:
             st.error(f"Error in View by Category tab: {str(e)}")
             import traceback
