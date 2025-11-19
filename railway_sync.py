@@ -84,35 +84,72 @@ def download_current_data() -> Optional[Dict]:
     return None
 
 
+def find_railway_cli() -> Optional[str]:
+    """Find the railway CLI executable"""
+    # Try common locations
+    possible_paths = [
+        "railway",  # In PATH
+        os.path.expandvars(r"%APPDATA%\npm\railway.cmd"),  # Windows npm global
+        "/usr/local/bin/railway",  # macOS/Linux
+        os.path.expanduser("~/.railway/bin/railway"),  # Alternative location
+    ]
+    
+    for path in possible_paths:
+        try:
+            result = subprocess.run(
+                [path, "--version"],
+                capture_output=True,
+                text=True,
+                timeout=5
+            )
+            if result.returncode == 0:
+                return path
+        except (FileNotFoundError, subprocess.TimeoutExpired):
+            continue
+    
+    return None
+
+
 def upload_via_railway_cli(file_path: str) -> bool:
-    """Upload file to Railway using CLI"""
+    """Upload file to Railway using CLI by copying file contents via stdin"""
     try:
-        # Method 1: Try using Railway CLI to copy file
-        # First, check if Railway CLI is available
-        result = subprocess.run(
-            ["railway", "--version"],
-            capture_output=True,
-            text=True,
-            timeout=5
-        )
-        if result.returncode != 0:
+        # Find Railway CLI
+        railway_cmd = find_railway_cli()
+        if not railway_cmd:
+            print(f"  ⚠️  Railway CLI not found. Install: npm install -g @railway/cli")
             return False
         
-        # Try to copy file to Railway volume
-        # Note: Railway CLI file operations are limited, so we use a workaround
-        # We'll read the file and pipe it to Railway
+        # Read the file content
         with open(file_path, 'r', encoding='utf-8') as f:
             file_content = f.read()
         
-        # Use Railway CLI to write file via shell command
+        # Use Railway CLI to write file using Python
+        # Create a Python one-liner that reads from stdin and writes to the file
+        # Also ensure the /data directory exists
+        python_cmd = "import sys, os; os.makedirs('/data', exist_ok=True); open('/data/clients_data.json', 'w', encoding='utf-8').write(sys.stdin.read())"
+        
         result = subprocess.run(
-            ["railway", "run", "--service", "web", "sh", "-c", f"cat > /data/clients_data.json << 'EOF'\n{file_content}\nEOF"],
+            [railway_cmd, "run", "--service", "web", "python", "-c", python_cmd],
+            input=file_content,
             capture_output=True,
             text=True,
+            encoding='utf-8',
             timeout=120
         )
-        return result.returncode == 0
-    except (FileNotFoundError, subprocess.TimeoutExpired, Exception) as e:
+        
+        if result.returncode == 0:
+            return True
+        else:
+            print(f"  ⚠️  Railway CLI returned error: {result.stderr[:200]}")
+            return False
+            
+    except FileNotFoundError:
+        print(f"  ⚠️  Railway CLI executable not found")
+        return False
+    except subprocess.TimeoutExpired:
+        print(f"  ⚠️  Railway CLI upload timed out")
+        return False
+    except Exception as e:
         print(f"  ⚠️  Railway CLI upload failed: {str(e)[:100]}")
         return False
 

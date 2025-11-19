@@ -195,8 +195,12 @@ def get_data_file_path() -> str:
     """Get the data file path, checking for Railway volume first"""
     # Check for Railway volume mount (persistent storage)
     volume_path = "/data/clients_data.json"
-    if os.path.exists(volume_path):
+    
+    # Debug: Check if we're on Railway
+    if os.path.exists("/data"):
+        # We're on Railway, use the volume
         return volume_path
+    
     # Fall back to local file
     return "clients_data.json"
 
@@ -341,6 +345,10 @@ def main():
     st.markdown("---")
     
     # Load data
+    data_file_path = get_data_file_path()
+    # Debug info (comment out later)
+    # st.caption(f"📁 Data file: {data_file_path}")
+    
     data = load_data()
     if data is None:
         st.stop()
