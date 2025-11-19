@@ -613,33 +613,33 @@ def main():
                 col1, col2 = st.columns([1, 2])
                 
                 with col1:
-                # Profile picture - try base64 first, fallback to URL
-                profile_data = page_data.get("profile_data")
-                if profile_data and isinstance(profile_data, dict):
-                    pic_displayed = False
+                    # Profile picture - try base64 first, fallback to URL
+                    profile_data = page_data.get("profile_data")
+                    if profile_data and isinstance(profile_data, dict):
+                        pic_displayed = False
+                        
+                        # Try base64 first (doesn't expire)
+                        if profile_data.get("profile_pic_base64") and profile_data.get("profile_pic_mime_type"):
+                            try:
+                                data_uri = f"data:{profile_data['profile_pic_mime_type']};base64,{profile_data['profile_pic_base64']}"
+                                st.image(data_uri, width=200)
+                                pic_displayed = True
+                            except:
+                                pass
+                        
+                        # Fallback to URL
+                        if not pic_displayed and profile_data.get("profile_pic_url"):
+                            try:
+                                st.image(profile_data["profile_pic_url"], width=200)
+                                pic_displayed = True
+                            except:
+                                pass
+                        
+                        if not pic_displayed:
+                            st.info("📷 Profile picture not available")
+                    else:
+                        st.info("📷 Profile picture not scraped yet. Run scrape_profiles.py")
                     
-                    # Try base64 first (doesn't expire)
-                    if profile_data.get("profile_pic_base64") and profile_data.get("profile_pic_mime_type"):
-                        try:
-                            data_uri = f"data:{profile_data['profile_pic_mime_type']};base64,{profile_data['profile_pic_base64']}"
-                            st.image(data_uri, width=200)
-                            pic_displayed = True
-                        except:
-                            pass
-                    
-                    # Fallback to URL
-                    if not pic_displayed and profile_data.get("profile_pic_url"):
-                        try:
-                            st.image(profile_data["profile_pic_url"], width=200)
-                            pic_displayed = True
-                        except:
-                            pass
-                    
-                    if not pic_displayed:
-                        st.info("📷 Profile picture not available")
-                else:
-                    st.info("📷 Profile picture not scraped yet. Run scrape_profiles.py")
-                
                     # Basic stats
                     st.metric("Followers", f"{page_data.get('follower_count', 0):,}")
                     st.metric("Clients Following", len(page_data.get("clients_following", [])))
