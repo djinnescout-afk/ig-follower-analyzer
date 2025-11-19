@@ -211,20 +211,13 @@ def load_data(data_file: str = None) -> Optional[Dict]:
         data_file = get_data_file_path()
     
     if not os.path.exists(data_file):
-        # Create empty structure for new deployments
-        empty_data = {
+        # File doesn't exist - DON'T create empty, return empty structure
+        # This prevents overwriting data uploaded via railway CLI
+        st.warning(f"⚠️ {data_file} not found. Returning empty structure. Upload data via 'Data Management' tab or sync from terminal.")
+        return {
             "clients": {},
             "pages": {}
         }
-        try:
-            # Ensure directory exists (for volume path)
-            os.makedirs(os.path.dirname(data_file) if os.path.dirname(data_file) else ".", exist_ok=True)
-            with open(data_file, 'w', encoding='utf-8') as f:
-                json.dump(empty_data, f, indent=2, ensure_ascii=False)
-            st.info(f"📝 Created new {data_file}. You can start adding clients and pages.")
-        except Exception as e:
-            st.error(f"❌ Could not create {data_file}: {str(e)}")
-            return None
     
     try:
         file_size = os.path.getsize(data_file)
