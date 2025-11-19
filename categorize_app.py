@@ -1166,6 +1166,44 @@ def main():
                     st.code(traceback.format_exc())
         
         st.markdown("---")
+        st.markdown("### 📥 Download from Railway")
+        st.markdown("Download the current Railway data to your local computer:")
+        
+        if st.button("📥 Download clients_data.json from Railway", key="download_railway_data"):
+            try:
+                from railway_sync import download_current_data
+                railway_data = download_current_data()
+                
+                if railway_data:
+                    # Save to local file
+                    local_file = "clients_data.json"
+                    with open(local_file, 'w', encoding='utf-8') as f:
+                        json.dump(railway_data, f, indent=2, ensure_ascii=False)
+                    
+                    # Create download button
+                    with open(local_file, 'r', encoding='utf-8') as f:
+                        file_content = f.read()
+                    
+                    st.download_button(
+                        label="💾 Download File",
+                        data=file_content,
+                        file_name="clients_data.json",
+                        mime="application/json",
+                        key="download_button"
+                    )
+                    st.success(f"✅ Downloaded {len(railway_data.get('clients', {}))} clients and {len(railway_data.get('pages', {}))} pages from Railway!")
+                    st.info(f"📁 File saved to: {os.path.abspath(local_file)}")
+                else:
+                    st.warning("⚠️ Could not download from Railway. Make sure Railway CLI is installed and you're logged in.")
+                    st.info("💡 Alternative: Use `railway run --service web cat /data/clients_data.json > clients_data.json` in your terminal")
+            except ImportError:
+                st.error("❌ railway_sync module not available")
+            except Exception as e:
+                st.error(f"❌ Download failed: {str(e)}")
+                import traceback
+                st.code(traceback.format_exc())
+        
+        st.markdown("---")
         st.markdown("### 🔌 API Sync Endpoint")
         st.markdown("Use this endpoint to upload data programmatically from your terminal:")
         

@@ -88,21 +88,59 @@ def merge_data_smart(existing: Dict, new: Dict) -> Dict:
 def download_current_data() -> Optional[Dict]:
     """Download current data from Railway app"""
     try:
-        # Try to download via Railway CLI first (if available)
+        # Try to find Railway CLI
+        railway_cmd = find_railway_cli()
+        
+        if not railway_cmd:
+            # Try finding via PowerShell on Windows
+            if sys.platform == 'win32':
+                try:
+                    result = subprocess.run(
+                        ["powershell", "-Command", "Get-Command railway | Select-Object -ExpandProperty Source"],
+                        capture_output=True,
+                        text=True,
+                        timeout=5
+                    )
+                    if result.returncode == 0 and result.stdout.strip():
+                        railway_path = result.stdout.strip()
+                        test_result = subprocess.run(
+                            ["powershell", "-Command", f"& '{railway_path}' --version"],
+                            capture_output=True,
+                            text=True,
+                            timeout=5
+                        )
+                        if test_result.returncode == 0:
+                            railway_cmd = railway_path
+                except:
+                    pass
+        
+        if not railway_cmd:
+            return None
+        
+        # Build command to download file
+        if railway_cmd == "npx":
+            full_cmd = ["npx", "railway", "run", "--service", "web", "cat", "/data/clients_data.json"]
+        elif railway_cmd.endswith('.ps1'):
+            # PowerShell script
+            ps_cmd = f"& '{railway_cmd}' run --service web cat /data/clients_data.json"
+            full_cmd = ["powershell", "-Command", ps_cmd]
+        else:
+            full_cmd = [railway_cmd, "run", "--service", "web", "cat", "/data/clients_data.json"]
+        
+        # Run command
         result = subprocess.run(
-            ["railway", "run", "--service", "web", "cat", "/data/clients_data.json"],
+            full_cmd,
             capture_output=True,
             text=True,
-            timeout=30
+            timeout=60
         )
+        
         if result.returncode == 0 and result.stdout:
             return json.loads(result.stdout)
-    except (FileNotFoundError, subprocess.TimeoutExpired, json.JSONDecodeError):
-        pass
-    
-    # Fallback: Try to get via HTTP endpoint (if we add one)
-    # For now, return None - we'll merge with empty if needed
-    return None
+        else:
+            return None
+    except (FileNotFoundError, subprocess.TimeoutExpired, json.JSONDecodeError, Exception):
+        return None
 
 
 def find_railway_cli() -> Optional[str]:
