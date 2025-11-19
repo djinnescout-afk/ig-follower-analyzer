@@ -280,6 +280,20 @@ def sync_via_browser_automation(data_file: str, app_url: str) -> bool:
         
         # Wait for page to load and find Data Management tab
         print("🔍 Looking for Data Management tab...")
+        print("   (This may take up to 30 seconds)")
+        
+        # First, try to find all tabs to see what's available
+        try:
+            all_tabs = driver.find_elements(By.CSS_SELECTOR, "button[data-baseweb='tab'], button[role='tab']")
+            print(f"   Found {len(all_tabs)} tabs on page")
+            for i, tab in enumerate(all_tabs[:5]):  # Show first 5
+                try:
+                    print(f"   Tab {i+1}: {tab.text[:50]}")
+                except:
+                    pass
+        except Exception as e:
+            print(f"   Could not list tabs: {str(e)[:50]}")
+        
         wait = WebDriverWait(driver, 30)
         
         # Try multiple selectors for the Data Management tab
@@ -287,18 +301,21 @@ def sync_via_browser_automation(data_file: str, app_url: str) -> bool:
         selectors = [
             (By.XPATH, "//button[contains(text(), 'Data Management')]"),
             (By.XPATH, "//button[contains(text(), '📤 Data Management')]"),
+            (By.XPATH, "//button[contains(text(), '📤') and contains(text(), 'Data')]"),
             (By.XPATH, "//div[@role='tablist']//button[4]"),  # 4th tab
-            (By.CSS_SELECTOR, "button[data-baseweb='tab']:nth-child(5)"),  # 5th button (Data Management)
+            (By.CSS_SELECTOR, "button[data-baseweb='tab']:nth-child(5)"),  # 5th button
         ]
         
-        for selector_type, selector_value in selectors:
+        for i, (selector_type, selector_value) in enumerate(selectors, 1):
             try:
+                print(f"   Trying selector {i}/{len(selectors)}: {str(selector_type)[:20]}...")
                 data_mgmt_tab = wait.until(
                     EC.element_to_be_clickable((selector_type, selector_value))
                 )
-                print(f"✅ Found Data Management tab using {selector_type}")
+                print(f"✅ Found Data Management tab using selector {i}")
                 break
-            except:
+            except Exception as e:
+                print(f"   Selector {i} failed: {str(e)[:50]}")
                 continue
         
         if not data_mgmt_tab:
