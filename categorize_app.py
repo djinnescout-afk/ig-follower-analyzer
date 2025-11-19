@@ -346,7 +346,24 @@ def get_pages_by_category(data: Dict, category: str, min_clients: int = 1) -> Li
     return result
 
 
+def handle_sync_api():
+    """Handle /sync API endpoint via query parameters"""
+    if st.query_params.get("api") == "sync" and st.query_params.get("method") == "POST":
+        # This is an API call - handle it
+        try:
+            # Get JSON from request body (Streamlit doesn't support this directly, so we'll use a workaround)
+            # For now, return instructions
+            st.error("Direct API sync not supported via Streamlit. Use the Data Management tab or the terminal sync script.")
+            st.stop()
+        except Exception as e:
+            st.error(f"Sync error: {str(e)}")
+            st.stop()
+
+
 def main():
+    # Check for API sync request
+    handle_sync_api()
+    
     st.title("📱 Instagram Page Categorizer")
     st.markdown("**Human-Assisted Categorization Tool for Instagram Pages**")
     st.markdown("---")
