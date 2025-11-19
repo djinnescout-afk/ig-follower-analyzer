@@ -226,11 +226,22 @@ def load_data(data_file: str = None) -> Optional[Dict]:
             st.error(f"❌ Could not create {data_file}: {str(e)}")
             return None
     
-    with open(data_file, 'r', encoding='utf-8') as f:
-        data = json.load(f)
-        # Debug: Show actual counts
-        st.caption(f"✅ Loaded {len(data.get('clients', {}))} clients, {len(data.get('pages', {}))} pages from file")
-        return data
+    try:
+        file_size = os.path.getsize(data_file)
+        st.caption(f"📊 File size: {file_size:,} bytes ({file_size / 1024 / 1024:.2f} MB)")
+        
+        with open(data_file, 'r', encoding='utf-8') as f:
+            content = f.read()
+            st.caption(f"📏 Read {len(content):,} characters from file")
+            
+            data = json.loads(content)
+            st.caption(f"✅ Parsed JSON: {len(data.get('clients', {}))} clients, {len(data.get('pages', {}))} pages")
+            return data
+    except Exception as e:
+        st.error(f"❌ Error loading data: {str(e)}")
+        import traceback
+        st.code(traceback.format_exc())
+        return None
 
 
 def save_data(data: Dict, data_file: str = None):
