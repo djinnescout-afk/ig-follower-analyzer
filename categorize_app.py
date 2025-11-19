@@ -557,7 +557,8 @@ def main():
         
         if not pages_list:
             st.info("✅ No pages found matching the filter criteria!")
-            st.stop()
+            # Don't use st.stop() - it stops the entire script and prevents other tabs from rendering!
+            # Just show the message and let the user continue to other tabs
         
         total_pages = len(pages_list)
         
