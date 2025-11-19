@@ -184,10 +184,22 @@ class IGFollowerAnalyzer:
             
         except Exception as e:
             error_msg = str(e)
+            # Validation can give false negatives due to rate limiting, temporary Instagram issues, etc.
+            # So we'll be more lenient - only fail on clear errors
             if "401" in error_msg or "unauthorized" in error_msg.lower():
-                return False, "Account not found or is private (401)"
+                # 401 might be temporary - allow scraping to proceed
+                print(f"  ⚠️  Validation check returned 401 (might be temporary): {error_msg[:100]}, will attempt scrape anyway...")
+                return True, None  # Allow scraping to proceed
             elif "404" in error_msg or "not found" in error_msg.lower():
-                return False, "Account does not exist (404)"
+                # 404 might also be a false negative - Instagram/Apify can be inconsistent
+                # Check if we actually got profile data despite the error
+                if profile_data and profile_data.get("username"):
+                    # We got data, so account exists - validation error was false
+                    print(f"  ✅ Account @{ig_username} exists (validation error was false negative)")
+                    return True, None
+                else:
+                    # No data, likely doesn't exist
+                    return False, "Account does not exist (404)"
             else:
                 # If validation fails, we'll still try scraping (might be temporary)
                 print(f"  ⚠️  Validation check failed: {error_msg[:100]}, will attempt scrape anyway...")

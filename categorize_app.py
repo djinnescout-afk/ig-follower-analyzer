@@ -118,7 +118,7 @@ def capture_logs(func, *args, **kwargs) -> str:
     return buffer.getvalue()
 
 
-def run_client_scrape(selected_clients: List[str]):
+def run_client_scrape(selected_clients: List[str], skip_validation: bool = False):
     """Run the client following scraper from the browser"""
     analyzer = get_analyzer()
     if not analyzer:
@@ -131,7 +131,8 @@ def run_client_scrape(selected_clients: List[str]):
         with redirect_stdout(logs), redirect_stderr(logs):
             for username in selected_clients:
                 status.write(f"🔍 Scraping @{username}...")
-                analyzer.scrape_client_following(username)
+                # Skip validation if requested (validation can give false negatives)
+                analyzer.scrape_client_following(username, validate_first=not skip_validation)
         status.update(label="✅ Client scraping complete", state="complete")
     except Exception as e:
         status.update(label="❌ Client scraping failed", state="error")
