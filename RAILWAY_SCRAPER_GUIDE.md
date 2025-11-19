@@ -91,3 +91,4 @@ Make sure these are set in Railway:
 - **Cost**: Uses Railway's compute time (included in Hobby plan)
 - **Monitoring**: Check Railway logs to see scraping progress
 
+

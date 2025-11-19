@@ -15,11 +15,11 @@ from categorizer import InstagramCategorizer, CATEGORIES
 
 
 class IGFollowerAnalyzer:
-    def __init__(self, apify_token: str, openai_api_key: str = None):
-        """Initialize with Apify API token and optional OpenAI key for categorization"""
+    def __init__(self, apify_token: str, openai_api_key: str = None, data_file: str = None):
+        """Initialize with Apify API token, optional OpenAI key, and optional custom data file"""
         self.apify_token = apify_token  # Store token for categorizer
         self.client = ApifyClient(apify_token)
-        self.data_file = "clients_data.json"
+        self.data_file = data_file or "clients_data.json"
         self.clients_data = self.load_data()
         self.openai_api_key = openai_api_key
         self._categorizer = None
@@ -35,19 +35,44 @@ class IGFollowerAnalyzer:
             "last_updated": None
         }
     
-    def save_data(self):
-        """Save client data to JSON file"""
+    def save_data(self, sync_remote: bool = False, sync_reason: Optional[str] = None, silent_sync: bool = False):
+        """Save client data to JSON file and optionally sync to Railway"""
         self.clients_data["last_updated"] = datetime.now().isoformat()
         with open(self.data_file, 'w') as f:
             json.dump(self.clients_data, f, indent=2)
         
-        # Auto-sync to Railway if enabled
+        if sync_remote:
+            self._sync_to_railway(reason=sync_reason, silent=silent_sync)
+
+    def _sync_to_railway(self, reason: Optional[str] = None, silent: bool = False) -> bool:
+        """Helper to sync clients_data.json to Railway with optional messaging"""
         try:
             from railway_sync import sync_to_railway
-            sync_to_railway(self.data_file, preserve_va_work=True)
-        except (ImportError, Exception):
-            # Silently fail - auto-sync is optional
-            pass
+        except ImportError:
+            if not silent:
+                print("💡 Railway sync skipped (railway_sync.py not available).")
+            return False
+        except Exception as e:
+            if not silent:
+                print(f"⚠️ Railway sync import failed: {str(e)[:120]}")
+            return False
+        
+        if not silent:
+            prefix = f"🔄 Syncing to Railway ({reason})..." if reason else "🔄 Syncing to Railway..."
+            print(f"\n{prefix}")
+        
+        try:
+            success = sync_to_railway(self.data_file, preserve_va_work=True)
+            if not silent:
+                if success:
+                    print("✅ Railway sync complete.")
+                else:
+                    print("⚠️ Railway sync reported a failure (see logs above).")
+            return success
+        except Exception as e:
+            if not silent:
+                print(f"⚠️ Railway sync failed: {str(e)[:200]}")
+            return False
     
     def add_client(self, client_name: str, ig_username: str):
         """Add a new client to the database"""
@@ -63,7 +88,7 @@ class IGFollowerAnalyzer:
             "following_count": 0,
             "last_scraped": None
         }
-        self.save_data()
+        self.save_data(sync_remote=True, sync_reason=f"Client added (@{ig_username})")
         print(f"✅ Added client: {client_name} (@{ig_username})")
         return True
     
@@ -274,7 +299,8 @@ class IGFollowerAnalyzer:
                 # Update pages database
                 self._update_pages_database(ig_username, following_list)
                 
-                self.save_data()
+                # Use silent sync to avoid noisy logs when scraping multiple clients
+                self.save_data(sync_remote=True, sync_reason=f"Scraped @{ig_username}", silent_sync=True)
                 print(f"✅ Scraped {len(following_list)} accounts for @{ig_username}")
                 return following_list
                 
@@ -453,7 +479,7 @@ class IGFollowerAnalyzer:
             return False
         
         self.clients_data["pages"][page_username]["promo_price"] = price
-        self.save_data()
+        self.save_data(sync_remote=True, sync_reason=f"Promo price updated (@{page_username})")
         print(f"✅ Updated price for @{page_username}: ${price}")
         return True
     
@@ -643,7 +669,7 @@ class IGFollowerAnalyzer:
                 self.clients_data["pages"][username]["promo_indicators"] = result["promo_indicators"]
                 self.clients_data["pages"][username]["last_categorized"] = result["last_categorized"]
         
-        self.save_data()
+        self.save_data(sync_remote=True, sync_reason="Categorization updates")
         print(f"\n✅ Updated {len(results)} pages in database")
     
     def get_pages_by_category(self, min_clients: int = 1) -> Dict[str, List[Dict]]:
