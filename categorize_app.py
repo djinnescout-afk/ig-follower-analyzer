@@ -1116,36 +1116,6 @@ def main():
                     import traceback
                     st.code(traceback.format_exc())
         
-        if uploaded_file is not None:
-            try:
-                # Read uploaded file
-                new_data = json.load(uploaded_file)
-                
-                # Load current data
-                current_data = load_data()
-                
-                if current_data and (current_data.get("clients") or current_data.get("pages")):
-                    st.info("🔄 Merging uploaded data with existing data (preserving VA's work)...")
-                    
-                    # Merge data (preserve VA's work)
-                    merged_data = merge_data_smart(current_data, new_data)
-                    
-                    # Save merged data
-                    save_data(merged_data)
-                    
-                    st.success("✅ Data uploaded and merged successfully! VA's work has been preserved.")
-                    st.info("🔄 Refresh the page to see updated data.")
-                else:
-                    # No existing data, just save the uploaded file
-                    save_data(new_data)
-                    st.success("✅ Data uploaded successfully!")
-                    st.info("🔄 Refresh the page to see updated data.")
-                    
-            except json.JSONDecodeError:
-                st.error("❌ Invalid JSON file. Please upload a valid clients_data.json file.")
-            except Exception as e:
-                st.error(f"❌ Error uploading file: {str(e)}")
-        
         st.markdown("---")
         st.markdown("### 🔌 API Sync Endpoint")
         st.markdown("Use this endpoint to upload data programmatically from your terminal:")
