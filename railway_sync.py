@@ -10,6 +10,7 @@ import requests
 from typing import Dict, Optional
 
 RAILWAY_APP_URL = "https://web-production-def7.up.railway.app"  # Your Railway app URL
+RAILWAY_SYNC_PORT = 8081  # Flask sync API port
 
 
 def merge_data_smart(existing: Dict, new: Dict) -> Dict:
@@ -156,65 +157,65 @@ def upload_via_railway_cli(file_path: str) -> bool:
 
 def sync_to_railway(data_file: str = "clients_data.json", preserve_va_work: bool = True) -> bool:
     """
-    Automatically sync data to Railway after scraping
+    Automatically sync data to Railway after scraping via HTTP API
     
     Args:
         data_file: Path to local clients_data.json
-        preserve_va_work: If True, merges with existing data to preserve VA's work
+        preserve_va_work: If True, merges with existing data to preserve VA's work (handled server-side)
     
     Returns:
         True if successful, False otherwise
     """
     print("\n" + "=" * 60)
-    print("🔄 Auto-syncing to Railway...")
+    print("🔄 Auto-syncing to Railway via HTTP...")
     print("=" * 60)
     
     if not os.path.exists(data_file):
         print(f"❌ {data_file} not found!")
         return False
     
-    # Load new scraped data
+    # Load data to upload
     print(f"📖 Loading {data_file}...")
     with open(data_file, 'r', encoding='utf-8') as f:
-        new_data = json.load(f)
+        data_to_upload = json.load(f)
     
-    # Download current data from Railway (if preserving VA work)
-    if preserve_va_work:
-        print("📥 Downloading current data from Railway...")
-        existing_data = download_current_data()
+    # Upload via HTTP API
+    print("📤 Uploading to Railway sync API...")
+    sync_endpoint = f"{RAILWAY_APP_URL}/sync"
+    
+    try:
+        response = requests.post(
+            sync_endpoint,
+            json=data_to_upload,
+            timeout=120,  # 2 minute timeout for large files
+            headers={'Content-Type': 'application/json'}
+        )
         
-        if existing_data:
-            print("🔄 Merging data (preserving VA's work)...")
-            merged_data = merge_data_smart(existing_data, new_data)
-            # Save merged data temporarily
-            temp_file = "clients_data_merged.json"
-            with open(temp_file, 'w', encoding='utf-8') as f:
-                json.dump(merged_data, f, indent=2, ensure_ascii=False)
-            file_to_upload = temp_file
+        if response.status_code == 200:
+            result = response.json()
+            print("✅ Successfully synced to Railway!")
+            print(f"   📊 Clients: {result.get('clients', 0)}")
+            print(f"   📊 Pages: {result.get('pages', 0)}")
+            print(f"   📊 File size: {result.get('file_size', 0):,} bytes")
+            if preserve_va_work:
+                print("✅ VA's work has been preserved (server-side merge).")
+            return True
         else:
-            print("⚠️  Could not download existing data. Uploading new data only.")
-            file_to_upload = data_file
-    else:
-        file_to_upload = data_file
-    
-    # Upload to Railway
-    print("📤 Uploading to Railway...")
-    success = upload_via_railway_cli(file_to_upload)
-    
-    # Cleanup temp file
-    if preserve_va_work and file_to_upload != data_file:
-        try:
-            os.remove(file_to_upload)
-        except:
-            pass
-    
-    if success:
-        print("✅ Successfully synced to Railway!")
-        if preserve_va_work:
-            print("✅ VA's work has been preserved.")
-        return True
-    else:
-        print("❌ Failed to sync via Railway CLI.")
+            print(f"❌ Sync failed with status {response.status_code}")
+            print(f"   Response: {response.text[:200]}")
+            return False
+            
+    except requests.exceptions.ConnectionError:
+        print("❌ Could not connect to Railway sync API.")
+        print(f"   Make sure {sync_endpoint} is accessible.")
+        print("💡 Alternative: Use the 'Data Management' tab in the Streamlit app to upload manually.")
+        return False
+    except requests.exceptions.Timeout:
+        print("❌ Sync request timed out (file might be too large).")
+        print("💡 Alternative: Use the 'Data Management' tab in the Streamlit app to upload manually.")
+        return False
+    except Exception as e:
+        print(f"❌ Sync failed: {str(e)[:200]}")
         print("💡 Alternative: Use the 'Data Management' tab in the Streamlit app to upload manually.")
         return False
 

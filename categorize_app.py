@@ -1017,7 +1017,7 @@ def main():
                 # Load current data
                 current_data = load_data()
                 
-                if current_data:
+                if current_data and (current_data.get("clients") or current_data.get("pages")):
                     st.info("🔄 Merging uploaded data with existing data (preserving VA's work)...")
                     
                     # Merge data (preserve VA's work)
@@ -1032,11 +1032,28 @@ def main():
                     # No existing data, just save the uploaded file
                     save_data(new_data)
                     st.success("✅ Data uploaded successfully!")
+                    st.info("🔄 Refresh the page to see updated data.")
                     
             except json.JSONDecodeError:
                 st.error("❌ Invalid JSON file. Please upload a valid clients_data.json file.")
             except Exception as e:
                 st.error(f"❌ Error uploading file: {str(e)}")
+        
+        st.markdown("---")
+        st.markdown("### 🔌 API Sync Endpoint")
+        st.markdown("Use this endpoint to upload data programmatically from your terminal:")
+        
+        # Display the sync endpoint URL
+        sync_url = f"{os.environ.get('RAILWAY_PUBLIC_DOMAIN', 'localhost:8501')}"
+        if not sync_url.startswith('http'):
+            sync_url = f"https://{sync_url}"
+        
+        st.code(f"POST {sync_url}/?sync_data=true", language="bash")
+        st.caption("Send JSON data in the request body to sync automatically.")
+        
+        # Handle API sync requests
+        if st.query_params.get("sync_data") == "true":
+            st.info("⚠️ API sync endpoint detected. This page is for manual upload only. Use a proper HTTP client for programmatic sync.")
         
         st.markdown("---")
         st.markdown("### 📊 Current Data Status")
