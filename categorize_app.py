@@ -199,6 +199,12 @@ def get_data_file_path() -> str:
     # Debug: Check if we're on Railway
     if os.path.exists("/data"):
         # We're on Railway, use the volume
+        # Debug: Log what we see
+        if os.path.exists(volume_path):
+            file_size = os.path.getsize(volume_path)
+            # Only log in debug mode to avoid cluttering UI
+            if os.environ.get("DEBUG_VOLUME"):
+                st.caption(f"🔍 DEBUG: Volume file exists, size: {file_size:,} bytes")
         return volume_path
     
     # Fall back to local file
