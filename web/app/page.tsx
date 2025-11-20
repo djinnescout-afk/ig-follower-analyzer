@@ -4,11 +4,13 @@ import { useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { clientsApi, pagesApi, scrapesApi } from './lib/api'
 import ClientsTab from './components/ClientsTab'
+import CategorizeTab from './components/CategorizeTab'
+import ViewCategorizedTab from './components/ViewCategorizedTab'
 import PagesTab from './components/PagesTab'
 import ScrapesTab from './components/ScrapesTab'
 
 export default function Dashboard() {
-  const [activeTab, setActiveTab] = useState<'clients' | 'pages' | 'scrapes'>('clients')
+  const [activeTab, setActiveTab] = useState<'clients' | 'categorize' | 'view-categorized' | 'pages' | 'scrapes'>('clients')
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -19,7 +21,7 @@ export default function Dashboard() {
             IG Follower Analyzer
           </h1>
           <p className="text-sm text-gray-600 mt-1">
-            VA Dashboard - Manage clients, scrape following lists, and categorize pages
+            VA Dashboard - Add clients, scrape profiles, categorize pages, and track outreach
           </p>
         </div>
       </header>
@@ -41,6 +43,30 @@ export default function Dashboard() {
               Clients
             </button>
             <button
+              onClick={() => setActiveTab('categorize')}
+              className={`
+                py-4 px-1 border-b-2 font-medium text-sm
+                ${activeTab === 'categorize'
+                  ? 'border-blue-500 text-blue-600'
+                  : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                }
+              `}
+            >
+              Categorize
+            </button>
+            <button
+              onClick={() => setActiveTab('view-categorized')}
+              className={`
+                py-4 px-1 border-b-2 font-medium text-sm
+                ${activeTab === 'view-categorized'
+                  ? 'border-blue-500 text-blue-600'
+                  : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                }
+              `}
+            >
+              View Categorized
+            </button>
+            <button
               onClick={() => setActiveTab('pages')}
               className={`
                 py-4 px-1 border-b-2 font-medium text-sm
@@ -50,7 +76,7 @@ export default function Dashboard() {
                 }
               `}
             >
-              Pages
+              All Pages
             </button>
             <button
               onClick={() => setActiveTab('scrapes')}
@@ -70,6 +96,8 @@ export default function Dashboard() {
         {/* Tab Content */}
         <div className="mt-6 pb-12">
           {activeTab === 'clients' && <ClientsTab />}
+          {activeTab === 'categorize' && <CategorizeTab />}
+          {activeTab === 'view-categorized' && <ViewCategorizedTab />}
           {activeTab === 'pages' && <PagesTab />}
           {activeTab === 'scrapes' && <ScrapesTab />}
         </div>
