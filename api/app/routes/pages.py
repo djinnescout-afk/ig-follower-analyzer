@@ -13,6 +13,8 @@ logger = logging.getLogger(__name__)
 @router.get("/", response_model=list[PageResponse])
 def list_pages(
     min_client_count: Optional[int] = Query(None, description="Filter by minimum client count"),
+    categorized: Optional[bool] = Query(None, description="Filter by categorization status (true=categorized, false=uncategorized)"),
+    category: Optional[str] = Query(None, description="Filter by specific category"),
     limit: Optional[int] = Query(10000, description="Max pages to return"),
     offset: Optional[int] = Query(0, description="Pagination offset"),
 ):
@@ -28,6 +30,17 @@ def list_pages(
     # Apply min_client_count filter
     if min_client_count is not None:
         query = query.gte("client_count", min_client_count)
+    
+    # Apply categorization filter
+    if categorized is not None:
+        if categorized:
+            query = query.is_not("category", "null")
+        else:
+            query = query.is_("category", "null")
+    
+    # Apply specific category filter
+    if category is not None:
+        query = query.eq("category", category)
     
     # Sort by client_count descending
     query = query.order("client_count", desc=True)
