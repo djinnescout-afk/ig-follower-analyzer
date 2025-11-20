@@ -1,15 +1,30 @@
-from fastapi import APIRouter, HTTPException, status
+from typing import Optional
 
-from ..db import fetch_rows, insert_row, upsert_row
+from fastapi import APIRouter, HTTPException, Query, status
+
+from ..db import fetch_rows, get_supabase_client, insert_row, upsert_row
 from ..schemas.page import PageCreate, PageResponse, PageUpdate
 
 router = APIRouter(prefix="/pages", tags=["pages"])
 
 
 @router.get("/", response_model=list[PageResponse])
-def list_pages():
-    rows = fetch_rows("pages")
-    return rows
+def list_pages(
+    min_client_count: Optional[int] = Query(None, description="Filter by minimum client count"),
+    limit: Optional[int] = Query(1000, description="Max pages to return"),
+    offset: Optional[int] = Query(0, description="Pagination offset"),
+):
+    """List pages with optional filtering."""
+    client = get_supabase_client()
+    query = client.table("pages").select("*")
+    
+    if min_client_count is not None:
+        query = query.gte("client_count", min_client_count)
+    
+    query = query.order("client_count", desc=True).limit(limit).offset(offset)
+    
+    response = query.execute()
+    return response.data or []
 
 
 @router.post("/", response_model=PageResponse, status_code=status.HTTP_201_CREATED)
@@ -21,6 +36,27 @@ def create_page(payload: PageCreate):
         raise HTTPException(status_code=409, detail="Page already exists")
     row = insert_row("pages", data)
     return row
+
+
+@router.get("/{page_id}/profile")
+def get_page_profile(page_id: str):
+    """Get the most recent profile data for a page."""
+    client = get_supabase_client()
+    
+    # Get the most recent profile scrape for this page
+    response = (
+        client.table("page_profiles")
+        .select("*")
+        .eq("page_id", page_id)
+        .order("scraped_at", desc=True)
+        .limit(1)
+        .execute()
+    )
+    
+    if not response.data:
+        raise HTTPException(status_code=404, detail="Profile not found. Page hasn't been scraped yet.")
+    
+    return response.data[0]
 
 
 @router.put("/{page_id}", response_model=PageResponse)
