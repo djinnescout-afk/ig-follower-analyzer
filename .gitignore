@@ -1,6 +1,6 @@
 # Environment variables
 .env
-config.py
+/config.py
 run.bat
 set_permanent_env.bat
 set_permanent_env.ps1
