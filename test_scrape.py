@@ -45,6 +45,15 @@ result = analyzer.scrape_client_following(username, validate_first=False)
 if result:
     print(f"\n✅ SUCCESS! Scraped {len(result)} accounts")
     print(f"   First few accounts: {[acc.get('username') for acc in result[:5]]}")
+    
+    # Check if we got all accounts
+    # The actor logs showed "2663 following accounts" but we only got {len(result)}
+    print(f"\n⚠️  NOTE: Instagram shows 2663 following, but scraper returned {len(result)}")
+    print(f"   Missing: {2663 - len(result)} accounts")
+    print(f"   This might be due to:")
+    print(f"   - Private/deleted accounts being filtered")
+    print(f"   - Actor rate limits or timeouts")
+    print(f"   - Actor configuration limits")
 else:
     print("\n❌ FAILED - Could not scrape")
     print("   This matches the Streamlit behavior")

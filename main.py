@@ -240,6 +240,31 @@ class IGFollowerAnalyzer:
                 print(f"  ❌ Cannot scrape @{ig_username}: {error_msg}")
                 return None
         
+        # Get total following count from Instagram first (for comparison)
+        total_following_count = None
+        try:
+            print(f"  📊 Getting total following count from Instagram...")
+            # Use profile scraper to quickly get the following count
+            profile_run_input = {
+                "usernames": [ig_username],
+                "resultsLimit": 1,
+            }
+            profile_run = self.client.actor("apify/instagram-profile-scraper").call(run_input=profile_run_input)
+            for item in self.client.dataset(profile_run["defaultDatasetId"]).iterate_items():
+                # The profile data includes edge_follow (following count)
+                edge_follow = item.get("edge_follow", {})
+                if edge_follow:
+                    total_following_count = edge_follow.get("count", 0)
+                # Also check other possible fields
+                if not total_following_count:
+                    total_following_count = item.get("followingCount", 0) or item.get("following_count", 0)
+                if total_following_count:
+                    print(f"  📊 Instagram reports {total_following_count} total following accounts")
+                    break
+        except Exception as e:
+            # If we can't get the count, that's okay - we'll just use dataset count
+            print(f"  ⚠️  Could not get total following count: {str(e)[:80]}")
+        
         # Add delay before scraping to avoid rate limits
         time.sleep(3)  # 3 second delay before each scrape
         
@@ -323,6 +348,31 @@ class IGFollowerAnalyzer:
                 
                 # Log what we got
                 print(f"  📊 Retrieved {len(following_list)} accounts from Apify dataset")
+                
+                # Compare against Instagram's reported total (if we got it)
+                if total_following_count and total_following_count > 0:
+                    percentage = (len(following_list) / total_following_count) * 100
+                    missing_count = total_following_count - len(following_list)
+                    
+                    print(f"  📊 Coverage: {len(following_list)}/{total_following_count} accounts ({percentage:.1f}%)")
+                    
+                    if percentage >= 95:
+                        print(f"  ✅ Excellent! Got {percentage:.1f}% of accounts (≥95% threshold)")
+                    elif percentage >= 90:
+                        print(f"  ⚠️  Warning: Only got {percentage:.1f}% of accounts (missing {missing_count})")
+                        print(f"  💡 This might be due to private accounts, rate limits, or actor timeouts")
+                    else:
+                        print(f"  ❌ Poor coverage: Only got {percentage:.1f}% of accounts (missing {missing_count})")
+                        print(f"  💡 Consider retrying - this might be due to:")
+                        print(f"     - Rate limiting (wait and retry)")
+                        print(f"     - Actor timeouts (retry later)")
+                        print(f"     - Many private accounts")
+                        
+                        # If coverage is very poor, mark for retry
+                        if percentage < 90 and attempt < max_retries:
+                            print(f"  🔄 Will retry to get better coverage...")
+                            last_error = f"Low coverage: {percentage:.1f}% (got {len(following_list)}/{total_following_count})"
+                            continue
                 
                 # Check if we got results
                 if len(following_list) == 0:
