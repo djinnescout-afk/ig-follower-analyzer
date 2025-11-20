@@ -13,7 +13,10 @@ export default function PagesTab() {
   const { data: pages, isLoading } = useQuery({
     queryKey: ['pages', minClientCount],
     queryFn: async () => {
-      const response = await pagesApi.list({ min_client_count: minClientCount })
+      const response = await pagesApi.list({ 
+        min_client_count: minClientCount,
+        limit: 10000  // Fetch all pages (increase if you have more than 10k)
+      })
       return response.data
     },
   })
