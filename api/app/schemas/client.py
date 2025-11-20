@@ -1,14 +1,12 @@
 from datetime import datetime
 from typing import Optional
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, ConfigDict
 
 
 class ClientBase(BaseModel):
+    name: str = Field(..., description="Client name")
     ig_username: str = Field(..., description="Instagram handle in lowercase")
-    display_name: Optional[str] = None
-    status: str = Field(default="pending")
-    notes: Optional[str] = None
 
 
 class ClientCreate(ClientBase):
@@ -16,19 +14,18 @@ class ClientCreate(ClientBase):
 
 
 class ClientUpdate(BaseModel):
-    display_name: Optional[str] = None
-    status: Optional[str] = None
-    notes: Optional[str] = None
-    last_error: Optional[str] = None
+    name: Optional[str] = None
+    ig_username: Optional[str] = None
+    following_count: Optional[int] = None
+    last_scraped: Optional[datetime] = None
 
 
 class ClientResponse(ClientBase):
     id: str
     following_count: int = 0
-    last_scraped_at: Optional[datetime] = None
+    last_scraped: Optional[datetime] = None
     created_at: datetime
     updated_at: datetime
 
-    class Config:
-        orm_mode = True
+    model_config = ConfigDict(from_attributes=True)
 

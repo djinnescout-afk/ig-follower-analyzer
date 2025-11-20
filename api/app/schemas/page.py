@@ -1,41 +1,35 @@
 from datetime import datetime
-from typing import Optional, List
+from typing import Optional
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, ConfigDict
 
 
 class PageBase(BaseModel):
     ig_username: str = Field(..., description="Instagram handle")
-    display_name: Optional[str] = None
-    category: Optional[str] = None
-    promo_status: Optional[str] = None
-    pricing_notes: Optional[str] = None
-    metadata: Optional[dict] = None
+    full_name: Optional[str] = None
+    follower_count: int = 0
+    is_verified: bool = False
+    is_private: bool = False
 
 
 class PageCreate(PageBase):
-    follower_count: Optional[int] = None
+    pass
 
 
 class PageUpdate(BaseModel):
-    display_name: Optional[str] = None
-    category: Optional[str] = None
-    category_confidence: Optional[float] = None
-    promo_status: Optional[str] = None
-    promo_indicators: Optional[List[str]] = None
-    contact_email: Optional[str] = None
-    pricing_notes: Optional[str] = None
-    metadata: Optional[dict] = None
+    ig_username: Optional[str] = None
+    full_name: Optional[str] = None
+    follower_count: Optional[int] = None
+    is_verified: Optional[bool] = None
+    is_private: Optional[bool] = None
+    last_scraped: Optional[datetime] = None
 
 
 class PageResponse(PageBase):
     id: str
-    follower_count: Optional[int] = None
-    clients_following_count: int = 0
-    last_profile_scraped_at: Optional[datetime] = None
+    last_scraped: Optional[datetime] = None
     created_at: datetime
     updated_at: datetime
 
-    class Config:
-        orm_mode = True
+    model_config = ConfigDict(from_attributes=True)
 
