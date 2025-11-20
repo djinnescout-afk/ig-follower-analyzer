@@ -10,6 +10,7 @@ class Settings:
         self.supabase_url = os.getenv("SUPABASE_URL", "")
         self.supabase_service_key = os.getenv("SUPABASE_SERVICE_KEY", "")
         self.apify_token = os.getenv("APIFY_TOKEN", "")
+        self.api_prefix = "/api"  # API route prefix
         
         # Validate required settings
         if not self.supabase_url:
