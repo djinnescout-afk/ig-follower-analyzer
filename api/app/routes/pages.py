@@ -18,18 +18,27 @@ def list_pages(
 ):
     """List pages with optional filtering.
     
-    Note: Manually calculates client_count from relationships due to PostgREST schema cache issues.
+    Uses the client_count column from the database (maintained by triggers).
     """
     client = get_supabase_client()
     
-    # Fetch all pages (we'll filter and paginate after counting)
-    # Note: Supabase has a default limit of 1000, need to fetch in batches using range()
+    # Build query with filter applied at database level
+    query = client.table("pages").select("*")
+    
+    # Apply min_client_count filter
+    if min_client_count is not None:
+        query = query.gte("client_count", min_client_count)
+    
+    # Sort by client_count descending
+    query = query.order("client_count", desc=True)
+    
+    # Fetch pages in batches (Supabase limit is 1000 per query)
     all_pages = []
     batch_size = 1000
     start = 0
     iteration = 0
     
-    print(f"[PAGES API] Starting batch fetch of pages...")
+    print(f"[PAGES API] Starting batch fetch of pages (min_client_count={min_client_count})...")
     
     while True:
         iteration += 1
@@ -37,7 +46,7 @@ def list_pages(
         print(f"[PAGES API] Batch {iteration}: Fetching range({start}, {end})")
         
         try:
-            batch = client.table("pages").select("*").range(start, end).execute()
+            batch = query.range(start, end).execute()
             batch_count = len(batch.data) if batch.data else 0
             print(f"[PAGES API] Batch {iteration}: Retrieved {batch_count} items")
             
@@ -58,26 +67,6 @@ def list_pages(
             break
     
     print(f"[PAGES API] Finished fetching. Total pages: {len(all_pages)}")
-    
-    # Get client counts from relationships
-    following_response = client.table("client_following").select("page_id").execute()
-    following_data = following_response.data or []
-    
-    from collections import Counter
-    page_client_counts = Counter(f["page_id"] for f in following_data)
-    
-    # Add client_count to each page
-    for page in all_pages:
-        page["client_count"] = page_client_counts.get(page["id"], 0)
-    
-    # Filter by min_client_count
-    if min_client_count is not None:
-        all_pages = [p for p in all_pages if p["client_count"] >= min_client_count]
-        print(f"[PAGES API] After filtering (min_client_count={min_client_count}): {len(all_pages)} pages")
-    
-    # Sort by client_count desc
-    all_pages.sort(key=lambda p: p["client_count"], reverse=True)
-    print(f"[PAGES API] After sorting: {len(all_pages)} pages")
     
     # Apply pagination
     result = all_pages[offset:offset+limit]
