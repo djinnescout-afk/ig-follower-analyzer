@@ -11,7 +11,7 @@ router = APIRouter(prefix="/pages", tags=["pages"])
 @router.get("/", response_model=list[PageResponse])
 def list_pages(
     min_client_count: Optional[int] = Query(None, description="Filter by minimum client count"),
-    limit: Optional[int] = Query(1000, description="Max pages to return"),
+    limit: Optional[int] = Query(10000, description="Max pages to return"),
     offset: Optional[int] = Query(0, description="Pagination offset"),
 ):
     """List pages with optional filtering.
