@@ -1,4 +1,5 @@
 from typing import Optional
+import logging
 
 from fastapi import APIRouter, HTTPException, Query, status
 
@@ -6,6 +7,7 @@ from ..db import fetch_rows, get_supabase_client, insert_row, upsert_row
 from ..schemas.page import PageCreate, PageResponse, PageUpdate
 
 router = APIRouter(prefix="/pages", tags=["pages"])
+logger = logging.getLogger(__name__)
 
 
 @router.get("/", response_model=list[PageResponse])
@@ -25,16 +27,37 @@ def list_pages(
     all_pages = []
     batch_size = 1000
     start = 0
+    iteration = 0
+    
+    logger.info(f"Starting batch fetch of pages...")
     
     while True:
+        iteration += 1
         end = start + batch_size - 1
-        batch = client.table("pages").select("*").range(start, end).execute()
-        if not batch.data:
+        logger.info(f"Batch {iteration}: Fetching range({start}, {end})")
+        
+        try:
+            batch = client.table("pages").select("*").range(start, end).execute()
+            batch_count = len(batch.data) if batch.data else 0
+            logger.info(f"Batch {iteration}: Retrieved {batch_count} items")
+            
+            if not batch.data:
+                logger.info(f"Batch {iteration}: No data, breaking")
+                break
+                
+            all_pages.extend(batch.data)
+            logger.info(f"Total pages so far: {len(all_pages)}")
+            
+            if len(batch.data) < batch_size:
+                logger.info(f"Batch {iteration}: Last batch (partial), breaking")
+                break  # Last batch
+                
+            start += batch_size
+        except Exception as e:
+            logger.error(f"Batch {iteration}: Error - {str(e)}")
             break
-        all_pages.extend(batch.data)
-        if len(batch.data) < batch_size:
-            break  # Last batch
-        start += batch_size
+    
+    logger.info(f"Finished fetching. Total pages: {len(all_pages)}")
     
     # Get client counts from relationships
     following_response = client.table("client_following").select("page_id").execute()
