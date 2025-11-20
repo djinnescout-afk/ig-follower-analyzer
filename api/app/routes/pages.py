@@ -14,17 +14,36 @@ def list_pages(
     limit: Optional[int] = Query(1000, description="Max pages to return"),
     offset: Optional[int] = Query(0, description="Pagination offset"),
 ):
-    """List pages with optional filtering."""
+    """List pages with optional filtering.
+    
+    Note: Manually calculates client_count from relationships due to PostgREST schema cache issues.
+    """
     client = get_supabase_client()
-    query = client.table("pages").select("*")
     
+    # Fetch all pages (we'll filter and paginate after counting)
+    pages_response = client.table("pages").select("*").limit(10000).execute()
+    all_pages = pages_response.data or []
+    
+    # Get client counts from relationships
+    following_response = client.table("client_following").select("page_id").execute()
+    following_data = following_response.data or []
+    
+    from collections import Counter
+    page_client_counts = Counter(f["page_id"] for f in following_data)
+    
+    # Add client_count to each page
+    for page in all_pages:
+        page["client_count"] = page_client_counts.get(page["id"], 0)
+    
+    # Filter by min_client_count
     if min_client_count is not None:
-        query = query.gte("client_count", min_client_count)
+        all_pages = [p for p in all_pages if p["client_count"] >= min_client_count]
     
-    query = query.order("client_count", desc=True).limit(limit).offset(offset)
+    # Sort by client_count desc
+    all_pages.sort(key=lambda p: p["client_count"], reverse=True)
     
-    response = query.execute()
-    return response.data or []
+    # Apply pagination
+    return all_pages[offset:offset+limit]
 
 
 @router.post("/", response_model=PageResponse, status_code=status.HTTP_201_CREATED)
