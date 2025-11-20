@@ -274,15 +274,43 @@ class IGFollowerAnalyzer:
                 
                 # Fetch results
                 following_list = []
+                items_processed = 0
+                items_without_username = 0
                 try:
-                    for item in self.client.dataset(run["defaultDatasetId"]).iterate_items():
-                        following_list.append({
-                            "username": item.get("username"),
-                            "full_name": item.get("full_name", ""),
-                            "follower_count": item.get("follower_count", 0),
-                            "is_verified": item.get("is_verified", False),
-                            "is_private": item.get("is_private", False),
-                        })
+                    # Get dataset info to see total items
+                    dataset = self.client.dataset(run["defaultDatasetId"])
+                    dataset_info = dataset.get()
+                    total_items_in_dataset = dataset_info.get("itemCount", 0)
+                    print(f"  📊 Apify dataset contains {total_items_in_dataset} total items")
+                    
+                    for item in dataset.iterate_items():
+                        items_processed += 1
+                        # Only add items that have a username (filter out invalid entries)
+                        if item.get("username"):
+                            following_list.append({
+                                "username": item.get("username"),
+                                "full_name": item.get("full_name", ""),
+                                "follower_count": item.get("follower_count", 0),
+                                "is_verified": item.get("is_verified", False),
+                                "is_private": item.get("is_private", False),
+                            })
+                        else:
+                            items_without_username += 1
+                    
+                    # Log detailed statistics
+                    print(f"  📊 Processed {items_processed} items from dataset")
+                    if items_without_username > 0:
+                        print(f"  ⚠️  {items_without_username} items filtered (missing username)")
+                    if total_items_in_dataset > items_processed:
+                        missing = total_items_in_dataset - items_processed
+                        print(f"  ⚠️  WARNING: Dataset has {total_items_in_dataset} items but only {items_processed} were processed!")
+                        print(f"  ⚠️  Missing {missing} items - this might be due to:")
+                        print(f"     - Apify actor timeouts/errors (check actor logs)")
+                        print(f"     - Rate limiting from Instagram")
+                        print(f"     - Incomplete dataset (actor may have hit limits)")
+                    if total_items_in_dataset > len(following_list):
+                        print(f"  ⚠️  Total discrepancy: Expected ~{total_items_in_dataset} accounts, got {len(following_list)} valid accounts")
+                        print(f"  💡 This is normal if the actor hit rate limits or some accounts were filtered")
                 except Exception as dataset_error:
                     # If we can't even access the dataset, it's likely a permanent failure
                     error_str = str(dataset_error)
@@ -292,6 +320,9 @@ class IGFollowerAnalyzer:
                         print(f"  ❌ Account not accessible (401): {error_str[:100]}")
                         break
                     raise
+                
+                # Log what we got
+                print(f"  📊 Retrieved {len(following_list)} accounts from Apify dataset")
                 
                 # Check if we got results
                 if len(following_list) == 0:
