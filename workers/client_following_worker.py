@@ -210,39 +210,57 @@ class ClientFollowingWorker:
         """Store following results in database"""
         logger.info(f"Storing {len(following_list)} following records...")
         
-        # First, ensure all pages exist
-        for account in following_list:
-            username = account["username"]
+        # First, ensure all pages exist (batch create)
+        pages_to_create = []
+        batch_check_size = 50  # Smaller batches for .in() query
+        
+        for i in range(0, len(following_list), batch_check_size):
+            batch = following_list[i:i + batch_check_size]
+            usernames = [a["username"] for a in batch]
             
-            # Check if page exists
+            # Check which pages already exist
             existing = self.supabase.table("pages")\
-                .select("id")\
-                .eq("ig_username", username)\
+                .select("ig_username")\
+                .in_("ig_username", usernames)\
                 .execute()
             
-            if not existing.data:
-                # Create page
-                self.supabase.table("pages")\
-                    .insert({
-                        "ig_username": username,
+            existing_usernames = {p["ig_username"] for p in (existing.data or [])}
+            
+            # Add non-existing pages to create list
+            for account in batch:
+                if account["username"] not in existing_usernames:
+                    pages_to_create.append({
+                        "ig_username": account["username"],
                         "full_name": account.get("full_name"),
                         "follower_count": account.get("follower_count", 0),
                         "is_verified": account.get("is_verified", False),
                         "is_private": account.get("is_private", False),
-                    })\
-                    .execute()
+                    })
+        
+        # Batch insert new pages
+        if pages_to_create:
+            logger.info(f"Creating {len(pages_to_create)} new pages...")
+            insert_batch_size = 100
+            for i in range(0, len(pages_to_create), insert_batch_size):
+                batch = pages_to_create[i:i + insert_batch_size]
+                self.supabase.table("pages").insert(batch).execute()
+                logger.info(f"Created pages batch {i//insert_batch_size + 1}: {len(batch)} pages")
         
         # Now insert client_following relationships
         # First delete existing relationships for this client
+        logger.info(f"Deleting existing relationships for client {client_id}...")
         self.supabase.table("client_following")\
             .delete()\
             .eq("client_id", client_id)\
             .execute()
         
-        # Batch insert new relationships
-        batch_size = 100
-        for i in range(0, len(following_list), batch_size):
-            batch = following_list[i:i + batch_size]
+        # Batch insert new relationships with smaller batches
+        logger.info(f"Inserting {len(following_list)} relationships...")
+        relationship_batch_size = 50  # Smaller for .in() query
+        total_inserted = 0
+        
+        for i in range(0, len(following_list), relationship_batch_size):
+            batch = following_list[i:i + relationship_batch_size]
             
             # Get page IDs for this batch
             usernames = [a["username"] for a in batch]
@@ -252,7 +270,7 @@ class ClientFollowingWorker:
                 .execute()
             
             # Create username -> id mapping
-            page_id_map = {p["ig_username"]: p["id"] for p in pages.data}
+            page_id_map = {p["ig_username"]: p["id"] for p in (pages.data or [])}
             
             # Insert relationships
             relationships = [
@@ -268,8 +286,10 @@ class ClientFollowingWorker:
                 self.supabase.table("client_following")\
                     .insert(relationships)\
                     .execute()
+                total_inserted += len(relationships)
+                logger.info(f"Inserted relationship batch {i//relationship_batch_size + 1}: {len(relationships)} relationships (total: {total_inserted})")
         
-        logger.info(f"✅ Stored following data for client {client_id}")
+        logger.info(f"✅ Stored following data for client {client_id}: {total_inserted} relationships created")
 
 
 def main():
