@@ -73,12 +73,16 @@ def list_pages(
     # Filter by min_client_count
     if min_client_count is not None:
         all_pages = [p for p in all_pages if p["client_count"] >= min_client_count]
+        print(f"[PAGES API] After filtering (min_client_count={min_client_count}): {len(all_pages)} pages")
     
     # Sort by client_count desc
     all_pages.sort(key=lambda p: p["client_count"], reverse=True)
+    print(f"[PAGES API] After sorting: {len(all_pages)} pages")
     
     # Apply pagination
-    return all_pages[offset:offset+limit]
+    result = all_pages[offset:offset+limit]
+    print(f"[PAGES API] Returning slice [offset={offset}:offset+limit={offset+limit}]: {len(result)} pages")
+    return result
 
 
 @router.post("/", response_model=PageResponse, status_code=status.HTTP_201_CREATED)
