@@ -1,9 +1,9 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
+import { useQuery, useMutation, useQueryClient } from '@tantml:react-query'
 import { pagesApi, outreachApi, Page, PageProfile, OutreachTracking } from '../lib/api'
-import { CATEGORIES, CONTACT_METHODS, OUTREACH_STATUSES } from '../lib/categories'
+import { CATEGORIES, CONTACT_METHODS, OUTREACH_STATUSES, getPriorityTier, TIER_LABELS, TIER_COLORS } from '../lib/categories'
 import { ChevronLeft, ChevronRight, Save, SkipForward } from 'lucide-react'
 
 export default function CategorizeTab() {
@@ -20,7 +20,18 @@ export default function CategorizeTab() {
         min_client_count: 1,
         limit: 10000 
       })
-      return response.data
+      
+      // Sort by priority tier, then by client_count, then by follower_count
+      const sorted = response.data.sort((a, b) => {
+        const tierA = getPriorityTier(a.ig_username, a.full_name, a.client_count)
+        const tierB = getPriorityTier(b.ig_username, b.full_name, b.client_count)
+        
+        if (tierA !== tierB) return tierA - tierB // Lower tier number = higher priority
+        if (a.client_count !== b.client_count) return b.client_count - a.client_count
+        return b.follower_count - a.follower_count
+      })
+      
+      return sorted
     },
   })
 
@@ -195,12 +206,18 @@ export default function CategorizeTab() {
             </button>
           </div>
         </div>
-        <div className="w-full bg-gray-200 rounded-full h-2">
+        <div className="w-full bg-gray-200 rounded-full h-2 mb-3">
           <div
             className="bg-blue-600 h-2 rounded-full transition-all"
             style={{ width: `${((currentIndex + 1) / pages.length) * 100}%` }}
           />
         </div>
+        {/* Priority Tier Badge */}
+        {currentPage && (
+          <div className={`px-4 py-2 rounded-lg border-2 font-semibold text-sm ${TIER_COLORS[getPriorityTier(currentPage.ig_username, currentPage.full_name, currentPage.client_count) as keyof typeof TIER_COLORS]}`}>
+            {TIER_LABELS[getPriorityTier(currentPage.ig_username, currentPage.full_name, currentPage.client_count) as keyof typeof TIER_LABELS]}
+          </div>
+        )}
       </div>
 
       {/* Page Display */}
