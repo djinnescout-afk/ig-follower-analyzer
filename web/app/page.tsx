@@ -5,12 +5,13 @@ import { useQuery } from '@tanstack/react-query'
 import { clientsApi, pagesApi, scrapesApi } from './lib/api'
 import ClientsTab from './components/ClientsTab'
 import CategorizeTab from './components/CategorizeTab'
+import EditPageTab from './components/EditPageTab'
 import ViewCategorizedTab from './components/ViewCategorizedTab'
 import PagesTab from './components/PagesTab'
 import ScrapesTab from './components/ScrapesTab'
 
 export default function Dashboard() {
-  const [activeTab, setActiveTab] = useState<'clients' | 'categorize' | 'view-categorized' | 'pages' | 'scrapes'>('clients')
+  const [activeTab, setActiveTab] = useState<'clients' | 'categorize' | 'edit' | 'view-categorized' | 'pages' | 'scrapes'>('clients')
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -55,6 +56,18 @@ export default function Dashboard() {
               Categorize
             </button>
             <button
+              onClick={() => setActiveTab('edit')}
+              className={`
+                py-4 px-1 border-b-2 font-medium text-sm
+                ${activeTab === 'edit'
+                  ? 'border-blue-500 text-blue-600'
+                  : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                }
+              `}
+            >
+              Edit Page
+            </button>
+            <button
               onClick={() => setActiveTab('view-categorized')}
               className={`
                 py-4 px-1 border-b-2 font-medium text-sm
@@ -97,6 +110,7 @@ export default function Dashboard() {
         <div className="mt-6 pb-12">
           {activeTab === 'clients' && <ClientsTab />}
           {activeTab === 'categorize' && <CategorizeTab />}
+          {activeTab === 'edit' && <EditPageTab />}
           {activeTab === 'view-categorized' && <ViewCategorizedTab />}
           {activeTab === 'pages' && <PagesTab />}
           {activeTab === 'scrapes' && <ScrapesTab />}
