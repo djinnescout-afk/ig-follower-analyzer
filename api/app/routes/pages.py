@@ -29,35 +29,35 @@ def list_pages(
     start = 0
     iteration = 0
     
-    logger.info(f"Starting batch fetch of pages...")
+    print(f"[PAGES API] Starting batch fetch of pages...")
     
     while True:
         iteration += 1
         end = start + batch_size - 1
-        logger.info(f"Batch {iteration}: Fetching range({start}, {end})")
+        print(f"[PAGES API] Batch {iteration}: Fetching range({start}, {end})")
         
         try:
             batch = client.table("pages").select("*").range(start, end).execute()
             batch_count = len(batch.data) if batch.data else 0
-            logger.info(f"Batch {iteration}: Retrieved {batch_count} items")
+            print(f"[PAGES API] Batch {iteration}: Retrieved {batch_count} items")
             
             if not batch.data:
-                logger.info(f"Batch {iteration}: No data, breaking")
+                print(f"[PAGES API] Batch {iteration}: No data, breaking")
                 break
                 
             all_pages.extend(batch.data)
-            logger.info(f"Total pages so far: {len(all_pages)}")
+            print(f"[PAGES API] Total pages so far: {len(all_pages)}")
             
             if len(batch.data) < batch_size:
-                logger.info(f"Batch {iteration}: Last batch (partial), breaking")
+                print(f"[PAGES API] Batch {iteration}: Last batch (partial), breaking")
                 break  # Last batch
                 
             start += batch_size
         except Exception as e:
-            logger.error(f"Batch {iteration}: Error - {str(e)}")
+            print(f"[PAGES API] Batch {iteration}: ERROR - {str(e)}")
             break
     
-    logger.info(f"Finished fetching. Total pages: {len(all_pages)}")
+    print(f"[PAGES API] Finished fetching. Total pages: {len(all_pages)}")
     
     # Get client counts from relationships
     following_response = client.table("client_following").select("page_id").execute()
