@@ -21,19 +21,20 @@ def list_pages(
     client = get_supabase_client()
     
     # Fetch all pages (we'll filter and paginate after counting)
-    # Note: Supabase has a default limit of 1000, need to fetch in batches
+    # Note: Supabase has a default limit of 1000, need to fetch in batches using range()
     all_pages = []
     batch_size = 1000
-    offset_fetch = 0
+    start = 0
     
     while True:
-        batch = client.table("pages").select("*").limit(batch_size).offset(offset_fetch).execute()
+        end = start + batch_size - 1
+        batch = client.table("pages").select("*").range(start, end).execute()
         if not batch.data:
             break
         all_pages.extend(batch.data)
         if len(batch.data) < batch_size:
             break  # Last batch
-        offset_fetch += batch_size
+        start += batch_size
     
     # Get client counts from relationships
     following_response = client.table("client_following").select("page_id").execute()
