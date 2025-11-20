@@ -27,6 +27,7 @@ class PageUpdate(BaseModel):
 
 class PageResponse(PageBase):
     id: str
+    client_count: int = 0
     last_scraped: Optional[datetime] = None
     created_at: datetime
     updated_at: datetime
