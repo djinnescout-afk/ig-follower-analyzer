@@ -17,7 +17,7 @@ def list_clients():
 )
 def create_client(payload: ClientCreate):
     # ensure username lowercase
-    data = payload.dict()
+    data = payload.model_dump()
     data["ig_username"] = data["ig_username"].lower()
     existing = fetch_rows("clients", {"ig_username": data["ig_username"]})
     if existing:
@@ -31,7 +31,7 @@ def create_client(payload: ClientCreate):
 
 @router.put("/{client_id}", response_model=ClientResponse)
 def update_client(client_id: str, payload: ClientUpdate):
-    data = payload.dict(exclude_unset=True)
+    data = payload.model_dump(exclude_unset=True)
     if not data:
         row = fetch_rows("clients", {"id": client_id})
         if not row:

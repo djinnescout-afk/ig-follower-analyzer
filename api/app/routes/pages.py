@@ -14,7 +14,7 @@ def list_pages():
 
 @router.post("/", response_model=PageResponse, status_code=status.HTTP_201_CREATED)
 def create_page(payload: PageCreate):
-    data = payload.dict()
+    data = payload.model_dump()
     data["ig_username"] = data["ig_username"].lower()
     existing = fetch_rows("pages", {"ig_username": data["ig_username"]})
     if existing:
@@ -25,7 +25,7 @@ def create_page(payload: PageCreate):
 
 @router.put("/{page_id}", response_model=PageResponse)
 def update_page(page_id: str, payload: PageUpdate):
-    data = payload.dict(exclude_unset=True)
+    data = payload.model_dump(exclude_unset=True)
     if not data:
         row = fetch_rows("pages", {"id": page_id})
         if not row:
