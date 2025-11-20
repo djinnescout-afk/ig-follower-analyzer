@@ -1,0 +1,21 @@
+version: '3.8'
+
+services:
+  client-following-worker:
+    build: .
+    command: python client_following_worker.py
+    environment:
+      - SUPABASE_URL=${SUPABASE_URL}
+      - SUPABASE_SERVICE_KEY=${SUPABASE_SERVICE_KEY}
+      - APIFY_TOKEN=${APIFY_TOKEN}
+    restart: unless-stopped
+    
+  profile-scrape-worker:
+    build: .
+    command: python profile_scrape_worker.py
+    environment:
+      - SUPABASE_URL=${SUPABASE_URL}
+      - SUPABASE_SERVICE_KEY=${SUPABASE_SERVICE_KEY}
+      - APIFY_TOKEN=${APIFY_TOKEN}
+    restart: unless-stopped
+

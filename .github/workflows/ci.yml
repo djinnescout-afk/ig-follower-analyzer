@@ -1,0 +1,136 @@
+name: CI/CD
+
+on:
+  push:
+    branches: [main, develop]
+  pull_request:
+    branches: [main]
+
+jobs:
+  # Test API
+  test-api:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: ./api
+    
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.11'
+      
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+          pip install pytest pytest-cov
+      
+      - name: Lint with ruff
+        run: |
+          pip install ruff
+          ruff check . || true
+      
+      - name: Type check with mypy
+        run: |
+          pip install mypy
+          mypy app || true
+  
+  # Test Workers
+  test-workers:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: ./workers
+    
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.11'
+      
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+      
+      - name: Lint
+        run: |
+          pip install ruff
+          ruff check . || true
+  
+  # Build and test Web
+  test-web:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: ./web
+    
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+          cache-dependency-path: './web/package-lock.json'
+      
+      - name: Install dependencies
+        run: npm ci
+      
+      - name: Lint
+        run: npm run lint || true
+      
+      - name: Build
+        run: npm run build
+        env:
+          NEXT_PUBLIC_API_URL: http://localhost:8000
+  
+  # Deploy API (only on main branch)
+  deploy-api:
+    needs: [test-api]
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+    runs-on: ubuntu-latest
+    
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Deploy to Render (API)
+        run: |
+          echo "Deploy API to Render here"
+          # Add Render deploy webhook or CLI command
+  
+  # Deploy Workers (only on main branch)
+  deploy-workers:
+    needs: [test-workers]
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+    runs-on: ubuntu-latest
+    
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Deploy to Render (Workers)
+        run: |
+          echo "Deploy workers to Render here"
+          # Add Render deploy webhook or CLI command
+  
+  # Deploy Web (only on main branch)
+  deploy-web:
+    needs: [test-web]
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+    runs-on: ubuntu-latest
+    
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Deploy to Vercel
+        run: |
+          echo "Deploy web to Vercel here"
+          # Vercel auto-deploys via GitHub integration
+          # Or use: npm install -g vercel && vercel --prod --token=$VERCEL_TOKEN
+
