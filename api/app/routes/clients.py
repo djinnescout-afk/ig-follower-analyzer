@@ -14,23 +14,6 @@ def list_clients():
     return rows
 
 
-@router.post(
-    "/", response_model=ClientResponse, status_code=status.HTTP_201_CREATED
-)
-def create_client(payload: ClientCreate):
-    # ensure username lowercase
-    data = payload.model_dump()
-    data["ig_username"] = data["ig_username"].lower()
-    existing = fetch_rows("clients", {"ig_username": data["ig_username"]})
-    if existing:
-        raise HTTPException(
-            status_code=status.HTTP_409_CONFLICT,
-            detail="Client already exists",
-        )
-    row = insert_row("clients", data)
-    return row
-
-
 @router.post("/bulk", response_model=ClientBulkResult, status_code=status.HTTP_201_CREATED)
 def create_clients_bulk(payload: ClientBulkCreate):
     """Create multiple clients at once. Returns successfully created clients and failed ones with reasons."""
@@ -75,6 +58,23 @@ def create_clients_bulk(payload: ClientBulkCreate):
             })
     
     return result
+
+
+@router.post(
+    "/", response_model=ClientResponse, status_code=status.HTTP_201_CREATED
+)
+def create_client(payload: ClientCreate):
+    # ensure username lowercase
+    data = payload.model_dump()
+    data["ig_username"] = data["ig_username"].lower()
+    existing = fetch_rows("clients", {"ig_username": data["ig_username"]})
+    if existing:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="Client already exists",
+        )
+    row = insert_row("clients", data)
+    return row
 
 
 @router.put("/{client_id}", response_model=ClientResponse)
