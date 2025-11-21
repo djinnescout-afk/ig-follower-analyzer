@@ -2,9 +2,9 @@
 
 import { useState, useEffect } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { pagesApi, outreachApi, Page } from '../lib/api'
+import { pagesApi, outreachApi, scrapesApi, Page } from '../lib/api'
 import { CATEGORIES, CONTACT_METHODS, OUTREACH_STATUSES } from '../lib/categories'
-import { Search, Save } from 'lucide-react'
+import { Search, Save, RefreshCw } from 'lucide-react'
 
 export default function EditPageTab() {
   const [searchQuery, setSearchQuery] = useState('')
@@ -115,6 +115,23 @@ export default function EditPageTab() {
       queryClient.invalidateQueries({ queryKey: ['outreach'] })
     },
   })
+
+  // Trigger profile scrape mutation
+  const scrapeProfileMutation = useMutation({
+    mutationFn: async (pageId: string) => {
+      await scrapesApi.triggerProfileScrape([pageId])
+    },
+    onSuccess: () => {
+      alert('Profile scrape started! Refresh in 30-60 seconds to see results.')
+      queryClient.invalidateQueries({ queryKey: ['page-profile'] })
+    },
+  })
+
+  const handleScrapeProfile = () => {
+    if (selectedPageId) {
+      scrapeProfileMutation.mutate(selectedPageId)
+    }
+  }
 
   const handleSave = async () => {
     try {
@@ -232,6 +249,19 @@ export default function EditPageTab() {
                   {selectedPage.follower_count.toLocaleString()} followers •{' '}
                   {selectedPage.client_count} client{selectedPage.client_count !== 1 ? 's' : ''}
                 </div>
+                {/* Scrape Profile Button */}
+                <button
+                  onClick={handleScrapeProfile}
+                  disabled={scrapeProfileMutation.isPending}
+                  className="mt-4 w-full px-4 py-2 bg-purple-600 hover:bg-purple-700 disabled:opacity-50 disabled:cursor-not-allowed text-white rounded flex items-center justify-center gap-2"
+                >
+                  <RefreshCw size={16} className={scrapeProfileMutation.isPending ? 'animate-spin' : ''} />
+                  {scrapeProfileMutation.isPending 
+                    ? 'Starting scrape...' 
+                    : profile 
+                      ? 'Re-scrape Profile' 
+                      : 'Scrape Profile Data'}
+                </button>
               </div>
 
               {/* Same form as CategorizeTab */}
@@ -477,4 +507,5 @@ export default function EditPageTab() {
     </div>
   )
 }
+
 

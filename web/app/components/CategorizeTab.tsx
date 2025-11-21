@@ -2,9 +2,9 @@
 
 import { useState, useEffect } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { pagesApi, outreachApi, Page, PageProfile, OutreachTracking } from '../lib/api'
+import { pagesApi, outreachApi, scrapesApi, Page, PageProfile, OutreachTracking } from '../lib/api'
 import { CATEGORIES, CONTACT_METHODS, OUTREACH_STATUSES, getPriorityTier, TIER_LABELS, TIER_COLORS } from '../lib/categories'
-import { ChevronLeft, ChevronRight, Save, SkipForward } from 'lucide-react'
+import { ChevronLeft, ChevronRight, Save, SkipForward, RefreshCw } from 'lucide-react'
 
 export default function CategorizeTab() {
   const [currentIndex, setCurrentIndex] = useState(0)
@@ -112,6 +112,23 @@ export default function CategorizeTab() {
       queryClient.invalidateQueries({ queryKey: ['outreach'] })
     },
   })
+
+  // Trigger profile scrape mutation
+  const scrapeProfileMutation = useMutation({
+    mutationFn: async (pageId: string) => {
+      await scrapesApi.triggerProfileScrape([pageId])
+    },
+    onSuccess: () => {
+      alert('Profile scrape started! Refresh in 30-60 seconds to see results.')
+      queryClient.invalidateQueries({ queryKey: ['page-profile'] })
+    },
+  })
+
+  const handleScrapeProfile = () => {
+    if (currentPage) {
+      scrapeProfileMutation.mutate(currentPage.id)
+    }
+  }
 
   const handleSaveAndNext = async () => {
     try {
@@ -267,6 +284,28 @@ export default function CategorizeTab() {
               <div className="mt-4 pt-4 border-t">
                 <h3 className="font-semibold mb-2">Bio</h3>
                 <p className="text-sm whitespace-pre-wrap">{profile.bio}</p>
+              </div>
+            )}
+
+            {/* Scrape Profile Button */}
+            {!profileLoading && (
+              <div className="mt-4 pt-4 border-t">
+                <button
+                  onClick={handleScrapeProfile}
+                  disabled={scrapeProfileMutation.isPending}
+                  className={`w-full px-4 py-2 disabled:opacity-50 disabled:cursor-not-allowed text-white rounded flex items-center justify-center gap-2 ${
+                    profile 
+                      ? 'bg-gray-600 hover:bg-gray-700'
+                      : 'bg-purple-600 hover:bg-purple-700'
+                  }`}
+                >
+                  <RefreshCw size={16} className={scrapeProfileMutation.isPending ? 'animate-spin' : ''} />
+                  {scrapeProfileMutation.isPending 
+                    ? 'Starting scrape...' 
+                    : profile 
+                      ? 'Re-scrape Profile' 
+                      : 'Scrape Profile Data'}
+                </button>
               </div>
             )}
           </div>

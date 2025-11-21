@@ -1,13 +1,14 @@
 'use client'
 
 import { useState } from 'react'
-import { useQuery } from '@tanstack/react-query'
-import { pagesApi } from '../lib/api'
-import { CheckCircle, Users, Eye } from 'lucide-react'
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
+import { pagesApi, scrapesApi } from '../lib/api'
+import { CheckCircle, Users, Eye, RefreshCw } from 'lucide-react'
 
 export default function PagesTab() {
   const [minClientCount, setMinClientCount] = useState(2)
   const [selectedPage, setSelectedPage] = useState<string | null>(null)
+  const queryClient = useQueryClient()
 
   // Fetch pages
   const { data: pages, isLoading } = useQuery({
@@ -26,11 +27,30 @@ export default function PagesTab() {
     queryKey: ['page-profile', selectedPage],
     queryFn: async () => {
       if (!selectedPage) return null
-      const response = await pagesApi.getProfile(selectedPage)
-      return response.data
+      try {
+        const response = await pagesApi.getProfile(selectedPage)
+        return response.data
+      } catch (error) {
+        return null
+      }
     },
     enabled: !!selectedPage,
   })
+
+  // Trigger profile scrape mutation
+  const scrapeProfileMutation = useMutation({
+    mutationFn: async (pageId: string) => {
+      await scrapesApi.triggerProfileScrape([pageId])
+    },
+    onSuccess: () => {
+      alert('Profile scrape started! Refresh in 30-60 seconds to see results.')
+      queryClient.invalidateQueries({ queryKey: ['page-profile'] })
+    },
+  })
+
+  const handleScrapeProfile = (pageId: string) => {
+    scrapeProfileMutation.mutate(pageId)
+  }
 
   if (isLoading) {
     return <div className="text-center py-8">Loading pages...</div>
@@ -98,9 +118,22 @@ export default function PagesTab() {
                       </span>
                     </div>
                   </div>
-                  <button className="text-blue-600 hover:text-blue-800">
-                    <Eye size={18} />
-                  </button>
+                  <div className="flex gap-2">
+                    <button 
+                      onClick={(e) => {
+                        e.stopPropagation()
+                        handleScrapeProfile(page.id)
+                      }}
+                      disabled={scrapeProfileMutation.isPending}
+                      className="text-purple-600 hover:text-purple-800 disabled:opacity-50"
+                      title="Scrape profile"
+                    >
+                      <RefreshCw size={16} className={scrapeProfileMutation.isPending ? 'animate-spin' : ''} />
+                    </button>
+                    <button className="text-blue-600 hover:text-blue-800" title="View details">
+                      <Eye size={18} />
+                    </button>
+                  </div>
                 </div>
               </div>
             ))}
