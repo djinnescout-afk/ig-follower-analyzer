@@ -164,13 +164,27 @@ class ProfileScrapeWorker:
             processed_posts = []
             for post in posts[:12]:  # Limit to 12 posts
                 post_images = []
-                for img_url in post.get("displayUrl", [])[:3]:  # Max 3 images per post
-                    img_base64, img_mime = self.download_and_encode_image(img_url)
-                    if img_base64:
-                        post_images.append({
-                            "image_base64": img_base64,
-                            "mime_type": img_mime
-                        })
+                
+                # Handle displayUrl - can be a string or a list
+                display_url = post.get("displayUrl")
+                if display_url:
+                    # If it's a string, treat as single image
+                    if isinstance(display_url, str):
+                        img_base64, img_mime = self.download_and_encode_image(display_url)
+                        if img_base64:
+                            post_images.append({
+                                "image_base64": img_base64,
+                                "mime_type": img_mime
+                            })
+                    # If it's a list, process multiple images
+                    elif isinstance(display_url, list):
+                        for img_url in display_url[:3]:  # Max 3 images per post
+                            img_base64, img_mime = self.download_and_encode_image(img_url)
+                            if img_base64:
+                                post_images.append({
+                                    "image_base64": img_base64,
+                                    "mime_type": img_mime
+                                })
                 
                 processed_posts.append({
                     "caption": post.get("caption", ""),
