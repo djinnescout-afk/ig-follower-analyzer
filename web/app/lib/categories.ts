@@ -8,6 +8,7 @@ export const CATEGORIES = [
   'Black Celebrity',
   'White Celebrity',
   'Ethnic (All Others) Celebrity',
+  'Black Other',
   'Other',
 ] as const
 
