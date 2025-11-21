@@ -154,6 +154,9 @@ export default function CategorizeTab() {
         notes: formData.outreach_notes || null,
       }
 
+      console.log('Saving page data:', pageData)
+      console.log('Saving outreach data:', outreachData)
+
       await Promise.all([
         updatePageMutation.mutateAsync(pageData),
         updateOutreachMutation.mutateAsync(outreachData),
@@ -163,9 +166,11 @@ export default function CategorizeTab() {
       if (currentIndex < (pages?.length || 0) - 1) {
         setCurrentIndex(currentIndex + 1)
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error saving:', error)
-      alert('Failed to save. Please try again.')
+      console.error('Error response:', error.response?.data)
+      const errorMsg = error.response?.data?.detail || error.message || 'Unknown error'
+      alert(`Failed to save: ${errorMsg}`)
     }
   }
 
