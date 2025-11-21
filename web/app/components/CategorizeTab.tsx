@@ -318,12 +318,12 @@ export default function CategorizeTab() {
             ) : profile?.posts && profile.posts.length > 0 ? (
               <div className="flex flex-wrap gap-2">
                 {profile.posts.slice(0, 9).map((post: any, idx: number) => (
-                  <div key={idx} className="w-20 h-20 bg-gray-100 rounded overflow-hidden flex-shrink-0">
+                  <div key={idx} style={{ width: '100px', height: '100px' }} className="bg-gray-100 rounded overflow-hidden flex-shrink-0">
                     {post.images && post.images[0] ? (
                       <img
                         src={`data:${post.images[0].mime_type};base64,${post.images[0].image_base64}`}
                         alt="Post"
-                        className="w-full h-full object-cover"
+                        style={{ width: '100px', height: '100px', objectFit: 'cover' }}
                       />
                     ) : (
                       <div className="w-full h-full flex items-center justify-center text-gray-400 text-xs">
