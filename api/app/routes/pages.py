@@ -127,7 +127,15 @@ def update_page(page_id: str, payload: PageUpdate):
         if not row:
             raise HTTPException(status_code=404, detail="Page not found")
         return row[0]
-    data["id"] = page_id
-    row = upsert_row("pages", data, on_conflict="id")
-    return row
+    
+    # Use direct update instead of upsert to avoid null constraint issues
+    from ..db import get_supabase_client, serialize_for_db
+    client = get_supabase_client()
+    serialized_data = serialize_for_db(data)
+    response = client.table("pages").update(serialized_data).eq("id", page_id).execute()
+    
+    if not response.data:
+        raise HTTPException(status_code=404, detail="Page not found")
+    
+    return response.data[0]
 
