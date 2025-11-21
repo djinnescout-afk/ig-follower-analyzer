@@ -37,9 +37,12 @@ def list_pages(
         # Apply categorization filter
         if categorized is not None:
             if categorized:
-                query = query.not_.is_("category", "null")
+                # Filter for pages with a category (not null)
+                # PostgREST syntax: "not.is" for IS NOT NULL
+                query = query.filter("category", "not.is", "null")
             else:
-                query = query.is_("category", "null")
+                # Filter for pages without a category (is null)
+                query = query.filter("category", "is", "null")
         
         # Apply specific category filter
         if category is not None:
