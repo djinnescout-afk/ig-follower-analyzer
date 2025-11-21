@@ -17,12 +17,14 @@ class PageCreate(PageBase):
 
 
 class PageUpdate(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+    
     ig_username: Optional[str] = None
     full_name: Optional[str] = None
     follower_count: Optional[int] = None
     is_verified: Optional[bool] = None
     is_private: Optional[bool] = None
-    last_scraped: Optional[str] = None
+    last_scraped: Optional[datetime] = None
     # VA Categorization fields
     category: Optional[str] = None
     known_contact_methods: Optional[List[str]] = None
@@ -33,7 +35,7 @@ class PageUpdate(BaseModel):
     website_url: Optional[str] = None
     va_notes: Optional[str] = None
     last_reviewed_by: Optional[str] = None
-    last_reviewed_at: Optional[str] = None
+    last_reviewed_at: Optional[datetime] = None
 
 
 class PageResponse(PageBase):

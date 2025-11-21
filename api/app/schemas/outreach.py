@@ -5,9 +5,11 @@ from pydantic import BaseModel, ConfigDict
 
 
 class OutreachBase(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+    
     status: str
-    date_contacted: Optional[str] = None
-    follow_up_date: Optional[str] = None
+    date_contacted: Optional[datetime] = None
+    follow_up_date: Optional[datetime] = None
     notes: Optional[str] = None
 
 
@@ -16,9 +18,11 @@ class OutreachCreate(OutreachBase):
 
 
 class OutreachUpdate(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+    
     status: Optional[str] = None
-    date_contacted: Optional[str] = None
-    follow_up_date: Optional[str] = None
+    date_contacted: Optional[datetime] = None
+    follow_up_date: Optional[datetime] = None
     notes: Optional[str] = None
 
 
