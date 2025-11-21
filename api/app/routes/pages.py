@@ -22,69 +22,77 @@ def list_pages(
     
     Uses the client_count column from the database (maintained by triggers).
     """
-    client = get_supabase_client()
-    
-    # Build query with filter applied at database level
-    query = client.table("pages").select("*")
-    
-    # Apply min_client_count filter
-    if min_client_count is not None:
-        query = query.gte("client_count", min_client_count)
-    
-    # Apply categorization filter
-    if categorized is not None:
-        if categorized:
-            query = query.is_not("category", "null")
-        else:
-            query = query.is_("category", "null")
-    
-    # Apply specific category filter
-    if category is not None:
-        query = query.eq("category", category)
-    
-    # Sort by client_count descending
-    query = query.order("client_count", desc=True)
-    
-    # Fetch pages in batches (Supabase limit is 1000 per query)
-    all_pages = []
-    batch_size = 1000
-    start = 0
-    iteration = 0
-    
-    print(f"[PAGES API] Starting batch fetch of pages (min_client_count={min_client_count})...")
-    
-    while True:
-        iteration += 1
-        end = start + batch_size - 1
-        print(f"[PAGES API] Batch {iteration}: Fetching range({start}, {end})")
+    try:
+        print(f"[PAGES API] Request: min_client_count={min_client_count}, categorized={categorized}, category={category}")
         
-        try:
-            batch = query.range(start, end).execute()
-            batch_count = len(batch.data) if batch.data else 0
-            print(f"[PAGES API] Batch {iteration}: Retrieved {batch_count} items")
+        client = get_supabase_client()
+        
+        # Build query with filter applied at database level
+        query = client.table("pages").select("*")
+        
+        # Apply min_client_count filter
+        if min_client_count is not None:
+            query = query.gte("client_count", min_client_count)
+        
+        # Apply categorization filter
+        if categorized is not None:
+            if categorized:
+                query = query.not_.is_("category", "null")
+            else:
+                query = query.is_("category", "null")
+        
+        # Apply specific category filter
+        if category is not None:
+            query = query.eq("category", category)
+        
+        # Sort by client_count descending
+        query = query.order("client_count", desc=True)
+        
+        # Fetch pages in batches (Supabase limit is 1000 per query)
+        all_pages = []
+        batch_size = 1000
+        start = 0
+        iteration = 0
+        
+        print(f"[PAGES API] Starting batch fetch of pages...")
+        
+        while True:
+            iteration += 1
+            end = start + batch_size - 1
+            print(f"[PAGES API] Batch {iteration}: Fetching range({start}, {end})")
             
-            if not batch.data:
-                print(f"[PAGES API] Batch {iteration}: No data, breaking")
+            try:
+                batch = query.range(start, end).execute()
+                batch_count = len(batch.data) if batch.data else 0
+                print(f"[PAGES API] Batch {iteration}: Retrieved {batch_count} items")
+                
+                if not batch.data:
+                    print(f"[PAGES API] Batch {iteration}: No data, breaking")
+                    break
+                    
+                all_pages.extend(batch.data)
+                print(f"[PAGES API] Total pages so far: {len(all_pages)}")
+                
+                if len(batch.data) < batch_size:
+                    print(f"[PAGES API] Batch {iteration}: Last batch (partial), breaking")
+                    break  # Last batch
+                    
+                start += batch_size
+            except Exception as batch_error:
+                print(f"[PAGES API] Batch {iteration}: ERROR - {str(batch_error)}")
+                logger.error(f"Batch fetch error: {batch_error}", exc_info=True)
                 break
-                
-            all_pages.extend(batch.data)
-            print(f"[PAGES API] Total pages so far: {len(all_pages)}")
-            
-            if len(batch.data) < batch_size:
-                print(f"[PAGES API] Batch {iteration}: Last batch (partial), breaking")
-                break  # Last batch
-                
-            start += batch_size
-        except Exception as e:
-            print(f"[PAGES API] Batch {iteration}: ERROR - {str(e)}")
-            break
-    
-    print(f"[PAGES API] Finished fetching. Total pages: {len(all_pages)}")
-    
-    # Apply pagination
-    result = all_pages[offset:offset+limit]
-    print(f"[PAGES API] Returning slice [offset={offset}:offset+limit={offset+limit}]: {len(result)} pages")
-    return result
+        
+        print(f"[PAGES API] Finished fetching. Total pages: {len(all_pages)}")
+        
+        # Apply pagination
+        result = all_pages[offset:offset+limit]
+        print(f"[PAGES API] Returning {len(result)} pages")
+        return result
+    except Exception as e:
+        logger.error(f"Error in list_pages: {e}", exc_info=True)
+        print(f"[PAGES API] FATAL ERROR: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Internal server error: {str(e)}")
 
 
 @router.post("/", response_model=PageResponse, status_code=status.HTTP_201_CREATED)
