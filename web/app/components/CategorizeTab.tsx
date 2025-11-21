@@ -316,14 +316,14 @@ export default function CategorizeTab() {
             {profileLoading ? (
               <div className="text-center py-8 text-gray-500">Loading posts...</div>
             ) : profile?.posts && profile.posts.length > 0 ? (
-              <div className="flex flex-wrap gap-3">
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 195px)', gap: '12px' }}>
                 {profile.posts.slice(0, 9).map((post: any, idx: number) => (
-                  <div key={idx} style={{ width: '150px', height: '150px' }} className="bg-gray-100 rounded overflow-hidden flex-shrink-0">
+                  <div key={idx} style={{ width: '195px', height: '195px' }} className="bg-gray-100 rounded overflow-hidden">
                     {post.images && post.images[0] ? (
                       <img
                         src={`data:${post.images[0].mime_type};base64,${post.images[0].image_base64}`}
                         alt="Post"
-                        style={{ width: '150px', height: '150px', objectFit: 'cover' }}
+                        style={{ width: '195px', height: '195px', objectFit: 'cover' }}
                       />
                     ) : (
                       <div className="w-full h-full flex items-center justify-center text-gray-400 text-xs">
