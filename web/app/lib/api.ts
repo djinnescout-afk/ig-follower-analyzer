@@ -39,6 +39,12 @@ export interface Page {
   va_notes?: string
   last_reviewed_by?: string
   last_reviewed_at?: string
+  // Contact detail fields
+  contact_email?: string
+  contact_phone?: string
+  contact_whatsapp?: string
+  contact_telegram?: string
+  contact_other?: string
 }
 
 export interface ScrapeRun {

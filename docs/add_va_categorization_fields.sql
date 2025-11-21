@@ -44,3 +44,4 @@ BEGIN
     RAISE NOTICE '✅ VA categorization fields added successfully!';
 END $$;
 
+

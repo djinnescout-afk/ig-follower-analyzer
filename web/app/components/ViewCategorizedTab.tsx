@@ -150,6 +150,49 @@ export default function ViewCategorizedTab() {
                         </div>
                       )}
 
+                      {/* Contact Details */}
+                      {page.contact_email && (
+                        <div className="mt-2 text-sm text-gray-600">
+                          <span className="font-medium">📧 Email:</span>{' '}
+                          <a href={`mailto:${page.contact_email}`} className="text-blue-600 hover:underline">
+                            {page.contact_email}
+                          </a>
+                        </div>
+                      )}
+
+                      {page.contact_phone && (
+                        <div className="mt-2 text-sm text-gray-600">
+                          <span className="font-medium">📞 Phone:</span>{' '}
+                          <a href={`tel:${page.contact_phone}`} className="text-blue-600 hover:underline">
+                            {page.contact_phone}
+                          </a>
+                        </div>
+                      )}
+
+                      {page.contact_whatsapp && (
+                        <div className="mt-2 text-sm text-gray-600">
+                          <span className="font-medium">💬 WhatsApp:</span>{' '}
+                          <a href={`https://wa.me/${page.contact_whatsapp.replace(/[^0-9]/g, '')}`} target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline">
+                            {page.contact_whatsapp}
+                          </a>
+                        </div>
+                      )}
+
+                      {page.contact_telegram && (
+                        <div className="mt-2 text-sm text-gray-600">
+                          <span className="font-medium">✈️ Telegram:</span>{' '}
+                          <a href={`https://t.me/${page.contact_telegram.replace('@', '')}`} target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline">
+                            {page.contact_telegram}
+                          </a>
+                        </div>
+                      )}
+
+                      {page.contact_other && (
+                        <div className="mt-2 text-sm text-gray-600">
+                          <span className="font-medium">📝 Other:</span> {page.contact_other}
+                        </div>
+                      )}
+
                       {page.ig_account_for_dm && (
                         <div className="mt-2 text-sm text-gray-600">
                           <span className="font-medium">IG DM from:</span> {page.ig_account_for_dm}

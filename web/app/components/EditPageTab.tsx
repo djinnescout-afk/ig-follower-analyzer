@@ -93,6 +93,11 @@ export default function EditPageTab() {
         promo_price: selectedPage.promo_price || '',
         website_url: selectedPage.website_url || '',
         va_notes: selectedPage.va_notes || '',
+        contact_email: selectedPage.contact_email || '',
+        contact_phone: selectedPage.contact_phone || '',
+        contact_whatsapp: selectedPage.contact_whatsapp || '',
+        contact_telegram: selectedPage.contact_telegram || '',
+        contact_other: selectedPage.contact_other || '',
         outreach_status: outreach?.status || 'not_contacted',
         date_contacted: outreach?.date_contacted
           ? new Date(outreach.date_contacted).toISOString().split('T')[0]
@@ -164,6 +169,11 @@ export default function EditPageTab() {
         promo_price: formData.promo_price ? parseFloat(formData.promo_price) : null,
         website_url: formData.website_url || null,
         va_notes: formData.va_notes || null,
+        contact_email: formData.contact_email || null,
+        contact_phone: formData.contact_phone || null,
+        contact_whatsapp: formData.contact_whatsapp || null,
+        contact_telegram: formData.contact_telegram || null,
+        contact_other: formData.contact_other || null,
         last_reviewed_by: vaName || 'Unknown VA',
         last_reviewed_at: new Date().toISOString(),
       }
@@ -353,6 +363,84 @@ export default function EditPageTab() {
                         <span className="text-sm">{method}</span>
                       </label>
                     ))}
+                  </div>
+
+                  {/* Conditional Contact Detail Fields */}
+                  <div className="mt-4 space-y-3">
+                    {formData.known_contact_methods?.includes('Email') && (
+                      <div>
+                        <label className="block text-xs font-medium text-gray-600 mb-1">
+                          Email Address
+                        </label>
+                        <input
+                          type="email"
+                          value={formData.contact_email || ''}
+                          onChange={(e) => setFormData({ ...formData, contact_email: e.target.value })}
+                          placeholder="example@email.com"
+                          className="w-full px-3 py-2 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        />
+                      </div>
+                    )}
+
+                    {formData.known_contact_methods?.includes('Phone') && (
+                      <div>
+                        <label className="block text-xs font-medium text-gray-600 mb-1">
+                          Phone Number
+                        </label>
+                        <input
+                          type="tel"
+                          value={formData.contact_phone || ''}
+                          onChange={(e) => setFormData({ ...formData, contact_phone: e.target.value })}
+                          placeholder="+1234567890"
+                          className="w-full px-3 py-2 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        />
+                      </div>
+                    )}
+
+                    {formData.known_contact_methods?.includes('WhatsApp') && (
+                      <div>
+                        <label className="block text-xs font-medium text-gray-600 mb-1">
+                          WhatsApp Number
+                        </label>
+                        <input
+                          type="tel"
+                          value={formData.contact_whatsapp || ''}
+                          onChange={(e) => setFormData({ ...formData, contact_whatsapp: e.target.value })}
+                          placeholder="+1234567890"
+                          className="w-full px-3 py-2 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        />
+                      </div>
+                    )}
+
+                    {formData.known_contact_methods?.includes('Telegram') && (
+                      <div>
+                        <label className="block text-xs font-medium text-gray-600 mb-1">
+                          Telegram Handle
+                        </label>
+                        <input
+                          type="text"
+                          value={formData.contact_telegram || ''}
+                          onChange={(e) => setFormData({ ...formData, contact_telegram: e.target.value })}
+                          placeholder="@username"
+                          className="w-full px-3 py-2 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        />
+                      </div>
+                    )}
+
+                    {formData.known_contact_methods?.includes('Other') && (
+                      <div>
+                        <label className="block text-xs font-medium text-gray-600 mb-1">
+                          Other Contact Info
+                        </label>
+                        <input
+                          type="text"
+                          value={formData.contact_other || ''}
+                          onChange={(e) => setFormData({ ...formData, contact_other: e.target.value })}
+                          placeholder="Enter contact details"
+                          className="w-full px-3 py-2 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        />
+                      </div>
+                    )}
                   </div>
                 </div>
 

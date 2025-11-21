@@ -36,6 +36,12 @@ class PageUpdate(BaseModel):
     va_notes: Optional[str] = None
     last_reviewed_by: Optional[str] = None
     last_reviewed_at: Optional[datetime] = None
+    # Contact detail fields
+    contact_email: Optional[str] = None
+    contact_phone: Optional[str] = None
+    contact_whatsapp: Optional[str] = None
+    contact_telegram: Optional[str] = None
+    contact_other: Optional[str] = None
 
 
 class PageResponse(PageBase):
@@ -55,6 +61,12 @@ class PageResponse(PageBase):
     va_notes: Optional[str] = None
     last_reviewed_by: Optional[str] = None
     last_reviewed_at: Optional[datetime] = None
+    # Contact detail fields
+    contact_email: Optional[str] = None
+    contact_phone: Optional[str] = None
+    contact_whatsapp: Optional[str] = None
+    contact_telegram: Optional[str] = None
+    contact_other: Optional[str] = None
 
     model_config = ConfigDict(from_attributes=True)
 
