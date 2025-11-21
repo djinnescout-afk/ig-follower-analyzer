@@ -219,6 +219,14 @@ export default function ViewCategorizedTab() {
                         </div>
                       )}
 
+                      {/* Scrape Status */}
+                      {page.last_scrape_status === 'failed' && (
+                        <div className="mt-3 p-3 bg-red-50 border border-red-200 rounded text-sm">
+                          <span className="font-medium text-red-600">⚠️ Last scrape failed:</span>
+                          <div className="text-red-700 mt-1">{page.last_scrape_error || 'Unknown error'}</div>
+                        </div>
+                      )}
+
                       {/* Last Reviewed */}
                       {page.last_reviewed_at && (
                         <div className="mt-3 text-xs text-gray-500 flex items-center gap-2">

@@ -320,6 +320,17 @@ export default function CategorizeTab() {
                   <span>{currentPage.client_count} client{currentPage.client_count !== 1 ? 's' : ''}</span>
                   {currentPage.is_verified && <span className="text-blue-600">✓ Verified</span>}
                 </div>
+
+                {/* Scrape Status */}
+                {currentPage.last_scrape_status === 'failed' && (
+                  <div className="mt-3 px-3 py-2 bg-red-50 border border-red-200 rounded-md">
+                    <div className="flex items-start gap-2">
+                      <span className="text-red-600 font-semibold text-sm">⚠️ Last scrape failed:</span>
+                      <span className="text-red-700 text-sm">{currentPage.last_scrape_error || 'Unknown error'}</span>
+                    </div>
+                  </div>
+                )}
+
                 <a
                   href={`https://instagram.com/${currentPage.ig_username}`}
                   target="_blank"

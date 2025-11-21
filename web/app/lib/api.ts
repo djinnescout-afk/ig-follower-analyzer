@@ -28,6 +28,8 @@ export interface Page {
   is_private: boolean
   client_count: number
   last_scraped?: string
+  last_scrape_status?: 'success' | 'failed'
+  last_scrape_error?: string
   // VA Categorization fields
   category?: string
   known_contact_methods?: string[]

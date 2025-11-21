@@ -25,6 +25,8 @@ class PageUpdate(BaseModel):
     is_verified: Optional[bool] = None
     is_private: Optional[bool] = None
     last_scraped: Optional[datetime] = None
+    last_scrape_status: Optional[str] = None
+    last_scrape_error: Optional[str] = None
     # VA Categorization fields
     category: Optional[str] = None
     known_contact_methods: Optional[List[str]] = None
@@ -48,6 +50,8 @@ class PageResponse(PageBase):
     id: str
     client_count: int = 0
     last_scraped: Optional[datetime] = None
+    last_scrape_status: Optional[str] = None
+    last_scrape_error: Optional[str] = None
     created_at: datetime
     updated_at: datetime
     # VA Categorization fields

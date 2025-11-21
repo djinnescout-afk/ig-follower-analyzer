@@ -99,8 +99,19 @@ class ProfileScrapeWorker:
                     self.scrape_profile(page["id"], page["ig_username"])
                     success_count += 1
                 except Exception as e:
-                    logger.error(f"Failed to scrape @{page['ig_username']}: {e}")
+                    error_msg = str(e)
+                    logger.error(f"Failed to scrape @{page['ig_username']}: {error_msg}")
                     failed_usernames.append(page["ig_username"])
+                    
+                    # Update page with failure status
+                    self.supabase.table("pages")\
+                        .update({
+                            "last_scraped": datetime.utcnow().isoformat(),
+                            "last_scrape_status": "failed",
+                            "last_scrape_error": error_msg[:500]  # Limit error message length
+                        })\
+                        .eq("id", page["id"])\
+                        .execute()
             
             # Update scrape run as completed
             self.supabase.table("scrape_runs")\
@@ -219,6 +230,8 @@ class ProfileScrapeWorker:
             self.supabase.table("pages")\
                 .update({
                     "last_scraped": datetime.utcnow().isoformat(),
+                    "last_scrape_status": "success",
+                    "last_scrape_error": None,
                     "follower_count": profile_data.get("followersCount", 0),
                     "is_verified": profile_data.get("verified", False),
                     "is_private": profile_data.get("private", False)
