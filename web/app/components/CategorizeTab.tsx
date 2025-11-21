@@ -162,9 +162,13 @@ export default function CategorizeTab() {
         updateOutreachMutation.mutateAsync(outreachData),
       ])
 
-      // Move to next page
-      if (currentIndex < (pages?.length || 0) - 1) {
-        setCurrentIndex(currentIndex + 1)
+      // Refetch the list (categorized page will be removed)
+      // Stay at same index - the next uncategorized page will appear
+      queryClient.invalidateQueries({ queryKey: ['pages', 'uncategorized'] })
+      
+      // If we're at the last page, go back one
+      if (currentIndex >= (pages?.length || 0) - 1) {
+        setCurrentIndex(Math.max(0, currentIndex - 1))
       }
     } catch (error: any) {
       console.error('Error saving:', error)
