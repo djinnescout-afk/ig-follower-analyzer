@@ -9,7 +9,23 @@ import { ChevronLeft, ChevronRight, Save, SkipForward, RefreshCw } from 'lucide-
 export default function CategorizeTab() {
   const [currentIndex, setCurrentIndex] = useState(0)
   const [formData, setFormData] = useState<any>({})
+  const [vaName, setVaName] = useState('')
   const queryClient = useQueryClient()
+
+  // Load VA name from localStorage on mount
+  useEffect(() => {
+    const savedVaName = localStorage.getItem('vaName')
+    if (savedVaName) {
+      setVaName(savedVaName)
+    }
+  }, [])
+
+  // Save VA name to localStorage whenever it changes
+  useEffect(() => {
+    if (vaName) {
+      localStorage.setItem('vaName', vaName)
+    }
+  }, [vaName])
 
   // Fetch uncategorized pages
   const { data: pages, isLoading: pagesLoading } = useQuery({
@@ -142,7 +158,7 @@ export default function CategorizeTab() {
         promo_price: formData.promo_price ? parseFloat(formData.promo_price) : null,
         website_url: formData.website_url || null,
         va_notes: formData.va_notes || null,
-        last_reviewed_by: 'VA', // TODO: Get from auth
+        last_reviewed_by: vaName || 'Unknown VA',
         last_reviewed_at: new Date().toISOString(),
       }
 
@@ -209,6 +225,23 @@ export default function CategorizeTab() {
 
   return (
     <div className="space-y-6">
+      {/* VA Name Input */}
+      <div className="bg-blue-50 border-2 border-blue-200 rounded-lg shadow p-4">
+        <label className="block text-sm font-semibold text-gray-700 mb-2">
+          Your Name (VA)
+        </label>
+        <input
+          type="text"
+          value={vaName}
+          onChange={(e) => setVaName(e.target.value)}
+          placeholder="Enter your name to track your work"
+          className="w-full px-3 py-2 border rounded focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+        />
+        <p className="text-xs text-gray-500 mt-1">
+          This will be recorded as &quot;Last Reviewed By&quot; when you save
+        </p>
+      </div>
+
       {/* Progress Bar */}
       <div className="bg-white rounded-lg shadow p-4">
         <div className="flex justify-between items-center mb-2">
