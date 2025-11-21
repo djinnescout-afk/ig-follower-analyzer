@@ -13,11 +13,14 @@ export default function ViewCategorizedTab() {
   const { data: pages, isLoading } = useQuery({
     queryKey: ['pages', 'categorized', selectedCategory],
     queryFn: async () => {
+      console.log('[ViewCategorized] Fetching pages for category:', selectedCategory)
       const response = await pagesApi.list({
         categorized: true,
         category: selectedCategory || undefined,
         limit: 10000,
       })
+      console.log('[ViewCategorized] Response data:', response.data)
+      console.log('[ViewCategorized] Found', response.data.length, 'pages')
       return response.data
     },
     enabled: !!selectedCategory,
@@ -27,6 +30,7 @@ export default function ViewCategorizedTab() {
   const { data: categoryCounts } = useQuery({
     queryKey: ['pages', 'category-counts'],
     queryFn: async () => {
+      console.log('[ViewCategorized] Fetching category counts...')
       const counts: Record<string, number> = {}
       
       // Fetch pages for each category
@@ -38,11 +42,15 @@ export default function ViewCategorizedTab() {
             limit: 10000,
           })
           counts[category] = response.data.length
+          console.log(`[ViewCategorized] ${category}: ${response.data.length} pages`)
         })
       )
       
+      console.log('[ViewCategorized] Category counts:', counts)
       return counts
     },
+    staleTime: 0, // Always fetch fresh data
+    refetchOnMount: true,
   })
 
   return (
@@ -199,4 +207,5 @@ export default function ViewCategorizedTab() {
     </div>
   )
 }
+
 
