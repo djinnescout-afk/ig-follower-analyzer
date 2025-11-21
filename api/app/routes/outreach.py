@@ -39,6 +39,8 @@ def update_outreach(page_id: str, payload: OutreachUpdate):
         raise HTTPException(status_code=404, detail="Outreach tracking not found")
     
     data["id"] = existing[0]["id"]
+    data["page_id"] = page_id  # Ensure page_id is included
     row = upsert_row("outreach_tracking", data, on_conflict="id")
     return row
+
 

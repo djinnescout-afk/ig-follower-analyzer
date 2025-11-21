@@ -22,7 +22,7 @@ class PageUpdate(BaseModel):
     follower_count: Optional[int] = None
     is_verified: Optional[bool] = None
     is_private: Optional[bool] = None
-    last_scraped: Optional[datetime] = None
+    last_scraped: Optional[str] = None
     # VA Categorization fields
     category: Optional[str] = None
     known_contact_methods: Optional[List[str]] = None
@@ -33,7 +33,7 @@ class PageUpdate(BaseModel):
     website_url: Optional[str] = None
     va_notes: Optional[str] = None
     last_reviewed_by: Optional[str] = None
-    last_reviewed_at: Optional[datetime] = None
+    last_reviewed_at: Optional[str] = None
 
 
 class PageResponse(PageBase):

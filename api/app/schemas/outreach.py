@@ -6,8 +6,8 @@ from pydantic import BaseModel, ConfigDict
 
 class OutreachBase(BaseModel):
     status: str
-    date_contacted: Optional[datetime] = None
-    follow_up_date: Optional[datetime] = None
+    date_contacted: Optional[str] = None
+    follow_up_date: Optional[str] = None
     notes: Optional[str] = None
 
 
@@ -17,8 +17,8 @@ class OutreachCreate(OutreachBase):
 
 class OutreachUpdate(BaseModel):
     status: Optional[str] = None
-    date_contacted: Optional[datetime] = None
-    follow_up_date: Optional[datetime] = None
+    date_contacted: Optional[str] = None
+    follow_up_date: Optional[str] = None
     notes: Optional[str] = None
 
 
@@ -29,4 +29,5 @@ class OutreachResponse(OutreachBase):
     page_id: str
     created_at: datetime
     updated_at: datetime
+
 
