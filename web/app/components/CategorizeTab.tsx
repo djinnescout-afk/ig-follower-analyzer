@@ -316,9 +316,9 @@ export default function CategorizeTab() {
             {profileLoading ? (
               <div className="text-center py-8 text-gray-500">Loading posts...</div>
             ) : profile?.posts && profile.posts.length > 0 ? (
-              <div className="grid grid-cols-3 gap-2 max-w-md">
+              <div className="flex flex-wrap gap-2">
                 {profile.posts.slice(0, 9).map((post: any, idx: number) => (
-                  <div key={idx} className="aspect-square bg-gray-100 rounded overflow-hidden w-24 h-24">
+                  <div key={idx} className="w-20 h-20 bg-gray-100 rounded overflow-hidden flex-shrink-0">
                     {post.images && post.images[0] ? (
                       <img
                         src={`data:${post.images[0].mime_type};base64,${post.images[0].image_base64}`}
