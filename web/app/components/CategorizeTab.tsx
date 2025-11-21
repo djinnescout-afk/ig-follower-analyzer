@@ -316,17 +316,17 @@ export default function CategorizeTab() {
             {profileLoading ? (
               <div className="text-center py-8 text-gray-500">Loading posts...</div>
             ) : profile?.posts && profile.posts.length > 0 ? (
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 195px)', gap: '12px' }}>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '8px', maxWidth: '500px' }}>
                 {profile.posts.slice(0, 9).map((post: any, idx: number) => (
-                  <div key={idx} style={{ width: '195px', height: '195px' }} className="bg-gray-100 rounded overflow-hidden">
+                  <div key={idx} style={{ width: '100%', paddingBottom: '100%', position: 'relative' }} className="bg-gray-100 rounded overflow-hidden">
                     {post.images && post.images[0] ? (
                       <img
                         src={`data:${post.images[0].mime_type};base64,${post.images[0].image_base64}`}
                         alt="Post"
-                        style={{ width: '195px', height: '195px', objectFit: 'cover' }}
+                        style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', objectFit: 'cover' }}
                       />
                     ) : (
-                      <div className="w-full h-full flex items-center justify-center text-gray-400 text-xs">
+                      <div style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%' }} className="flex items-center justify-center text-gray-400 text-xs">
                         No image
                       </div>
                     )}
