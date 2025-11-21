@@ -83,11 +83,18 @@ export interface OutreachTracking {
 }
 
 // Client API
+export interface BulkClientResult {
+  success: Client[]
+  failed: Array<{ name: string; ig_username: string; reason: string }>
+}
+
 export const clientsApi = {
   list: () => api.get<Client[]>('/clients'),
   get: (id: string) => api.get<Client>(`/clients/${id}`),
   create: (data: { name: string; ig_username: string }) => 
     api.post<Client>('/clients', data),
+  createBulk: (clients: Array<{ name: string; ig_username: string }>) =>
+    api.post<BulkClientResult>('/clients/bulk', { clients }),
   delete: (id: string) => api.delete(`/clients/${id}`),
 }
 
