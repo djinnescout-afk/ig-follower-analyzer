@@ -293,9 +293,9 @@ export default function EditPageTab() {
               <div className="mb-6">
                 <h2 className="text-2xl font-bold">@{selectedPage.ig_username}</h2>
                 <p className="text-gray-600">{selectedPage.full_name || 'N/A'}</p>
-                <div className="mt-2 text-sm text-gray-500">
-                  {selectedPage.follower_count.toLocaleString()} followers •{' '}
-                  {selectedPage.client_count} client{selectedPage.client_count !== 1 ? 's' : ''}
+                <div className="mt-3 flex gap-4 text-sm items-center">
+                  <span className="text-gray-600">{selectedPage.follower_count.toLocaleString()} followers</span>
+                  <span className="font-bold text-blue-700 bg-blue-50 px-2 py-1 rounded">{selectedPage.client_count} client{selectedPage.client_count !== 1 ? 's' : ''} following</span>
                 </div>
                 {/* Scrape Profile Button */}
                 <button

@@ -285,6 +285,7 @@ export default function CategorizeTab() {
         {currentPage && (
           <div className={`px-4 py-2 rounded-lg border-2 font-semibold text-sm ${TIER_COLORS[getPriorityTier(currentPage.ig_username, currentPage.full_name, currentPage.client_count) as keyof typeof TIER_COLORS]}`}>
             {TIER_LABELS[getPriorityTier(currentPage.ig_username, currentPage.full_name, currentPage.client_count) as keyof typeof TIER_LABELS]}
+            <span className="ml-3 font-bold text-base">({currentPage.client_count} {currentPage.client_count === 1 ? 'client' : 'clients'} following)</span>
           </div>
         )}
       </div>
@@ -315,9 +316,9 @@ export default function CategorizeTab() {
               <div className="flex-1">
                 <h2 className="text-2xl font-bold">@{currentPage.ig_username}</h2>
                 <p className="text-gray-600">{currentPage.full_name || 'N/A'}</p>
-                <div className="mt-2 flex gap-4 text-sm text-gray-600">
-                  <span>{currentPage.follower_count.toLocaleString()} followers</span>
-                  <span>{currentPage.client_count} client{currentPage.client_count !== 1 ? 's' : ''}</span>
+                <div className="mt-3 flex gap-4 text-sm">
+                  <span className="text-gray-600">{currentPage.follower_count.toLocaleString()} followers</span>
+                  <span className="font-bold text-blue-700 bg-blue-50 px-2 py-1 rounded">{currentPage.client_count} client{currentPage.client_count !== 1 ? 's' : ''} following</span>
                   {currentPage.is_verified && <span className="text-blue-600">✓ Verified</span>}
                 </div>
 

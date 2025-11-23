@@ -9,3 +9,5 @@ CREATE INDEX IF NOT EXISTS idx_pages_scrape_status ON pages(last_scrape_status);
 COMMENT ON COLUMN pages.last_scrape_status IS 'Status of the last profile scrape attempt: success or failed';
 COMMENT ON COLUMN pages.last_scrape_error IS 'Error message if last scrape failed (e.g., "Profile is private")';
 
+
+

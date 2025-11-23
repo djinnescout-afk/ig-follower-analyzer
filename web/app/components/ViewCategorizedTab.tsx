@@ -122,10 +122,10 @@ export default function ViewCategorizedTab() {
                           <Users size={16} />
                           <span>{page.follower_count.toLocaleString()} followers</span>
                         </div>
-                        <div className="flex items-center gap-2 text-gray-600">
-                          <Users size={16} />
-                          <span className="font-medium text-blue-600">
-                            {page.client_count} client{page.client_count !== 1 ? 's' : ''}
+                        <div className="flex items-center gap-2">
+                          <Users size={16} className="text-blue-700" />
+                          <span className="font-bold text-blue-700 bg-blue-50 px-2 py-1 rounded">
+                            {page.client_count} client{page.client_count !== 1 ? 's' : ''} following
                           </span>
                         </div>
                         {page.promo_price && (

@@ -9,3 +9,5 @@ ALTER TABLE pages ADD COLUMN IF NOT EXISTS contact_other TEXT;
 CREATE INDEX IF NOT EXISTS idx_pages_contact_email ON pages(contact_email);
 CREATE INDEX IF NOT EXISTS idx_pages_contact_phone ON pages(contact_phone);
 
+
+
