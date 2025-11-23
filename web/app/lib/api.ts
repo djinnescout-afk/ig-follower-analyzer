@@ -106,6 +106,7 @@ export const pagesApi = {
     min_client_count?: number
     categorized?: boolean
     category?: string
+    search?: string
     sort_by?: string
     order?: 'asc' | 'desc'
     limit?: number
@@ -118,6 +119,7 @@ export const pagesApi = {
     min_client_count?: number
     categorized?: boolean
     category?: string
+    search?: string
   }) => api.get<{ count: number }>('/pages/count', { params }),
   getCategoryCounts: () => api.get<Record<string, number>>('/pages/category-counts'),
 }

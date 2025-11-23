@@ -36,6 +36,7 @@ def get_pages_count(
     min_client_count: Optional[int] = Query(None),
     categorized: Optional[bool] = Query(None),
     category: Optional[str] = Query(None),
+    search: Optional[str] = Query(None),
 ):
     """Get total count of pages matching filters (for pagination)."""
     try:
@@ -54,6 +55,10 @@ def get_pages_count(
         if category is not None:
             query = query.eq("category", category)
         
+        if search is not None:
+            search_pattern = f"%{search}%"
+            query = query.or_(f"ig_username.ilike.{search_pattern},full_name.ilike.{search_pattern}")
+        
         response = query.execute()
         return {"count": response.count}
     except Exception as e:
@@ -66,6 +71,7 @@ def list_pages(
     min_client_count: Optional[int] = Query(None, description="Filter by minimum client count"),
     categorized: Optional[bool] = Query(None, description="Filter by categorization status (true=categorized, false=uncategorized)"),
     category: Optional[str] = Query(None, description="Filter by specific category"),
+    search: Optional[str] = Query(None, description="Search by username or full name (case-insensitive partial match)"),
     sort_by: Optional[str] = Query("client_count", description="Field to sort by (client_count, follower_count, last_reviewed_at)"),
     order: Optional[str] = Query("desc", description="Sort order (asc or desc)"),
     limit: Optional[int] = Query(100, description="Max pages to return (default 100)"),
@@ -97,6 +103,13 @@ def list_pages(
         # Apply specific category filter
         if category is not None:
             query = query.eq("category", category)
+        
+        # Apply search filter (username or full_name)
+        if search is not None:
+            # Use PostgREST's ilike for case-insensitive pattern matching
+            search_pattern = f"%{search}%"
+            # Search in both username and full_name using OR logic
+            query = query.or_(f"ig_username.ilike.{search_pattern},full_name.ilike.{search_pattern}")
         
         # Apply sorting
         desc_order = order.lower() == "desc"

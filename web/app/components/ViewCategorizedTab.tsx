@@ -9,6 +9,7 @@ export default function ViewCategorizedTab() {
   const [selectedCategory, setSelectedCategory] = useState<string>('')
   const [page, setPage] = useState(0)
   const [pageSize, setPageSize] = useState(100)
+  const [searchQuery, setSearchQuery] = useState('')
 
   // Efficient category counts using SQL aggregation
   const { data: categoryCounts } = useQuery({
@@ -25,11 +26,12 @@ export default function ViewCategorizedTab() {
 
   // Get total count for selected category
   const { data: totalCountData } = useQuery({
-    queryKey: ['pages', 'count', selectedCategory],
+    queryKey: ['pages', 'count', selectedCategory, searchQuery],
     queryFn: async () => {
       const response = await pagesApi.getCount({
         categorized: true,
         category: selectedCategory || undefined,
+        search: searchQuery || undefined,
       })
       return response.data
     },
@@ -40,12 +42,13 @@ export default function ViewCategorizedTab() {
 
   // Fetch paginated pages for selected category
   const { data: pages, isLoading } = useQuery({
-    queryKey: ['pages', 'categorized', selectedCategory, page, pageSize],
+    queryKey: ['pages', 'categorized', selectedCategory, page, pageSize, searchQuery],
     queryFn: async () => {
-      console.log('[ViewCategorized] Fetching pages for category:', selectedCategory, 'page:', page)
+      console.log('[ViewCategorized] Fetching pages for category:', selectedCategory, 'page:', page, 'search:', searchQuery)
       const response = await pagesApi.list({
         categorized: true,
         category: selectedCategory || undefined,
+        search: searchQuery || undefined,
         sort_by: 'client_count',
         order: 'desc',
         limit: pageSize,
@@ -61,6 +64,12 @@ export default function ViewCategorizedTab() {
   // Reset to page 0 when category changes
   const handleCategoryChange = (category: string) => {
     setSelectedCategory(category)
+    setPage(0)
+  }
+
+  // Reset to page 0 when search changes
+  const handleSearchChange = (query: string) => {
+    setSearchQuery(query)
     setPage(0)
   }
 
@@ -93,10 +102,28 @@ export default function ViewCategorizedTab() {
       {/* Pages Table */}
       {selectedCategory && (
         <div className="bg-white rounded-lg shadow overflow-hidden">
-          <div className="p-6 border-b">
+          <div className="p-6 border-b space-y-4">
             <h2 className="text-lg font-semibold">
-              {selectedCategory} ({pages?.length || 0} pages)
+              {selectedCategory} ({totalCountData?.count || 0} pages)
             </h2>
+            {/* Search Box */}
+            <div className="flex items-center gap-2">
+              <input
+                type="text"
+                placeholder="Search by username or name..."
+                value={searchQuery}
+                onChange={(e) => handleSearchChange(e.target.value)}
+                className="flex-1 px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+              />
+              {searchQuery && (
+                <button
+                  onClick={() => handleSearchChange('')}
+                  className="px-4 py-2 text-sm text-gray-600 hover:text-gray-800"
+                >
+                  Clear
+                </button>
+              )}
+            </div>
           </div>
 
           {isLoading ? (

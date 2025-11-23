@@ -10,14 +10,16 @@ export default function PagesTab() {
   const [selectedPage, setSelectedPage] = useState<string | null>(null)
   const [page, setPage] = useState(0)
   const [pageSize, setPageSize] = useState(100)
+  const [searchQuery, setSearchQuery] = useState('')
   const queryClient = useQueryClient()
 
   // Get total count
   const { data: totalCountData } = useQuery({
-    queryKey: ['pages', 'count', minClientCount],
+    queryKey: ['pages', 'count', minClientCount, searchQuery],
     queryFn: async () => {
       const response = await pagesApi.getCount({
         min_client_count: minClientCount,
+        search: searchQuery || undefined,
       })
       return response.data
     },
@@ -27,10 +29,11 @@ export default function PagesTab() {
 
   // Fetch pages with pagination
   const { data: pages, isLoading } = useQuery({
-    queryKey: ['pages', minClientCount, page, pageSize],
+    queryKey: ['pages', minClientCount, page, pageSize, searchQuery],
     queryFn: async () => {
       const response = await pagesApi.list({ 
         min_client_count: minClientCount,
+        search: searchQuery || undefined,
         sort_by: 'client_count',
         order: 'desc',
         limit: pageSize,
@@ -43,6 +46,12 @@ export default function PagesTab() {
   // Reset to page 0 when filter changes
   const handleMinClientCountChange = (value: number) => {
     setMinClientCount(value)
+    setPage(0)
+  }
+
+  // Reset to page 0 when search changes
+  const handleSearchChange = (query: string) => {
+    setSearchQuery(query)
     setPage(0)
   }
 
@@ -84,20 +93,39 @@ export default function PagesTab() {
     <div className="space-y-6">
       {/* Filters */}
       <div className="bg-white rounded-lg shadow p-6">
-        <div className="flex items-center gap-4">
-          <label className="text-sm font-medium text-gray-700">
-            Minimum Clients Following:
-          </label>
-          <input
-            type="number"
-            min="1"
-            value={minClientCount}
-            onChange={(e) => handleMinClientCountChange(parseInt(e.target.value) || 1)}
-            className="w-24 px-3 py-2 border border-gray-300 rounded-md"
-          />
-          <span className="text-sm text-gray-600">
-            Showing pages followed by {minClientCount}+ clients
-          </span>
+        <div className="space-y-4">
+          <div className="flex items-center gap-4">
+            <label className="text-sm font-medium text-gray-700">
+              Minimum Clients Following:
+            </label>
+            <input
+              type="number"
+              min="1"
+              value={minClientCount}
+              onChange={(e) => handleMinClientCountChange(parseInt(e.target.value) || 1)}
+              className="w-24 px-3 py-2 border border-gray-300 rounded-md"
+            />
+            <span className="text-sm text-gray-600">
+              Showing pages followed by {minClientCount}+ clients
+            </span>
+          </div>
+          <div className="flex items-center gap-2">
+            <input
+              type="text"
+              placeholder="Search by username or name..."
+              value={searchQuery}
+              onChange={(e) => handleSearchChange(e.target.value)}
+              className="flex-1 px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+            />
+            {searchQuery && (
+              <button
+                onClick={() => handleSearchChange('')}
+                className="px-4 py-2 text-sm text-gray-600 hover:text-gray-800"
+              >
+                Clear
+              </button>
+            )}
+          </div>
         </div>
       </div>
 
