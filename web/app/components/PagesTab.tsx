@@ -4,6 +4,7 @@ import { useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { pagesApi, scrapesApi } from '../lib/api'
 import { CheckCircle, Users, Eye, RefreshCw } from 'lucide-react'
+import { useDebounce } from '../lib/hooks/useDebounce'
 
 export default function PagesTab() {
   const [minClientCount, setMinClientCount] = useState(2)
@@ -13,13 +14,16 @@ export default function PagesTab() {
   const [searchQuery, setSearchQuery] = useState('')
   const queryClient = useQueryClient()
 
+  // Debounce search query to reduce API calls (500ms delay)
+  const debouncedSearch = useDebounce(searchQuery, 500)
+
   // Get total count
   const { data: totalCountData } = useQuery({
-    queryKey: ['pages', 'count', minClientCount, searchQuery],
+    queryKey: ['pages', 'count', minClientCount, debouncedSearch],
     queryFn: async () => {
       const response = await pagesApi.getCount({
         min_client_count: minClientCount,
-        search: searchQuery || undefined,
+        search: debouncedSearch || undefined,
       })
       return response.data
     },
@@ -29,11 +33,11 @@ export default function PagesTab() {
 
   // Fetch pages with pagination
   const { data: pages, isLoading } = useQuery({
-    queryKey: ['pages', minClientCount, page, pageSize, searchQuery],
+    queryKey: ['pages', minClientCount, page, pageSize, debouncedSearch],
     queryFn: async () => {
       const response = await pagesApi.list({ 
         min_client_count: minClientCount,
-        search: searchQuery || undefined,
+        search: debouncedSearch || undefined,
         sort_by: 'client_count',
         order: 'desc',
         limit: pageSize,

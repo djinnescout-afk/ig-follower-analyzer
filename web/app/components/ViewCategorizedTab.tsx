@@ -4,12 +4,16 @@ import { useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { pagesApi, Page } from '../lib/api'
 import { CATEGORIES } from '../lib/categories'
+import { useDebounce } from '../lib/hooks/useDebounce'
 
 export default function ViewCategorizedTab() {
   const [selectedCategory, setSelectedCategory] = useState<string>('')
   const [page, setPage] = useState(0)
   const [pageSize, setPageSize] = useState(100)
   const [searchQuery, setSearchQuery] = useState('')
+  
+  // Debounce search query to reduce API calls (500ms delay)
+  const debouncedSearch = useDebounce(searchQuery, 500)
 
   // Efficient category counts using SQL aggregation
   const { data: categoryCounts } = useQuery({
@@ -26,12 +30,12 @@ export default function ViewCategorizedTab() {
 
   // Get total count for selected category
   const { data: totalCountData } = useQuery({
-    queryKey: ['pages', 'count', selectedCategory, searchQuery],
+    queryKey: ['pages', 'count', selectedCategory, debouncedSearch],
     queryFn: async () => {
       const response = await pagesApi.getCount({
         categorized: true,
         category: selectedCategory || undefined,
-        search: searchQuery || undefined,
+        search: debouncedSearch || undefined,
       })
       return response.data
     },
@@ -42,13 +46,13 @@ export default function ViewCategorizedTab() {
 
   // Fetch paginated pages for selected category
   const { data: pages, isLoading } = useQuery({
-    queryKey: ['pages', 'categorized', selectedCategory, page, pageSize, searchQuery],
+    queryKey: ['pages', 'categorized', selectedCategory, page, pageSize, debouncedSearch],
     queryFn: async () => {
-      console.log('[ViewCategorized] Fetching pages for category:', selectedCategory, 'page:', page, 'search:', searchQuery)
+      console.log('[ViewCategorized] Fetching pages for category:', selectedCategory, 'page:', page, 'search:', debouncedSearch)
       const response = await pagesApi.list({
         categorized: true,
         category: selectedCategory || undefined,
-        search: searchQuery || undefined,
+        search: debouncedSearch || undefined,
         sort_by: 'client_count',
         order: 'desc',
         limit: pageSize,
