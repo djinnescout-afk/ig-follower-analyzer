@@ -16,18 +16,38 @@ def get_category_counts():
     try:
         client = get_supabase_client()
         
-        # Use PostgreSQL aggregation for efficient counting
-        response = client.rpc("get_category_counts").execute()
+        # Try to use the efficient SQL function first
+        try:
+            response = client.rpc("get_category_counts").execute()
+            
+            if response.data:
+                # Convert list of {category, count} to dict
+                counts = {item["category"]: item["count"] for item in response.data}
+                return counts
+        except Exception as rpc_error:
+            logger.warning(f"RPC function not found, falling back to manual count: {rpc_error}")
         
-        if not response.data:
+        # Fallback: Manual counting (slower but works without SQL function)
+        # Get all unique categories
+        categories_response = client.table("pages").select("category").not_.is_("category", "null").execute()
+        
+        if not categories_response.data:
             return {}
         
-        # Convert list of {category, count} to dict
-        counts = {item["category"]: item["count"] for item in response.data}
+        # Count pages for each unique category
+        all_categories = set(row["category"] for row in categories_response.data if row.get("category"))
+        counts = {}
+        
+        for category in all_categories:
+            count_response = client.table("pages").select("id", count="exact").eq("category", category).execute()
+            counts[category] = count_response.count or 0
+        
+        logger.info(f"Fallback category counts: {counts}")
         return counts
+        
     except Exception as e:
         logger.error(f"Error in get_category_counts: {e}", exc_info=True)
-        # Fallback: return empty dict
+        # Last resort: return empty dict
         return {}
 
 
