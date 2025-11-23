@@ -106,12 +106,20 @@ export const pagesApi = {
     min_client_count?: number
     categorized?: boolean
     category?: string
+    sort_by?: string
+    order?: 'asc' | 'desc'
     limit?: number
     offset?: number 
   }) => api.get<Page[]>('/pages', { params }),
   get: (id: string) => api.get<Page>(`/pages/${id}`),
   getProfile: (id: string) => api.get<PageProfile>(`/pages/${id}/profile`),
   update: (id: string, data: any) => api.put(`/pages/${id}`, data),
+  getCount: (params?: {
+    min_client_count?: number
+    categorized?: boolean
+    category?: string
+  }) => api.get<{ count: number }>('/pages/count', { params }),
+  getCategoryCounts: () => api.get<Record<string, number>>('/pages/category-counts'),
 }
 
 // Scrapes API

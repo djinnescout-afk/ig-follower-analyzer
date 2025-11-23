@@ -7,16 +7,49 @@ import { CATEGORIES } from '../lib/categories'
 
 export default function ViewCategorizedTab() {
   const [selectedCategory, setSelectedCategory] = useState<string>('')
+  const [page, setPage] = useState(0)
+  const [pageSize, setPageSize] = useState(100)
 
-  // Fetch categorized pages for selected category
-  const { data: pages, isLoading } = useQuery({
-    queryKey: ['pages', 'categorized', selectedCategory],
+  // Efficient category counts using SQL aggregation
+  const { data: categoryCounts } = useQuery({
+    queryKey: ['pages', 'category-counts'],
     queryFn: async () => {
-      console.log('[ViewCategorized] Fetching pages for category:', selectedCategory)
+      console.log('[ViewCategorized] Fetching category counts (efficient)...')
+      const response = await pagesApi.getCategoryCounts()
+      console.log('[ViewCategorized] Category counts:', response.data)
+      return response.data
+    },
+    staleTime: 30000, // Cache for 30 seconds
+    refetchOnMount: true,
+  })
+
+  // Get total count for selected category
+  const { data: totalCountData } = useQuery({
+    queryKey: ['pages', 'count', selectedCategory],
+    queryFn: async () => {
+      const response = await pagesApi.getCount({
+        categorized: true,
+        category: selectedCategory || undefined,
+      })
+      return response.data
+    },
+    enabled: !!selectedCategory,
+  })
+
+  const totalPages = Math.ceil((totalCountData?.count || 0) / pageSize)
+
+  // Fetch paginated pages for selected category
+  const { data: pages, isLoading } = useQuery({
+    queryKey: ['pages', 'categorized', selectedCategory, page, pageSize],
+    queryFn: async () => {
+      console.log('[ViewCategorized] Fetching pages for category:', selectedCategory, 'page:', page)
       const response = await pagesApi.list({
         categorized: true,
         category: selectedCategory || undefined,
-        limit: 10000,
+        sort_by: 'client_count',
+        order: 'desc',
+        limit: pageSize,
+        offset: page * pageSize,
       })
       console.log('[ViewCategorized] Response data:', response.data)
       console.log('[ViewCategorized] Found', response.data.length, 'pages')
@@ -25,32 +58,11 @@ export default function ViewCategorizedTab() {
     enabled: !!selectedCategory,
   })
 
-  // Count pages by category
-  const { data: categoryCounts } = useQuery({
-    queryKey: ['pages', 'category-counts'],
-    queryFn: async () => {
-      console.log('[ViewCategorized] Fetching category counts...')
-      const counts: Record<string, number> = {}
-      
-      // Fetch pages for each category
-      await Promise.all(
-        CATEGORIES.map(async (category) => {
-          const response = await pagesApi.list({
-            categorized: true,
-            category,
-            limit: 10000,
-          })
-          counts[category] = response.data.length
-          console.log(`[ViewCategorized] ${category}: ${response.data.length} pages`)
-        })
-      )
-      
-      console.log('[ViewCategorized] Category counts:', counts)
-      return counts
-    },
-    staleTime: 0, // Always fetch fresh data
-    refetchOnMount: true,
-  })
+  // Reset to page 0 when category changes
+  const handleCategoryChange = (category: string) => {
+    setSelectedCategory(category)
+    setPage(0)
+  }
 
   return (
     <div className="space-y-6">
@@ -63,7 +75,7 @@ export default function ViewCategorizedTab() {
             return (
               <button
                 key={category}
-                onClick={() => setSelectedCategory(category)}
+                onClick={() => handleCategoryChange(category)}
                 className={`p-4 rounded-lg border-2 transition-all ${
                   selectedCategory === category
                     ? 'border-blue-600 bg-blue-50'
@@ -320,6 +332,64 @@ export default function ViewCategorizedTab() {
           ) : (
             <div className="text-center py-12 text-gray-500">
               No pages found in this category
+            </div>
+          )}
+
+          {/* Pagination Controls */}
+          {pages && pages.length > 0 && (
+            <div className="px-6 py-4 border-t bg-gray-50 flex items-center justify-between">
+              <div className="flex items-center gap-4">
+                <div className="text-sm text-gray-700">
+                  Showing {page * pageSize + 1} - {Math.min((page + 1) * pageSize, totalCountData?.count || 0)} of {totalCountData?.count || 0} pages
+                </div>
+                <select
+                  value={pageSize}
+                  onChange={(e) => {
+                    setPageSize(Number(e.target.value))
+                    setPage(0)
+                  }}
+                  className="text-sm border border-gray-300 rounded px-2 py-1"
+                >
+                  <option value={50}>50 per page</option>
+                  <option value={100}>100 per page</option>
+                  <option value={250}>250 per page</option>
+                  <option value={500}>500 per page</option>
+                </select>
+              </div>
+
+              <div className="flex gap-2">
+                <button
+                  onClick={() => setPage(0)}
+                  disabled={page === 0}
+                  className="px-3 py-1 text-sm border border-gray-300 rounded hover:bg-gray-100 disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  First
+                </button>
+                <button
+                  onClick={() => setPage(page - 1)}
+                  disabled={page === 0}
+                  className="px-3 py-1 text-sm border border-gray-300 rounded hover:bg-gray-100 disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  Previous
+                </button>
+                <div className="px-3 py-1 text-sm">
+                  Page {page + 1} of {totalPages}
+                </div>
+                <button
+                  onClick={() => setPage(page + 1)}
+                  disabled={page >= totalPages - 1}
+                  className="px-3 py-1 text-sm border border-gray-300 rounded hover:bg-gray-100 disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  Next
+                </button>
+                <button
+                  onClick={() => setPage(totalPages - 1)}
+                  disabled={page >= totalPages - 1}
+                  className="px-3 py-1 text-sm border border-gray-300 rounded hover:bg-gray-100 disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  Last
+                </button>
+              </div>
             </div>
           )}
         </div>

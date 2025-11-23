@@ -8,19 +8,43 @@ import { CheckCircle, Users, Eye, RefreshCw } from 'lucide-react'
 export default function PagesTab() {
   const [minClientCount, setMinClientCount] = useState(2)
   const [selectedPage, setSelectedPage] = useState<string | null>(null)
+  const [page, setPage] = useState(0)
+  const [pageSize, setPageSize] = useState(100)
   const queryClient = useQueryClient()
 
-  // Fetch pages
-  const { data: pages, isLoading } = useQuery({
-    queryKey: ['pages', minClientCount],
+  // Get total count
+  const { data: totalCountData } = useQuery({
+    queryKey: ['pages', 'count', minClientCount],
     queryFn: async () => {
-      const response = await pagesApi.list({ 
+      const response = await pagesApi.getCount({
         min_client_count: minClientCount,
-        limit: 10000  // Fetch all pages (increase if you have more than 10k)
       })
       return response.data
     },
   })
+
+  const totalPages = Math.ceil((totalCountData?.count || 0) / pageSize)
+
+  // Fetch pages with pagination
+  const { data: pages, isLoading } = useQuery({
+    queryKey: ['pages', minClientCount, page, pageSize],
+    queryFn: async () => {
+      const response = await pagesApi.list({ 
+        min_client_count: minClientCount,
+        sort_by: 'client_count',
+        order: 'desc',
+        limit: pageSize,
+        offset: page * pageSize,
+      })
+      return response.data
+    },
+  })
+
+  // Reset to page 0 when filter changes
+  const handleMinClientCountChange = (value: number) => {
+    setMinClientCount(value)
+    setPage(0)
+  }
 
   // Fetch selected page profile
   const { data: profile } = useQuery({
@@ -68,7 +92,7 @@ export default function PagesTab() {
             type="number"
             min="1"
             value={minClientCount}
-            onChange={(e) => setMinClientCount(parseInt(e.target.value) || 1)}
+            onChange={(e) => handleMinClientCountChange(parseInt(e.target.value) || 1)}
             className="w-24 px-3 py-2 border border-gray-300 rounded-md"
           />
           <span className="text-sm text-gray-600">
@@ -83,7 +107,7 @@ export default function PagesTab() {
         <div className="bg-white rounded-lg shadow">
           <div className="p-6 border-b">
             <h2 className="text-lg font-semibold text-gray-900">
-              Pages ({pages?.length || 0})
+              Pages ({totalCountData?.count || 0} total, showing {pages?.length || 0})
             </h2>
           </div>
           <div className="divide-y max-h-[600px] overflow-y-auto">
@@ -144,6 +168,46 @@ export default function PagesTab() {
               </div>
             )}
           </div>
+
+          {/* Pagination Controls */}
+          {pages && pages.length > 0 && (
+            <div className="px-6 py-4 border-t bg-gray-50 flex items-center justify-between">
+              <div className="flex items-center gap-4">
+                <div className="text-sm text-gray-700">
+                  Page {page + 1} of {totalPages}
+                </div>
+                <select
+                  value={pageSize}
+                  onChange={(e) => {
+                    setPageSize(Number(e.target.value))
+                    setPage(0)
+                  }}
+                  className="text-sm border border-gray-300 rounded px-2 py-1"
+                >
+                  <option value={50}>50 per page</option>
+                  <option value={100}>100 per page</option>
+                  <option value={250}>250 per page</option>
+                </select>
+              </div>
+
+              <div className="flex gap-2">
+                <button
+                  onClick={() => setPage(Math.max(0, page - 1))}
+                  disabled={page === 0}
+                  className="px-3 py-1 text-sm border border-gray-300 rounded hover:bg-gray-100 disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  Previous
+                </button>
+                <button
+                  onClick={() => setPage(Math.min(totalPages - 1, page + 1))}
+                  disabled={page >= totalPages - 1}
+                  className="px-3 py-1 text-sm border border-gray-300 rounded hover:bg-gray-100 disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  Next
+                </button>
+              </div>
+            </div>
+          )}
         </div>
 
         {/* Page Details */}

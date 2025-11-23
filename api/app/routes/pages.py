@@ -10,20 +10,73 @@ router = APIRouter(prefix="/pages", tags=["pages"])
 logger = logging.getLogger(__name__)
 
 
+@router.get("/category-counts")
+def get_category_counts():
+    """Get count of pages per category using efficient SQL aggregation."""
+    try:
+        client = get_supabase_client()
+        
+        # Use PostgreSQL aggregation for efficient counting
+        response = client.rpc("get_category_counts").execute()
+        
+        if not response.data:
+            return {}
+        
+        # Convert list of {category, count} to dict
+        counts = {item["category"]: item["count"] for item in response.data}
+        return counts
+    except Exception as e:
+        logger.error(f"Error in get_category_counts: {e}", exc_info=True)
+        # Fallback: return empty dict
+        return {}
+
+
+@router.get("/count")
+def get_pages_count(
+    min_client_count: Optional[int] = Query(None),
+    categorized: Optional[bool] = Query(None),
+    category: Optional[str] = Query(None),
+):
+    """Get total count of pages matching filters (for pagination)."""
+    try:
+        client = get_supabase_client()
+        query = client.table("pages").select("id", count="exact")
+        
+        if min_client_count is not None:
+            query = query.gte("client_count", min_client_count)
+        
+        if categorized is not None:
+            if categorized:
+                query = query.filter("category", "not.is", "null")
+            else:
+                query = query.filter("category", "is", "null")
+        
+        if category is not None:
+            query = query.eq("category", category)
+        
+        response = query.execute()
+        return {"count": response.count}
+    except Exception as e:
+        logger.error(f"Error in get_pages_count: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail=str(e))
+
+
 @router.get("/", response_model=list[PageResponse])
 def list_pages(
     min_client_count: Optional[int] = Query(None, description="Filter by minimum client count"),
     categorized: Optional[bool] = Query(None, description="Filter by categorization status (true=categorized, false=uncategorized)"),
     category: Optional[str] = Query(None, description="Filter by specific category"),
-    limit: Optional[int] = Query(10000, description="Max pages to return"),
+    sort_by: Optional[str] = Query("client_count", description="Field to sort by (client_count, follower_count, last_reviewed_at)"),
+    order: Optional[str] = Query("desc", description="Sort order (asc or desc)"),
+    limit: Optional[int] = Query(100, description="Max pages to return (default 100)"),
     offset: Optional[int] = Query(0, description="Pagination offset"),
 ):
-    """List pages with optional filtering.
+    """List pages with optional filtering, sorting, and pagination.
     
-    Uses the client_count column from the database (maintained by triggers).
+    Efficient server-side pagination with database-level sorting.
     """
     try:
-        print(f"[PAGES API] Request: min_client_count={min_client_count}, categorized={categorized}, category={category}")
+        logger.info(f"[PAGES API] Request: min_client_count={min_client_count}, categorized={categorized}, category={category}, sort_by={sort_by}, order={order}, limit={limit}, offset={offset}")
         
         client = get_supabase_client()
         
@@ -37,64 +90,28 @@ def list_pages(
         # Apply categorization filter
         if categorized is not None:
             if categorized:
-                # Filter for pages with a category (not null)
-                # PostgREST syntax: "not.is" for IS NOT NULL
                 query = query.filter("category", "not.is", "null")
             else:
-                # Filter for pages without a category (is null)
                 query = query.filter("category", "is", "null")
         
         # Apply specific category filter
         if category is not None:
             query = query.eq("category", category)
         
-        # Sort by client_count descending
-        query = query.order("client_count", desc=True)
+        # Apply sorting
+        desc_order = order.lower() == "desc"
+        query = query.order(sort_by, desc=desc_order)
         
-        # Fetch pages in batches (Supabase limit is 1000 per query)
-        all_pages = []
-        batch_size = 1000
-        start = 0
-        iteration = 0
+        # Apply pagination using range (Supabase uses 0-based indexing)
+        end = offset + limit - 1
+        response = query.range(offset, end).execute()
         
-        print(f"[PAGES API] Starting batch fetch of pages...")
+        result = response.data if response.data else []
+        logger.info(f"[PAGES API] Returning {len(result)} pages (offset={offset}, limit={limit})")
         
-        while True:
-            iteration += 1
-            end = start + batch_size - 1
-            print(f"[PAGES API] Batch {iteration}: Fetching range({start}, {end})")
-            
-            try:
-                batch = query.range(start, end).execute()
-                batch_count = len(batch.data) if batch.data else 0
-                print(f"[PAGES API] Batch {iteration}: Retrieved {batch_count} items")
-                
-                if not batch.data:
-                    print(f"[PAGES API] Batch {iteration}: No data, breaking")
-                    break
-                    
-                all_pages.extend(batch.data)
-                print(f"[PAGES API] Total pages so far: {len(all_pages)}")
-                
-                if len(batch.data) < batch_size:
-                    print(f"[PAGES API] Batch {iteration}: Last batch (partial), breaking")
-                    break  # Last batch
-                    
-                start += batch_size
-            except Exception as batch_error:
-                print(f"[PAGES API] Batch {iteration}: ERROR - {str(batch_error)}")
-                logger.error(f"Batch fetch error: {batch_error}", exc_info=True)
-                break
-        
-        print(f"[PAGES API] Finished fetching. Total pages: {len(all_pages)}")
-        
-        # Apply pagination
-        result = all_pages[offset:offset+limit]
-        print(f"[PAGES API] Returning {len(result)} pages")
         return result
     except Exception as e:
         logger.error(f"Error in list_pages: {e}", exc_info=True)
-        print(f"[PAGES API] FATAL ERROR: {str(e)}")
         raise HTTPException(status_code=500, detail=f"Internal server error: {str(e)}")
 
 
