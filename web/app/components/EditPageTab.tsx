@@ -240,10 +240,11 @@ export default function EditPageTab() {
         updatePageMutation.mutateAsync(pageData),
         updateOutreachMutation.mutateAsync(outreachData),
       ])
-    } catch (error: any) {
+    } catch (error) {
       console.error('Error saving:', error)
-      console.error('Error response:', error.response?.data)
-      const errorMsg = error.response?.data?.detail || error.message || 'Unknown error'
+      const axiosError = error as { response?: { data?: { detail?: string } }; message?: string }
+      console.error('Error response:', axiosError.response?.data)
+      const errorMsg = axiosError.response?.data?.detail || axiosError.message || 'Unknown error'
       alert(`Failed to save: ${errorMsg}`)
     }
   }
@@ -407,16 +408,7 @@ export default function EditPageTab() {
 
                 {/* Inline Edit Form - expands below the clicked page */}
                 {selectedPage?.id === page.id && selectedPage.id && (
-                  <div className="bg-gray-50 border-t border-b border-blue-200" id="edit-form-section">
-          {pagesLoading && !selectedPage ? (
-            <div className="bg-white rounded-lg shadow p-12 text-center text-gray-500">
-              Loading pages...
-            </div>
-          ) : !selectedPage || !selectedPage.id ? (
-            <div className="bg-white rounded-lg shadow p-12 text-center text-gray-500">
-              {browseMode ? 'Click on a page to edit' : 'Search and select a page to edit'}
-            </div>
-          ) : (
+                  <div className="bg-gray-50 border-t border-b border-blue-200 p-6" id="edit-form-section">
             <div className="bg-white rounded-lg shadow p-6">
               <div className="mb-6">
                 <h2 className="text-2xl font-bold">@{selectedPage.ig_username}</h2>
