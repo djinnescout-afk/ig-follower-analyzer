@@ -135,11 +135,17 @@ export default function CategorizeTab() {
       try {
         const response = await pagesApi.getProfile(currentPage.id)
         return response.data
-      } catch (error) {
+      } catch (error: any) {
+        // 404 is expected if profile hasn't been scraped yet
+        if (error?.response?.status === 404) {
+          return null
+        }
+        console.error('Error fetching profile:', error)
         return null
       }
     },
     enabled: !!currentPage,
+    retry: false, // Don't retry 404s
   })
 
   // Fetch outreach tracking
@@ -150,11 +156,17 @@ export default function CategorizeTab() {
       try {
         const response = await outreachApi.get(currentPage.id)
         return response.data
-      } catch (error) {
+      } catch (error: any) {
+        // 404 is expected if no outreach record exists yet
+        if (error?.response?.status === 404) {
+          return null
+        }
+        console.error('Error fetching outreach:', error)
         return null
       }
     },
     enabled: !!currentPage,
+    retry: false, // Don't retry 404s
   })
 
   // Initialize form data when page changes
