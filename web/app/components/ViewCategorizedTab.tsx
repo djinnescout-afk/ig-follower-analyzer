@@ -3,7 +3,7 @@
 import { useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { pagesApi, Page } from '../lib/api'
-import { CATEGORIES } from '../lib/categories'
+import { CATEGORIES, CONTACT_METHODS, PROMO_STATUSES, OUTREACH_STATUSES } from '../lib/categories'
 import { useDebounce } from '../lib/hooks/useDebounce'
 
 export default function ViewCategorizedTab() {
@@ -11,6 +11,12 @@ export default function ViewCategorizedTab() {
   const [page, setPage] = useState(0)
   const [pageSize, setPageSize] = useState(100)
   const [searchQuery, setSearchQuery] = useState('')
+  
+  // Filter states
+  const [promoStatusFilter, setPromoStatusFilter] = useState<string>('')
+  const [outreachStatusFilter, setOutreachStatusFilter] = useState<string>('')
+  const [contactMethodsFilter, setContactMethodsFilter] = useState<string[]>([])
+  const [attemptedMethodsFilter, setAttemptedMethodsFilter] = useState<string[]>([])
   
   // Debounce search query to reduce API calls (500ms delay)
   const debouncedSearch = useDebounce(searchQuery, 500)
@@ -65,6 +71,39 @@ export default function ViewCategorizedTab() {
     enabled: !!selectedCategory,
   })
 
+  // Client-side filtering
+  const filteredPages = pages?.filter((page) => {
+    // Promo status filter
+    if (promoStatusFilter && page.manual_promo_status !== promoStatusFilter) {
+      return false
+    }
+    
+    // Outreach status filter
+    if (outreachStatusFilter && page.outreach_status !== outreachStatusFilter) {
+      return false
+    }
+    
+    // Contact methods filter (page must have ALL selected methods)
+    if (contactMethodsFilter.length > 0) {
+      const pageMethods = page.known_contact_methods || []
+      const hasAllMethods = contactMethodsFilter.every(method => pageMethods.includes(method))
+      if (!hasAllMethods) {
+        return false
+      }
+    }
+    
+    // Attempted methods filter (page must have tried ALL selected methods)
+    if (attemptedMethodsFilter.length > 0) {
+      const pageAttempted = page.attempted_contact_methods || []
+      const hasAllAttempted = attemptedMethodsFilter.every(method => pageAttempted.includes(method))
+      if (!hasAllAttempted) {
+        return false
+      }
+    }
+    
+    return true
+  }) || []
+
   // Reset to page 0 when category changes
   const handleCategoryChange = (category: string) => {
     setSelectedCategory(category)
@@ -75,6 +114,14 @@ export default function ViewCategorizedTab() {
   const handleSearchChange = (query: string) => {
     setSearchQuery(query)
     setPage(0)
+  }
+  
+  // Reset filters
+  const handleResetFilters = () => {
+    setPromoStatusFilter('')
+    setOutreachStatusFilter('')
+    setContactMethodsFilter([])
+    setAttemptedMethodsFilter([])
   }
 
   return (
@@ -128,11 +175,123 @@ export default function ViewCategorizedTab() {
                 </button>
               )}
             </div>
+            
+            {/* Filters Section */}
+            <div className="mt-4 p-4 bg-gray-50 rounded-lg border border-gray-200">
+              <div className="flex items-center justify-between mb-3">
+                <h3 className="text-sm font-semibold text-gray-700">Filters</h3>
+                {(promoStatusFilter || outreachStatusFilter || contactMethodsFilter.length > 0 || attemptedMethodsFilter.length > 0) && (
+                  <button
+                    onClick={handleResetFilters}
+                    className="text-xs px-3 py-1 bg-gray-200 text-gray-700 rounded hover:bg-gray-300"
+                  >
+                    Clear All Filters
+                  </button>
+                )}
+              </div>
+              
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+                {/* Promo Status Filter */}
+                <div>
+                  <label className="block text-xs font-medium text-gray-600 mb-1">
+                    Promo Status
+                  </label>
+                  <select
+                    value={promoStatusFilter}
+                    onChange={(e) => setPromoStatusFilter(e.target.value)}
+                    className="w-full px-2 py-1.5 text-sm border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  >
+                    <option value="">All</option>
+                    {PROMO_STATUSES.map((status) => (
+                      <option key={status.value} value={status.value}>
+                        {status.label}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                {/* Outreach Status Filter */}
+                <div>
+                  <label className="block text-xs font-medium text-gray-600 mb-1">
+                    Outreach Status
+                  </label>
+                  <select
+                    value={outreachStatusFilter}
+                    onChange={(e) => setOutreachStatusFilter(e.target.value)}
+                    className="w-full px-2 py-1.5 text-sm border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  >
+                    <option value="">All</option>
+                    {OUTREACH_STATUSES.map((status) => (
+                      <option key={status.value} value={status.value}>
+                        {status.label}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                {/* Contact Methods Filter */}
+                <div>
+                  <label className="block text-xs font-medium text-gray-600 mb-1">
+                    Has Contact Methods
+                  </label>
+                  <div className="space-y-1 max-h-32 overflow-y-auto">
+                    {CONTACT_METHODS.map((method) => (
+                      <label key={method} className="flex items-center text-xs">
+                        <input
+                          type="checkbox"
+                          checked={contactMethodsFilter.includes(method)}
+                          onChange={(e) => {
+                            if (e.target.checked) {
+                              setContactMethodsFilter([...contactMethodsFilter, method])
+                            } else {
+                              setContactMethodsFilter(contactMethodsFilter.filter((m) => m !== method))
+                            }
+                          }}
+                          className="mr-1.5"
+                        />
+                        {method}
+                      </label>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Attempted Contact Methods Filter */}
+                <div>
+                  <label className="block text-xs font-medium text-gray-600 mb-1">
+                    Already Tried Methods
+                  </label>
+                  <div className="space-y-1 max-h-32 overflow-y-auto">
+                    {CONTACT_METHODS.map((method) => (
+                      <label key={method} className="flex items-center text-xs">
+                        <input
+                          type="checkbox"
+                          checked={attemptedMethodsFilter.includes(method)}
+                          onChange={(e) => {
+                            if (e.target.checked) {
+                              setAttemptedMethodsFilter([...attemptedMethodsFilter, method])
+                            } else {
+                              setAttemptedMethodsFilter(attemptedMethodsFilter.filter((m) => m !== method))
+                            }
+                          }}
+                          className="mr-1.5"
+                        />
+                        {method}
+                      </label>
+                    ))}
+                  </div>
+                </div>
+              </div>
+              
+              {/* Filter Results Summary */}
+              <div className="mt-3 text-xs text-gray-600">
+                Showing {filteredPages.length} of {pages?.length || 0} pages
+              </div>
+            </div>
           </div>
 
           {isLoading ? (
             <div className="text-center py-12 text-gray-500">Loading pages...</div>
-          ) : pages && pages.length > 0 ? (
+          ) : filteredPages && filteredPages.length > 0 ? (
             <div className="overflow-x-auto">
               <table 
                 className="w-full bg-gray-50" 
@@ -165,6 +324,12 @@ export default function ViewCategorizedTab() {
                       Contact Details
                     </th>
                     <th className="px-6 py-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider" style={{ border: '1px solid #9ca3af' }}>
+                      Attempted Methods
+                    </th>
+                    <th className="px-6 py-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider" style={{ border: '1px solid #9ca3af' }}>
+                      Outreach Status
+                    </th>
+                    <th className="px-6 py-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider" style={{ border: '1px solid #9ca3af' }}>
                       Price
                     </th>
                     <th className="px-6 py-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider" style={{ border: '1px solid #9ca3af' }}>
@@ -182,7 +347,7 @@ export default function ViewCategorizedTab() {
                   </tr>
                 </thead>
                 <tbody style={{ backgroundColor: 'white' }}>
-                  {pages.map((page) => (
+                  {filteredPages.map((page) => (
                     <tr key={page.id} className="hover:bg-gray-50">
                       {/* Name */}
                       <td className="px-6 py-6" style={{ border: '1px solid #9ca3af' }}>
@@ -307,6 +472,51 @@ export default function ViewCategorizedTab() {
                             <span className="text-gray-400">—</span>
                           )}
                         </div>
+                      </td>
+
+                      {/* Attempted Methods */}
+                      <td className="px-6 py-6" style={{ border: '1px solid #9ca3af' }}>
+                        {page.attempted_contact_methods && page.attempted_contact_methods.length > 0 ? (
+                          <div className="flex flex-wrap gap-1">
+                            {page.attempted_contact_methods.map((method) => (
+                              <span key={method} className="text-xs px-2 py-1 bg-yellow-100 text-yellow-800 rounded">
+                                {method}
+                              </span>
+                            ))}
+                          </div>
+                        ) : (
+                          <span className="text-xs text-gray-400">None</span>
+                        )}
+                      </td>
+
+                      {/* Outreach Status */}
+                      <td className="px-6 py-6" style={{ border: '1px solid #9ca3af' }}>
+                        {page.outreach_status ? (
+                          <div className="text-sm">
+                            <span className={`inline-block px-2 py-1 rounded text-xs font-medium ${
+                              page.outreach_status === 'booked' ? 'bg-green-100 text-green-800' :
+                              page.outreach_status === 'negotiating' ? 'bg-blue-100 text-blue-800' :
+                              page.outreach_status === 'responded' ? 'bg-indigo-100 text-indigo-800' :
+                              page.outreach_status === 'contacted' ? 'bg-yellow-100 text-yellow-800' :
+                              page.outreach_status === 'declined' ? 'bg-red-100 text-red-800' :
+                              'bg-gray-100 text-gray-800'
+                            }`}>
+                              {page.outreach_status.replace('_', ' ').toUpperCase()}
+                            </span>
+                            {page.outreach_date_contacted && (
+                              <div className="text-xs text-gray-500 mt-1">
+                                Contacted: {new Date(page.outreach_date_contacted).toLocaleDateString()}
+                              </div>
+                            )}
+                            {page.outreach_follow_up_date && (
+                              <div className="text-xs text-gray-500">
+                                Follow-up: {new Date(page.outreach_follow_up_date).toLocaleDateString()}
+                              </div>
+                            )}
+                          </div>
+                        ) : (
+                          <span className="text-xs text-gray-400">Not contacted</span>
+                        )}
                       </td>
 
                       {/* Price */}
