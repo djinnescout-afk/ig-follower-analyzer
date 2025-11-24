@@ -37,33 +37,12 @@ export default function EditPageTab() {
   const { data: pages, isLoading: pagesLoading } = useQuery({
     queryKey: ['pages', 'search', debouncedSearch, showArchived],
     queryFn: async () => {
-      // If no search query, load all pages (sorted by client_count)
+      // Only search when there's a query (don't load all pages - causes CORS issues)
       if (!debouncedSearch.trim()) {
-        const allPages = []
-        let offset = 0
-        const limit = 1000
-        
-        // Fetch in batches
-        while (true) {
-          const response = await pagesApi.list({
-            include_archived: showArchived,
-            sort_by: 'client_count',
-            order: 'desc',
-            limit: limit,
-            offset: offset,
-          })
-          
-          const batch = response.data
-          allPages.push(...batch)
-          
-          if (batch.length < limit) break
-          offset += limit
-        }
-        
-        return allPages
+        return [] // Empty state - user must search
       }
       
-      // Otherwise, server-side search by query
+      // Server-side search by query
       const response = await pagesApi.list({
         search: debouncedSearch,
         include_archived: showArchived,
