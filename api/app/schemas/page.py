@@ -50,6 +50,10 @@ class PageUpdate(BaseModel):
     website_contact_email: Optional[str] = None
     website_has_contact_form: Optional[bool] = None
     website_last_scraped_at: Optional[datetime] = None
+    # Archival fields
+    archived: Optional[bool] = None
+    archived_by: Optional[str] = None
+    archive_reason: Optional[str] = None
 
 
 class PageResponse(PageBase):
@@ -83,6 +87,11 @@ class PageResponse(PageBase):
     website_contact_email: Optional[str] = None
     website_has_contact_form: Optional[bool] = None
     website_last_scraped_at: Optional[datetime] = None
+    # Archival fields
+    archived: bool = False
+    archived_at: Optional[datetime] = None
+    archived_by: Optional[str] = None
+    archive_reason: Optional[str] = None
 
     model_config = ConfigDict(from_attributes=True)
 

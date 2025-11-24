@@ -92,6 +92,7 @@ def list_pages(
     categorized: Optional[bool] = Query(None, description="Filter by categorization status (true=categorized, false=uncategorized)"),
     category: Optional[str] = Query(None, description="Filter by specific category"),
     search: Optional[str] = Query(None, description="Search by username or full name (case-insensitive partial match)"),
+    include_archived: Optional[bool] = Query(False, description="Include archived pages (default: false)"),
     sort_by: Optional[str] = Query("client_count", description="Field to sort by (client_count, follower_count, last_reviewed_at)"),
     order: Optional[str] = Query("desc", description="Sort order (asc or desc)"),
     limit: Optional[int] = Query(100, description="Max pages to return (default 100)"),
@@ -130,6 +131,10 @@ def list_pages(
             search_pattern = f"%{search}%"
             # Search in both username and full_name using OR logic
             query = query.or_(f"ig_username.ilike.{search_pattern},full_name.ilike.{search_pattern}")
+        
+        # Apply archived filter (exclude archived by default)
+        if not include_archived:
+            query = query.eq("archived", False)
         
         # Apply sorting
         desc_order = order.lower() == "desc"

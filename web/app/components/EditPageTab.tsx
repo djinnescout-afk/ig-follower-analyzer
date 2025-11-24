@@ -5,13 +5,18 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { pagesApi, outreachApi, scrapesApi, Page } from '../lib/api'
 import { CATEGORIES, CONTACT_METHODS, OUTREACH_STATUSES } from '../lib/categories'
 import { Search, Save, RefreshCw } from 'lucide-react'
+import { useDebounce } from '../lib/hooks/useDebounce'
 
 export default function EditPageTab() {
   const [searchQuery, setSearchQuery] = useState('')
   const [selectedPageId, setSelectedPageId] = useState<string | null>(null)
   const [formData, setFormData] = useState<any>({})
   const [vaName, setVaName] = useState('')
+  const [showArchived, setShowArchived] = useState(false)
   const queryClient = useQueryClient()
+
+  // Debounce search query for better performance
+  const debouncedSearch = useDebounce(searchQuery, 300)
 
   // Load VA name from localStorage on mount
   useEffect(() => {
@@ -28,46 +33,33 @@ export default function EditPageTab() {
     }
   }, [vaName])
 
-  // Fetch all pages (including those with 0 clients)
-  // Supabase has a 1000 row limit, so we need to fetch in batches
+  // Fetch pages with server-side search (much faster!)
   const { data: pages, isLoading: pagesLoading } = useQuery({
-    queryKey: ['pages', 'all'],
+    queryKey: ['pages', 'search', debouncedSearch, showArchived],
     queryFn: async () => {
-      const allPages = []
-      let offset = 0
-      const limit = 1000
-      
-      // Keep fetching until we get less than 1000 pages (meaning we've reached the end)
-      while (true) {
+      // If no search query, show recently reviewed pages
+      if (!debouncedSearch.trim()) {
         const response = await pagesApi.list({
-          min_client_count: 0,
-          limit: limit,
-          offset: offset,
+          include_archived: showArchived,
+          sort_by: 'last_reviewed_at',
+          order: 'desc',
+          limit: 50,  // Show top 50 recently reviewed
         })
-        
-        const batch = response.data
-        allPages.push(...batch)
-        
-        // If we got less than the limit, we've reached the end
-        if (batch.length < limit) {
-          break
-        }
-        
-        offset += limit
+        return response.data
       }
       
-      return allPages
+      // Otherwise, server-side search by query
+      const response = await pagesApi.list({
+        search: debouncedSearch,
+        include_archived: showArchived,
+        limit: 100,  // Limit search results to 100
+      })
+      return response.data
     },
   })
 
-  // Filter pages by search query
-  const filteredPages = pages?.filter((page) => {
-    const query = searchQuery.toLowerCase()
-    return (
-      page.ig_username.toLowerCase().includes(query) ||
-      page.full_name?.toLowerCase().includes(query)
-    )
-  })
+  // No more client-side filtering needed!
+  const filteredPages = pages
 
   const selectedPage = pages?.find((p) => p.id === selectedPageId)
 
@@ -252,7 +244,7 @@ export default function EditPageTab() {
 
       {/* Search */}
       <div className="bg-white rounded-lg shadow p-6">
-        <div className="flex items-center gap-4">
+        <div className="flex items-center gap-4 mb-3">
           <Search size={20} className="text-gray-400" />
           <input
             type="text"
@@ -264,6 +256,22 @@ export default function EditPageTab() {
           <span className="text-sm text-gray-600">
             {filteredPages?.length || 0} pages found
           </span>
+        </div>
+        <div className="flex items-center gap-2">
+          <label className="flex items-center gap-2 text-sm text-gray-600 cursor-pointer">
+            <input
+              type="checkbox"
+              checked={showArchived}
+              onChange={(e) => setShowArchived(e.target.checked)}
+              className="rounded"
+            />
+            <span>Show archived pages</span>
+          </label>
+          {!searchQuery && (
+            <span className="text-xs text-gray-500 ml-2">
+              (Showing recently reviewed)
+            </span>
+          )}
         </div>
       </div>
 

@@ -53,6 +53,11 @@ export interface Page {
   website_contact_email?: string
   website_has_contact_form?: boolean
   website_last_scraped_at?: string
+  // Archival fields
+  archived?: boolean
+  archived_at?: string
+  archived_by?: string
+  archive_reason?: string
 }
 
 export interface ScrapeRun {
@@ -113,6 +118,7 @@ export const pagesApi = {
     categorized?: boolean
     category?: string
     search?: string
+    include_archived?: boolean
     sort_by?: string
     order?: 'asc' | 'desc'
     limit?: number

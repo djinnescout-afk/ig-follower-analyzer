@@ -10,6 +10,9 @@ export default function CategorizeTab() {
   const [currentIndex, setCurrentIndex] = useState(0)
   const [formData, setFormData] = useState<any>({})
   const [vaName, setVaName] = useState('')
+  const [viewMode, setViewMode] = useState<'uncategorized' | 'archived'>('uncategorized')
+  const [showArchiveDialog, setShowArchiveDialog] = useState(false)
+  const [archiveReason, setArchiveReason] = useState('')
   const queryClient = useQueryClient()
 
   // Load VA name from localStorage on mount
@@ -27,13 +30,19 @@ export default function CategorizeTab() {
     }
   }, [vaName])
 
-  // Fetch uncategorized pages
-  const { data: pages, isLoading: pagesLoading } = useQuery({
+  // Reset index when switching view modes
+  useEffect(() => {
+    setCurrentIndex(0)
+  }, [viewMode])
+
+  // Fetch uncategorized pages (exclude archived)
+  const { data: uncategorizedPages, isLoading: uncategorizedLoading } = useQuery({
     queryKey: ['pages', 'uncategorized'],
     queryFn: async () => {
       const response = await pagesApi.list({ 
         categorized: false, 
         min_client_count: 1,
+        include_archived: false,  // Exclude archived pages
         limit: 10000 
       })
       
@@ -49,7 +58,26 @@ export default function CategorizeTab() {
       
       return sorted
     },
+    enabled: viewMode === 'uncategorized',
   })
+
+  // Fetch archived pages
+  const { data: archivedPages, isLoading: archivedLoading } = useQuery({
+    queryKey: ['pages', 'archived'],
+    queryFn: async () => {
+      const response = await pagesApi.list({ 
+        include_archived: true,  // Get all pages
+        limit: 10000 
+      })
+      // Filter to only archived pages on the client side
+      return response.data.filter(p => p.archived)
+    },
+    enabled: viewMode === 'archived',
+  })
+
+  // Use appropriate pages and loading state based on view mode
+  const pages = viewMode === 'uncategorized' ? uncategorizedPages : archivedPages
+  const pagesLoading = viewMode === 'uncategorized' ? uncategorizedLoading : archivedLoading
 
   const currentPage = pages?.[currentIndex]
 
@@ -152,6 +180,42 @@ export default function CategorizeTab() {
     }
   }
 
+  // Archive page mutation
+  const archivePageMutation = useMutation({
+    mutationFn: async () => {
+      if (!currentPage) return
+      await pagesApi.update(currentPage.id, {
+        archived: true,
+        archived_by: vaName || 'Unknown VA',
+        archived_at: new Date().toISOString(),
+        archive_reason: archiveReason || 'Marked for deletion',
+      })
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['pages'] })
+      setShowArchiveDialog(false)
+      setArchiveReason('')
+      // List will refresh automatically
+    },
+  })
+
+  // Unarchive page mutation
+  const unarchivePageMutation = useMutation({
+    mutationFn: async () => {
+      if (!currentPage) return
+      await pagesApi.update(currentPage.id, {
+        archived: false,
+        archived_by: null,
+        archived_at: null,
+        archive_reason: null,
+      })
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['pages'] })
+      // List will refresh automatically
+    },
+  })
+
   const handleSaveAndNext = async () => {
     try {
       // Extract page fields
@@ -252,6 +316,30 @@ export default function CategorizeTab() {
         <p className="text-xs text-gray-500 mt-1">
           This will be recorded as &quot;Last Reviewed By&quot; when you save
         </p>
+      </div>
+
+      {/* View Mode Toggle */}
+      <div className="flex gap-2">
+        <button
+          onClick={() => setViewMode('uncategorized')}
+          className={`px-6 py-3 rounded-lg font-medium transition-colors ${
+            viewMode === 'uncategorized' 
+              ? 'bg-blue-600 text-white shadow-lg' 
+              : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
+          }`}
+        >
+          📋 Uncategorized ({uncategorizedPages?.length || 0})
+        </button>
+        <button
+          onClick={() => setViewMode('archived')}
+          className={`px-6 py-3 rounded-lg font-medium transition-colors ${
+            viewMode === 'archived' 
+              ? 'bg-red-600 text-white shadow-lg' 
+              : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
+          }`}
+        >
+          🗑️ Archived ({archivedPages?.length || 0})
+        </button>
       </div>
 
       {/* Progress Bar */}
@@ -761,9 +849,85 @@ export default function CategorizeTab() {
                 ? 'Save & Next'
                 : 'Save & Finish'}
             </button>
+
+            {/* Archive/Restore Button */}
+            {viewMode === 'uncategorized' ? (
+              <button
+                onClick={() => setShowArchiveDialog(true)}
+                disabled={archivePageMutation.isPending}
+                className="w-full px-6 py-3 bg-red-600 hover:bg-red-700 disabled:opacity-50 disabled:cursor-not-allowed text-white font-semibold rounded-lg mt-3"
+              >
+                🗑️ {archivePageMutation.isPending ? 'Archiving...' : 'Mark for Deletion'}
+              </button>
+            ) : (
+              <button
+                onClick={() => unarchivePageMutation.mutate()}
+                disabled={unarchivePageMutation.isPending}
+                className="w-full px-6 py-3 bg-green-600 hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed text-white font-semibold rounded-lg mt-3"
+              >
+                ↩️ {unarchivePageMutation.isPending ? 'Restoring...' : 'Restore Page'}
+              </button>
+            )}
+
+            {/* Archive Info Display (in archived view) */}
+            {viewMode === 'archived' && currentPage?.archived && (
+              <div className="mt-4 p-4 bg-red-50 border-2 border-red-200 rounded-lg">
+                <h4 className="font-semibold text-red-900 mb-2">Archive Information</h4>
+                <p className="text-sm text-red-800 mb-1">
+                  <strong>Archived:</strong> {currentPage.archived_at ? new Date(currentPage.archived_at).toLocaleDateString() : 'N/A'}
+                </p>
+                {currentPage.archived_by && (
+                  <p className="text-sm text-red-800 mb-1">
+                    <strong>By:</strong> {currentPage.archived_by}
+                  </p>
+                )}
+                {currentPage.archive_reason && (
+                  <p className="text-sm text-red-800">
+                    <strong>Reason:</strong> {currentPage.archive_reason}
+                  </p>
+                )}
+              </div>
+            )}
           </div>
         </div>
       </div>
+
+      {/* Archive Confirmation Dialog */}
+      {showArchiveDialog && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-lg p-6 max-w-md w-full mx-4">
+            <h3 className="text-lg font-bold mb-4">Archive This Page?</h3>
+            <p className="text-sm text-gray-600 mb-4">
+              This will move the page to the Archived tab. It won't be deleted and can be restored later if needed.
+            </p>
+            <textarea
+              placeholder="Reason for archiving (optional)"
+              value={archiveReason}
+              onChange={(e) => setArchiveReason(e.target.value)}
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg mb-4 focus:outline-none focus:ring-2 focus:ring-red-500"
+              rows={3}
+            />
+            <div className="flex gap-2">
+              <button
+                onClick={() => archivePageMutation.mutate()}
+                disabled={archivePageMutation.isPending}
+                className="flex-1 px-4 py-2 bg-red-600 hover:bg-red-700 disabled:opacity-50 text-white rounded-lg font-medium"
+              >
+                {archivePageMutation.isPending ? 'Archiving...' : 'Archive'}
+              </button>
+              <button
+                onClick={() => {
+                  setShowArchiveDialog(false)
+                  setArchiveReason('')
+                }}
+                className="flex-1 px-4 py-2 bg-gray-200 hover:bg-gray-300 text-gray-700 rounded-lg font-medium"
+              >
+                Cancel
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }
