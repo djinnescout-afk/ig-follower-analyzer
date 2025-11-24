@@ -135,9 +135,10 @@ export default function CategorizeTab() {
       try {
         const response = await pagesApi.getProfile(currentPage.id)
         return response.data
-      } catch (error: any) {
+      } catch (error) {
         // 404 is expected if profile hasn't been scraped yet
-        if (error?.response?.status === 404) {
+        const axiosError = error as { response?: { status?: number } }
+        if (axiosError?.response?.status === 404) {
           return null
         }
         console.error('Error fetching profile:', error)
@@ -156,9 +157,10 @@ export default function CategorizeTab() {
       try {
         const response = await outreachApi.get(currentPage.id)
         return response.data
-      } catch (error: any) {
+      } catch (error) {
         // 404 is expected if no outreach record exists yet
-        if (error?.response?.status === 404) {
+        const axiosError = error as { response?: { status?: number } }
+        if (axiosError?.response?.status === 404) {
           return null
         }
         console.error('Error fetching outreach:', error)

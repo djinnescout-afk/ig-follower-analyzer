@@ -86,9 +86,10 @@ export default function EditPageTab() {
       try {
         const response = await pagesApi.getProfile(selectedPageId)
         return response.data
-      } catch (error: any) {
+      } catch (error) {
         // 404 is expected if profile hasn't been scraped yet
-        if (error?.response?.status === 404) {
+        const axiosError = error as { response?: { status?: number } }
+        if (axiosError?.response?.status === 404) {
           return null
         }
         console.error('Error fetching profile:', error)

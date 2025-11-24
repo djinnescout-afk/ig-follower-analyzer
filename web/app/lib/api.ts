@@ -59,6 +59,10 @@ export interface Page {
   archived_at?: string
   archived_by?: string
   archive_reason?: string
+  // Outreach tracking fields (embedded from outreach_tracking table)
+  outreach_status?: string
+  outreach_date_contacted?: string
+  outreach_follow_up_date?: string
 }
 
 export interface ScrapeRun {
