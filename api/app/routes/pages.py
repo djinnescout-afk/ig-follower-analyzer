@@ -4,7 +4,7 @@ import logging
 from fastapi import APIRouter, HTTPException, Query, status
 
 from ..db import fetch_rows, get_supabase_client, insert_row, upsert_row
-from ..schemas.page import PageCreate, PageResponse, PageUpdate
+from ..schemas.page import PageCreate, PageResponse, PageUpdate, PageProfile
 
 router = APIRouter(prefix="/pages", tags=["pages"])
 logger = logging.getLogger(__name__)
@@ -159,7 +159,7 @@ def create_page(payload: PageCreate):
     return row
 
 
-@router.get("/{page_id}/profile")
+@router.get("/{page_id}/profile", response_model=PageProfile)
 def get_page_profile(page_id: str):
     """Get the most recent profile data for a page."""
     client = get_supabase_client()

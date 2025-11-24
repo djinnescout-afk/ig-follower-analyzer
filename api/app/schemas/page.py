@@ -1,5 +1,5 @@
 from datetime import datetime
-from typing import Optional, List
+from typing import Optional, List, Any
 
 from pydantic import BaseModel, Field, ConfigDict
 
@@ -44,6 +44,12 @@ class PageUpdate(BaseModel):
     contact_whatsapp: Optional[str] = None
     contact_telegram: Optional[str] = None
     contact_other: Optional[str] = None
+    # Promo tracking fields
+    manual_promo_status: Optional[str] = None
+    website_has_promo_page: Optional[bool] = None
+    website_contact_email: Optional[str] = None
+    website_has_contact_form: Optional[bool] = None
+    website_last_scraped_at: Optional[datetime] = None
 
 
 class PageResponse(PageBase):
@@ -71,6 +77,32 @@ class PageResponse(PageBase):
     contact_whatsapp: Optional[str] = None
     contact_telegram: Optional[str] = None
     contact_other: Optional[str] = None
+    # Promo tracking fields
+    manual_promo_status: Optional[str] = None
+    website_has_promo_page: Optional[bool] = None
+    website_contact_email: Optional[str] = None
+    website_has_contact_form: Optional[bool] = None
+    website_last_scraped_at: Optional[datetime] = None
 
     model_config = ConfigDict(from_attributes=True)
+
+
+class PageProfile(BaseModel):
+    """Profile data scraped from Instagram"""
+    model_config = ConfigDict(from_attributes=True)
+    
+    page_id: str
+    profile_pic_base64: Optional[str] = None
+    profile_pic_mime_type: Optional[str] = None
+    bio: Optional[str] = None
+    posts: Optional[List[Any]] = None
+    promo_status: Optional[str] = None  # Auto-detected: 'warm', 'unknown', 'not_open'
+    promo_indicators: Optional[List[str]] = None  # Auto-detected keywords from bio
+    contact_email: Optional[str] = None
+    scraped_at: Optional[datetime] = None
+
+
+class PageWithProfile(PageResponse):
+    """Page with embedded profile data"""
+    profile: Optional[PageProfile] = None
 

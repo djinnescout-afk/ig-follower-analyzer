@@ -159,6 +159,9 @@ export default function ViewCategorizedTab() {
                       Price
                     </th>
                     <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider border-r border-gray-200">
+                      Promo Status
+                    </th>
+                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider border-r border-gray-200">
                       Notes
                     </th>
                     <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider border-r border-gray-200">
@@ -305,6 +308,29 @@ export default function ViewCategorizedTab() {
                               ${page.promo_price.toLocaleString()}
                             </span>
                           ) : (
+                            <span className="text-gray-400">—</span>
+                          )}
+                        </div>
+                      </td>
+
+                      {/* Promo Status */}
+                      <td className="px-4 py-5 border-r border-gray-200">
+                        <div className="text-xs">
+                          {page.manual_promo_status && (
+                            <div>
+                              <span className="font-medium">Manual: </span>
+                              <span className={
+                                page.manual_promo_status === 'warm' ? 'text-green-600 font-semibold' :
+                                page.manual_promo_status === 'not_open' ? 'text-red-600' :
+                                'text-gray-600'
+                              }>
+                                {page.manual_promo_status === 'warm' ? '🔥 Warm' :
+                                 page.manual_promo_status === 'not_open' ? '❌ Not Open' :
+                                 '❓ Unknown'}
+                              </span>
+                            </div>
+                          )}
+                          {!page.manual_promo_status && (
                             <span className="text-gray-400">—</span>
                           )}
                         </div>

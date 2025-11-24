@@ -91,6 +91,7 @@ export default function EditPageTab() {
         current_main_contact_method: selectedPage.current_main_contact_method || '',
         ig_account_for_dm: selectedPage.ig_account_for_dm || '',
         promo_price: selectedPage.promo_price || '',
+        manual_promo_status: selectedPage.manual_promo_status || 'unknown',
         website_url: selectedPage.website_url || '',
         va_notes: selectedPage.va_notes || '',
         contact_email: selectedPage.contact_email || '',
@@ -167,6 +168,7 @@ export default function EditPageTab() {
         current_main_contact_method: formData.current_main_contact_method || null,
         ig_account_for_dm: formData.ig_account_for_dm || null,
         promo_price: formData.promo_price ? parseFloat(formData.promo_price) : null,
+        manual_promo_status: formData.manual_promo_status || 'unknown',
         website_url: formData.website_url || null,
         va_notes: formData.va_notes || null,
         contact_email: formData.contact_email || null,
@@ -330,6 +332,22 @@ export default function EditPageTab() {
                         {cat}
                       </option>
                     ))}
+                  </select>
+                </div>
+
+                {/* Manual Promo Status */}
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Manual Promo Status
+                  </label>
+                  <select
+                    value={formData.manual_promo_status || 'unknown'}
+                    onChange={(e) => setFormData({ ...formData, manual_promo_status: e.target.value })}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md"
+                  >
+                    <option value="unknown">❓ Unknown</option>
+                    <option value="warm">🔥 Warm (Open to Promos)</option>
+                    <option value="not_open">❌ Not Open</option>
                   </select>
                 </div>
 

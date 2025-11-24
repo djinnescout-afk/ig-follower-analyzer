@@ -47,6 +47,12 @@ export interface Page {
   contact_whatsapp?: string
   contact_telegram?: string
   contact_other?: string
+  // Promo tracking fields
+  manual_promo_status?: 'unknown' | 'warm' | 'not_open'
+  website_has_promo_page?: boolean
+  website_contact_email?: string
+  website_has_contact_form?: boolean
+  website_last_scraped_at?: string
 }
 
 export interface ScrapeRun {
@@ -67,8 +73,8 @@ export interface PageProfile {
   profile_pic_mime_type?: string
   bio?: string
   posts?: any[]
-  promo_status?: string
-  promo_indicators?: string[]
+  promo_status?: 'warm' | 'unknown' | 'not_open'  // Auto-detected from bio
+  promo_indicators?: string[]  // Auto-detected keywords from bio
   contact_email?: string
   scraped_at: string
 }

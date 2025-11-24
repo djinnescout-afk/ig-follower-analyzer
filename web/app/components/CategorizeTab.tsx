@@ -93,6 +93,7 @@ export default function CategorizeTab() {
         current_main_contact_method: currentPage.current_main_contact_method || '',
         ig_account_for_dm: currentPage.ig_account_for_dm || '',
         promo_price: currentPage.promo_price || '',
+        manual_promo_status: currentPage.manual_promo_status || 'unknown',
         website_url: currentPage.website_url || '',
         va_notes: currentPage.va_notes || '',
         contact_email: currentPage.contact_email || '',
@@ -161,6 +162,7 @@ export default function CategorizeTab() {
         current_main_contact_method: formData.current_main_contact_method || null,
         ig_account_for_dm: formData.ig_account_for_dm || null,
         promo_price: formData.promo_price ? parseFloat(formData.promo_price) : null,
+        manual_promo_status: formData.manual_promo_status || 'unknown',
         website_url: formData.website_url || null,
         va_notes: formData.va_notes || null,
         contact_email: formData.contact_email || null,
@@ -351,6 +353,25 @@ export default function CategorizeTab() {
               </div>
             )}
 
+            {/* Auto-Detected Promo Signals */}
+            {profile?.promo_indicators && profile.promo_indicators.length > 0 && (
+              <div className="mt-4 p-3 bg-green-50 border border-green-200 rounded-lg">
+                <h4 className="text-sm font-semibold text-green-800 mb-2">
+                  🎯 Auto-Detected Promo Signals in Bio:
+                </h4>
+                <div className="flex flex-wrap gap-2">
+                  {profile.promo_indicators.map((indicator, i) => (
+                    <span key={i} className="px-2 py-1 text-xs bg-green-100 text-green-700 rounded">
+                      {indicator}
+                    </span>
+                  ))}
+                </div>
+                <p className="text-xs text-green-700 mt-2">
+                  Auto Status: <strong>{profile.promo_status}</strong>
+                </p>
+              </div>
+            )}
+
             {/* Scrape Profile Button */}
             {!profileLoading && (
               <div className="mt-4 pt-4 border-t">
@@ -427,6 +448,22 @@ export default function CategorizeTab() {
                     {cat}
                   </option>
                 ))}
+              </select>
+            </div>
+
+            {/* Manual Promo Status */}
+            <div className="mb-4">
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Manual Promo Status
+              </label>
+              <select
+                value={formData.manual_promo_status || 'unknown'}
+                onChange={(e) => setFormData({ ...formData, manual_promo_status: e.target.value })}
+                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+              >
+                <option value="unknown">❓ Unknown</option>
+                <option value="warm">🔥 Warm (Open to Promos)</option>
+                <option value="not_open">❌ Not Open</option>
               </select>
             </div>
 

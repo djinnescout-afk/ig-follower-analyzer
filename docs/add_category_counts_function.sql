@@ -18,3 +18,4 @@ $$ LANGUAGE plpgsql STABLE;
 -- Grant execute permission to authenticated users
 GRANT EXECUTE ON FUNCTION get_category_counts() TO authenticated, anon;
 
+
