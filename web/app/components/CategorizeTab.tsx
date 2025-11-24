@@ -453,11 +453,33 @@ export default function CategorizeTab() {
               {/* Info */}
               <div className="flex-1">
                 <h2 className="text-2xl font-bold">@{currentPage.ig_username}</h2>
-                <p className="text-gray-600">{currentPage.full_name || 'N/A'}</p>
-                <div className="mt-3 flex gap-4 text-sm">
-                  <span className="text-gray-600">{currentPage.follower_count.toLocaleString()} followers</span>
-                  <span className="font-bold text-blue-700 bg-blue-50 px-2 py-1 rounded">{currentPage.client_count} client{currentPage.client_count !== 1 ? 's' : ''} following</span>
-                  {currentPage.is_verified && <span className="text-blue-600">✓ Verified</span>}
+                <p className="text-gray-600 mb-2">{currentPage.full_name || 'N/A'}</p>
+                
+                {/* Stats Row */}
+                <div className="mt-3 flex flex-wrap gap-3 text-sm">
+                  {/* Follower Count - More Prominent */}
+                  <span className="font-semibold text-purple-700 bg-purple-50 px-3 py-1.5 rounded-lg border border-purple-200">
+                    👥 {currentPage.follower_count ? currentPage.follower_count.toLocaleString() : '0'} followers
+                  </span>
+                  
+                  {/* Client Count */}
+                  <span className="font-semibold text-blue-700 bg-blue-50 px-3 py-1.5 rounded-lg border border-blue-200">
+                    🎯 {currentPage.client_count} client{currentPage.client_count !== 1 ? 's' : ''}
+                  </span>
+                  
+                  {/* Verified Badge */}
+                  {currentPage.is_verified && (
+                    <span className="font-semibold text-blue-600 bg-blue-50 px-3 py-1.5 rounded-lg border border-blue-200">
+                      ✓ Verified
+                    </span>
+                  )}
+                  
+                  {/* Private Account Badge */}
+                  {currentPage.is_private && (
+                    <span className="font-semibold text-gray-600 bg-gray-100 px-3 py-1.5 rounded-lg border border-gray-300">
+                      🔒 Private
+                    </span>
+                  )}
                 </div>
 
                 {/* Scrape Status */}
