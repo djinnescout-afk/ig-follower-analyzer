@@ -70,6 +70,16 @@ export default function EditPageTab() {
   // No more client-side filtering needed!
   const filteredPages = pages
 
+  // Debug logging
+  useEffect(() => {
+    if (selectedPage) {
+      console.log('[EditPageTab] Selected page:', selectedPage.ig_username, selectedPage.id)
+      console.log('[EditPageTab] Should render form:', !!selectedPage && !!selectedPage.id)
+    } else {
+      console.log('[EditPageTab] No page selected')
+    }
+  }, [selectedPage])
+
   // Fetch profile for selected page
   const { data: profile } = useQuery({
     queryKey: ['page-profile', selectedPage?.id],
@@ -411,9 +421,13 @@ export default function EditPageTab() {
 
         {/* Right: Edit Form */}
         <div className="lg:col-span-2">
-          {!selectedPage ? (
+          {pagesLoading && !selectedPage ? (
             <div className="bg-white rounded-lg shadow p-12 text-center text-gray-500">
-              Search and select a page to edit
+              Loading pages...
+            </div>
+          ) : !selectedPage || !selectedPage.id ? (
+            <div className="bg-white rounded-lg shadow p-12 text-center text-gray-500">
+              {browseMode ? 'Click on a page to edit' : 'Search and select a page to edit'}
             </div>
           ) : (
             <div className="bg-white rounded-lg shadow p-6">
