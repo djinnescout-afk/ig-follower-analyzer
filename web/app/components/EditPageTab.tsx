@@ -9,7 +9,7 @@ import { useDebounce } from '../lib/hooks/useDebounce'
 
 export default function EditPageTab() {
   const [searchQuery, setSearchQuery] = useState('')
-  const [selectedPageId, setSelectedPageId] = useState<string | null>(null)
+  const [selectedPage, setSelectedPage] = useState<Page | null>(null)
   const [formData, setFormData] = useState<any>({})
   const [vaName, setVaName] = useState('')
   const [showArchived, setShowArchived] = useState(false)
@@ -76,34 +76,13 @@ export default function EditPageTab() {
   // No more client-side filtering needed!
   const filteredPages = pages
 
-  // Fetch selected page separately (so it's always available even if not in search results)
-  const { data: selectedPage } = useQuery({
-    queryKey: ['page', selectedPageId],
-    queryFn: async () => {
-      if (!selectedPageId) return null
-      try {
-        // Try to find in current pages first (optimization)
-        const pageInList = pages?.find((p) => p.id === selectedPageId)
-        if (pageInList) return pageInList
-        
-        // Otherwise fetch it directly
-        const response = await pagesApi.get(selectedPageId)
-        return response.data
-      } catch (error) {
-        console.error('Error fetching selected page:', error)
-        return null
-      }
-    },
-    enabled: !!selectedPageId,
-  })
-
   // Fetch profile for selected page
   const { data: profile } = useQuery({
-    queryKey: ['page-profile', selectedPageId],
+    queryKey: ['page-profile', selectedPage?.id],
     queryFn: async () => {
-      if (!selectedPageId) return null
+      if (!selectedPage?.id) return null
       try {
-        const response = await pagesApi.getProfile(selectedPageId)
+        const response = await pagesApi.getProfile(selectedPage.id)
         return response.data
       } catch (error) {
         // 404 is expected if profile hasn't been scraped yet
@@ -115,17 +94,17 @@ export default function EditPageTab() {
         return null
       }
     },
-    enabled: !!selectedPageId,
+    enabled: !!selectedPage,
     retry: false, // Don't retry 404s
   })
 
   // Fetch outreach tracking
   const { data: outreach } = useQuery({
-    queryKey: ['outreach', selectedPageId],
+    queryKey: ['outreach', selectedPage?.id],
     queryFn: async () => {
-      if (!selectedPageId) return null
+      if (!selectedPage?.id) return null
       try {
-        const response = await outreachApi.get(selectedPageId)
+        const response = await outreachApi.get(selectedPage.id)
         return response.data
       } catch (error: any) {
         // 404 is expected if no outreach record exists yet
@@ -136,7 +115,7 @@ export default function EditPageTab() {
         return null
       }
     },
-    enabled: !!selectedPageId,
+    enabled: !!selectedPage,
     retry: false, // Don't retry 404s
   })
 
@@ -174,8 +153,8 @@ export default function EditPageTab() {
   // Update page mutation
   const updatePageMutation = useMutation({
     mutationFn: async (data: any) => {
-      if (!selectedPageId) return
-      await pagesApi.update(selectedPageId, data)
+      if (!selectedPage?.id) return
+      await pagesApi.update(selectedPage.id, data)
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['pages'] })
@@ -186,11 +165,11 @@ export default function EditPageTab() {
   // Update outreach mutation
   const updateOutreachMutation = useMutation({
     mutationFn: async (data: any) => {
-      if (!selectedPageId) return
+      if (!selectedPage?.id) return
       if (outreach) {
-        await outreachApi.update(selectedPageId, data)
+        await outreachApi.update(selectedPage.id, data)
       } else {
-        await outreachApi.create({ page_id: selectedPageId, ...data })
+        await outreachApi.create({ page_id: selectedPage.id, ...data })
       }
     },
     onSuccess: () => {
@@ -210,8 +189,8 @@ export default function EditPageTab() {
   })
 
   const handleScrapeProfile = () => {
-    if (selectedPageId) {
-      scrapeProfileMutation.mutate(selectedPageId)
+    if (selectedPage?.id) {
+      scrapeProfileMutation.mutate(selectedPage.id)
     }
   }
 
@@ -337,9 +316,9 @@ export default function EditPageTab() {
                 filteredPages.map((page) => (
                   <div
                     key={page.id}
-                    onClick={() => setSelectedPageId(page.id)}
+                    onClick={() => setSelectedPage(page)}
                     className={`p-4 cursor-pointer hover:bg-blue-50 border-l-4 transition-colors ${
-                      selectedPageId === page.id 
+                      selectedPage?.id === page.id 
                         ? 'bg-blue-50 border-blue-500' 
                         : 'border-transparent hover:border-blue-300'
                     }`}
@@ -357,12 +336,12 @@ export default function EditPageTab() {
                       </div>
                       <button
                         className={`px-3 py-1 text-sm rounded ${
-                          selectedPageId === page.id
+                          selectedPage?.id === page.id
                             ? 'bg-blue-600 text-white'
                             : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
                         }`}
                       >
-                        {selectedPageId === page.id ? 'Editing' : 'Edit'}
+                        {selectedPage?.id === page.id ? 'Editing' : 'Edit'}
                       </button>
                     </div>
                   </div>
