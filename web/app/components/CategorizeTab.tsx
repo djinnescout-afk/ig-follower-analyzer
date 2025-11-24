@@ -35,19 +35,40 @@ export default function CategorizeTab() {
     setCurrentIndex(0)
   }, [viewMode])
 
-  // Fetch uncategorized pages (exclude archived)
+  // Fetch uncategorized pages (exclude archived) - with pagination to bypass 1000 limit
   const { data: uncategorizedPages, isLoading: uncategorizedLoading } = useQuery({
     queryKey: ['pages', 'uncategorized'],
     queryFn: async () => {
-      const response = await pagesApi.list({ 
-        categorized: false, 
-        min_client_count: 1,
-        include_archived: false,  // Exclude archived pages
-        limit: 10000 
-      })
+      const allPages = []
+      let offset = 0
+      const limit = 1000 // Supabase limit
+      
+      console.log('[CategorizeTab] Fetching all uncategorized pages...')
+      
+      while (true) {
+        const response = await pagesApi.list({ 
+          categorized: false, 
+          min_client_count: 1,
+          include_archived: false,
+          limit: limit,
+          offset: offset,
+        })
+        
+        const batch = response.data
+        allPages.push(...batch)
+        
+        console.log(`[CategorizeTab] Fetched batch at offset ${offset}: ${batch.length} pages`)
+        
+        if (batch.length < limit) {
+          break // No more pages
+        }
+        offset += limit
+      }
+      
+      console.log(`[CategorizeTab] Total uncategorized pages: ${allPages.length}`)
       
       // Sort by priority tier, then by client_count, then by follower_count
-      const sorted = response.data.sort((a, b) => {
+      const sorted = allPages.sort((a, b) => {
         const tierA = getPriorityTier(a.ig_username, a.full_name, a.client_count)
         const tierB = getPriorityTier(b.ig_username, b.full_name, b.client_count)
         
@@ -59,20 +80,45 @@ export default function CategorizeTab() {
       return sorted
     },
     enabled: viewMode === 'uncategorized',
+    staleTime: 5 * 60 * 1000, // Cache for 5 minutes
   })
 
-  // Fetch archived pages
+  // Fetch archived pages - with pagination to bypass 1000 limit
   const { data: archivedPages, isLoading: archivedLoading } = useQuery({
     queryKey: ['pages', 'archived'],
     queryFn: async () => {
-      const response = await pagesApi.list({ 
-        include_archived: true,  // Get all pages
-        limit: 10000 
-      })
-      // Filter to only archived pages on the client side
-      return response.data.filter(p => p.archived)
+      const allPages = []
+      let offset = 0
+      const limit = 1000 // Supabase limit
+      
+      console.log('[CategorizeTab] Fetching all archived pages...')
+      
+      while (true) {
+        const response = await pagesApi.list({ 
+          include_archived: true,
+          limit: limit,
+          offset: offset,
+        })
+        
+        const batch = response.data
+        allPages.push(...batch)
+        
+        console.log(`[CategorizeTab] Fetched batch at offset ${offset}: ${batch.length} pages`)
+        
+        if (batch.length < limit) {
+          break
+        }
+        offset += limit
+      }
+      
+      // Filter to only archived pages
+      const archived = allPages.filter(p => p.archived)
+      console.log(`[CategorizeTab] Total archived pages: ${archived.length}`)
+      
+      return archived
     },
     enabled: viewMode === 'archived',
+    staleTime: 5 * 60 * 1000, // Cache for 5 minutes
   })
 
   // Use appropriate pages and loading state based on view mode
