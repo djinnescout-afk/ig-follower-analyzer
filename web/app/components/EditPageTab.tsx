@@ -37,15 +37,30 @@ export default function EditPageTab() {
   const { data: pages, isLoading: pagesLoading } = useQuery({
     queryKey: ['pages', 'search', debouncedSearch, showArchived],
     queryFn: async () => {
-      // If no search query, show recently reviewed pages
+      // If no search query, load all pages (sorted by client_count)
       if (!debouncedSearch.trim()) {
-        const response = await pagesApi.list({
-          include_archived: showArchived,
-          sort_by: 'last_reviewed_at',
-          order: 'desc',
-          limit: 50,  // Show top 50 recently reviewed
-        })
-        return response.data
+        const allPages = []
+        let offset = 0
+        const limit = 1000
+        
+        // Fetch in batches
+        while (true) {
+          const response = await pagesApi.list({
+            include_archived: showArchived,
+            sort_by: 'client_count',
+            order: 'desc',
+            limit: limit,
+            offset: offset,
+          })
+          
+          const batch = response.data
+          allPages.push(...batch)
+          
+          if (batch.length < limit) break
+          offset += limit
+        }
+        
+        return allPages
       }
       
       // Otherwise, server-side search by query
@@ -267,9 +282,9 @@ export default function EditPageTab() {
             />
             <span>Show archived pages</span>
           </label>
-          {!searchQuery && (
+          {searchQuery && pagesLoading && (
             <span className="text-xs text-gray-500 ml-2">
-              (Showing recently reviewed)
+              Searching...
             </span>
           )}
         </div>
@@ -305,7 +320,7 @@ export default function EditPageTab() {
                 ))
               ) : (
                 <div className="text-center py-12 text-gray-500">
-                  {searchQuery ? 'No pages found' : 'Enter a search query'}
+                  {pagesLoading ? 'Loading pages...' : 'No pages found'}
                 </div>
               )}
             </div>
