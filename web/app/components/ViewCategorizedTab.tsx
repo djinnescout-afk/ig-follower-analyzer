@@ -134,56 +134,65 @@ export default function ViewCategorizedTab() {
             <div className="text-center py-12 text-gray-500">Loading pages...</div>
           ) : pages && pages.length > 0 ? (
             <div className="overflow-x-auto">
-              <table className="w-full border-separate border-spacing-0 border border-gray-400" style={{ borderCollapse: 'separate', borderSpacing: 0 }}>
-                <thead className="bg-gray-50 border-b-2 border-gray-400">
+              <table 
+                className="w-full bg-gray-50" 
+                style={{ 
+                  borderCollapse: 'collapse',
+                  border: '1px solid #9ca3af'
+                }}
+              >
+                <thead style={{ backgroundColor: '#f9fafb' }}>
                   <tr>
-                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider border-r border-b-2 border-gray-400">
+                    <th 
+                      className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
+                      style={{ border: '1px solid #9ca3af' }}
+                    >
                       Name
                     </th>
-                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider border-r border-b-2 border-gray-400">
+                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider" style={{ border: '1px solid #9ca3af' }}>
                       Handle
                     </th>
-                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider border-r border-b-2 border-gray-400">
+                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider" style={{ border: '1px solid #9ca3af' }}>
                       Followers
                     </th>
-                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider border-r border-b-2 border-gray-400">
+                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider" style={{ border: '1px solid #9ca3af' }}>
                       Clients
                     </th>
-                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider border-r border-b-2 border-gray-400">
+                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider" style={{ border: '1px solid #9ca3af' }}>
                       Contact Methods
                     </th>
-                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider border-r border-b-2 border-gray-400">
+                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider" style={{ border: '1px solid #9ca3af' }}>
                       Contact Details
                     </th>
-                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider border-r border-b-2 border-gray-400">
+                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider" style={{ border: '1px solid #9ca3af' }}>
                       Price
                     </th>
-                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider border-r border-b-2 border-gray-400">
+                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider" style={{ border: '1px solid #9ca3af' }}>
                       Promo Status
                     </th>
-                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider border-r border-b-2 border-gray-400">
+                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider" style={{ border: '1px solid #9ca3af' }}>
                       Notes
                     </th>
-                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider border-r border-b-2 border-gray-400">
+                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider" style={{ border: '1px solid #9ca3af' }}>
                       Last Reviewed
                     </th>
-                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider border-b-2 border-gray-400">
+                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider" style={{ border: '1px solid #9ca3af' }}>
                       Actions
                     </th>
                   </tr>
                 </thead>
-                <tbody className="bg-white">
+                <tbody style={{ backgroundColor: 'white' }}>
                   {pages.map((page) => (
                     <tr key={page.id} className="hover:bg-gray-50">
                       {/* Name */}
-                      <td className="px-4 py-5 border-r border-b border-gray-400">
+                      <td className="px-4 py-5" style={{ border: '1px solid #9ca3af' }}>
                         <div className="text-sm font-medium text-gray-900">
                           {page.full_name || 'N/A'}
                         </div>
                       </td>
 
                       {/* Handle */}
-                      <td className="px-4 py-5 border-r border-b border-gray-400">
+                      <td className="px-4 py-5" style={{ border: '1px solid #9ca3af' }}>
                         <div className="text-sm text-gray-900">
                           @{page.ig_username}
                           {page.is_verified && (
@@ -193,21 +202,21 @@ export default function ViewCategorizedTab() {
                       </td>
 
                       {/* Followers */}
-                      <td className="px-4 py-5 border-r border-b border-gray-400">
+                      <td className="px-4 py-5" style={{ border: '1px solid #9ca3af' }}>
                         <div className="text-sm text-gray-900">
                           {page.follower_count.toLocaleString()}
                         </div>
                       </td>
 
                       {/* Clients */}
-                      <td className="px-4 py-5 border-r border-b border-gray-400">
+                      <td className="px-4 py-5" style={{ border: '1px solid #9ca3af' }}>
                         <span className="inline-flex px-2 py-1 text-xs font-bold rounded bg-blue-100 text-blue-800">
                           {page.client_count}
                         </span>
                       </td>
 
                       {/* Contact Methods */}
-                      <td className="px-4 py-5 border-r border-b border-gray-400">
+                      <td className="px-4 py-5" style={{ border: '1px solid #9ca3af' }}>
                         <div className="text-sm text-gray-900">
                           {page.known_contact_methods && page.known_contact_methods.length > 0 ? (
                             <div className="flex flex-wrap gap-1">
@@ -232,7 +241,7 @@ export default function ViewCategorizedTab() {
                       </td>
 
                       {/* Contact Details */}
-                      <td className="px-4 py-5 border-r border-b border-gray-400">
+                      <td className="px-4 py-5" style={{ border: '1px solid #9ca3af' }}>
                         <div className="text-xs space-y-1">
                           {page.contact_email && (
                             <div>
@@ -301,7 +310,7 @@ export default function ViewCategorizedTab() {
                       </td>
 
                       {/* Price */}
-                      <td className="px-4 py-5 border-r border-b border-gray-400">
+                      <td className="px-4 py-5" style={{ border: '1px solid #9ca3af' }}>
                         <div className="text-sm text-gray-900">
                           {page.promo_price ? (
                             <span className="font-medium text-green-700">
@@ -314,7 +323,7 @@ export default function ViewCategorizedTab() {
                       </td>
 
                       {/* Promo Status */}
-                      <td className="px-4 py-5 border-r border-b border-gray-400">
+                      <td className="px-4 py-5" style={{ border: '1px solid #9ca3af' }}>
                         <div className="text-xs">
                           {page.manual_promo_status && (
                             <div>
@@ -337,7 +346,7 @@ export default function ViewCategorizedTab() {
                       </td>
 
                       {/* Notes */}
-                      <td className="px-4 py-5 max-w-xs border-r border-b border-gray-400">
+                      <td className="px-4 py-5 max-w-xs" style={{ border: '1px solid #9ca3af' }}>
                         <div className="text-xs text-gray-700">
                           {page.va_notes ? (
                             <div className="truncate max-w-xs" title={page.va_notes}>
@@ -355,7 +364,7 @@ export default function ViewCategorizedTab() {
                       </td>
 
                       {/* Last Reviewed */}
-                      <td className="px-4 py-5 border-r border-b border-gray-400">
+                      <td className="px-4 py-5" style={{ border: '1px solid #9ca3af' }}>
                         <div className="text-xs text-gray-500">
                           {page.last_reviewed_at ? (
                             <>
@@ -371,7 +380,7 @@ export default function ViewCategorizedTab() {
                       </td>
 
                       {/* Actions */}
-                      <td className="px-4 py-5 border-b border-gray-400">
+                      <td className="px-4 py-5" style={{ border: '1px solid #9ca3af' }}>
                         <a
                           href={`https://instagram.com/${page.ig_username}`}
                           target="_blank"
