@@ -304,17 +304,32 @@ export default function EditPageTab() {
                   <div
                     key={page.id}
                     onClick={() => setSelectedPageId(page.id)}
-                    className={`p-4 cursor-pointer hover:bg-gray-50 ${
-                      selectedPageId === page.id ? 'bg-blue-50' : ''
+                    className={`p-4 cursor-pointer hover:bg-blue-50 border-l-4 transition-colors ${
+                      selectedPageId === page.id 
+                        ? 'bg-blue-50 border-blue-500' 
+                        : 'border-transparent hover:border-blue-300'
                     }`}
                   >
-                    <div className="font-medium">@{page.ig_username}</div>
-                    {page.full_name && (
-                      <div className="text-sm text-gray-600">{page.full_name}</div>
-                    )}
-                    <div className="text-xs text-gray-500 mt-1">
-                      {page.client_count} client{page.client_count !== 1 ? 's' : ''} •{' '}
-                      {page.category || 'Uncategorized'}
+                    <div className="flex items-center justify-between">
+                      <div className="flex-1">
+                        <div className="font-medium">@{page.ig_username}</div>
+                        {page.full_name && (
+                          <div className="text-sm text-gray-600">{page.full_name}</div>
+                        )}
+                        <div className="text-xs text-gray-500 mt-1">
+                          {page.client_count} client{page.client_count !== 1 ? 's' : ''} •{' '}
+                          {page.category || 'Uncategorized'}
+                        </div>
+                      </div>
+                      <button
+                        className={`px-3 py-1 text-sm rounded ${
+                          selectedPageId === page.id
+                            ? 'bg-blue-600 text-white'
+                            : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
+                        }`}
+                      >
+                        {selectedPageId === page.id ? 'Editing' : 'Edit'}
+                      </button>
                     </div>
                   </div>
                 ))
