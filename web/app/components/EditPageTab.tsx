@@ -86,11 +86,17 @@ export default function EditPageTab() {
       try {
         const response = await pagesApi.getProfile(selectedPageId)
         return response.data
-      } catch (error) {
+      } catch (error: any) {
+        // 404 is expected if profile hasn't been scraped yet
+        if (error?.response?.status === 404) {
+          return null
+        }
+        console.error('Error fetching profile:', error)
         return null
       }
     },
     enabled: !!selectedPageId,
+    retry: false, // Don't retry 404s
   })
 
   // Fetch outreach tracking
@@ -101,11 +107,17 @@ export default function EditPageTab() {
       try {
         const response = await outreachApi.get(selectedPageId)
         return response.data
-      } catch (error) {
+      } catch (error: any) {
+        // 404 is expected if no outreach record exists yet
+        if (error?.response?.status === 404) {
+          return null
+        }
+        console.error('Error fetching outreach:', error)
         return null
       }
     },
     enabled: !!selectedPageId,
+    retry: false, // Don't retry 404s
   })
 
   // Initialize form data when page changes
@@ -356,8 +368,12 @@ export default function EditPageTab() {
                 <h2 className="text-2xl font-bold">@{selectedPage.ig_username}</h2>
                 <p className="text-gray-600">{selectedPage.full_name || 'N/A'}</p>
                 <div className="mt-3 flex gap-4 text-sm items-center">
-                  <span className="text-gray-600">{selectedPage.follower_count.toLocaleString()} followers</span>
-                  <span className="font-bold text-blue-700 bg-blue-50 px-2 py-1 rounded">{selectedPage.client_count} client{selectedPage.client_count !== 1 ? 's' : ''} following</span>
+                  <span className="text-gray-600">
+                    {selectedPage.follower_count ? selectedPage.follower_count.toLocaleString() : '0'} followers
+                  </span>
+                  <span className="font-bold text-blue-700 bg-blue-50 px-2 py-1 rounded">
+                    {selectedPage.client_count} client{selectedPage.client_count !== 1 ? 's' : ''}
+                  </span>
                 </div>
                 {/* Scrape Profile Button */}
                 <button
