@@ -70,15 +70,10 @@ export default function EditPageTab() {
   // No more client-side filtering needed!
   const filteredPages = pages
 
-  // Auto-scroll to form when page is selected
+  // Log when page is selected (for debugging)
   useEffect(() => {
     if (selectedPage && selectedPage.id) {
       console.log('[EditPageTab] Selected page:', selectedPage.ig_username, selectedPage.id)
-      // Scroll to the form section
-      const formSection = document.getElementById('edit-form-section')
-      if (formSection) {
-        formSection.scrollIntoView({ behavior: 'smooth', block: 'start' })
-      }
     }
   }, [selectedPage])
 
@@ -367,62 +362,52 @@ export default function EditPageTab() {
         </div>
       </div>
 
-      {/* Two Column Layout */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* Left: Search Results */}
-        <div className="lg:col-span-1">
-          <div className="bg-white rounded-lg shadow">
-            <div className="p-4 border-b">
-              <h2 className="font-semibold">
-                {browseMode ? 'Browse All Pages' : 'Search Results'}
-              </h2>
-            </div>
-            <div className="divide-y max-h-[600px] overflow-y-auto">
-              {filteredPages && filteredPages.length > 0 ? (
-                filteredPages.map((page) => (
-                  <div
-                    key={page.id}
-                    onClick={() => setSelectedPage(page)}
-                    className={`p-4 cursor-pointer hover:bg-blue-50 border-l-4 transition-colors ${
-                      selectedPage?.id === page.id 
-                        ? 'bg-blue-50 border-blue-500' 
-                        : 'border-transparent hover:border-blue-300'
-                    }`}
-                  >
-                    <div className="flex items-center justify-between">
-                      <div className="flex-1">
-                        <div className="font-medium">@{page.ig_username}</div>
-                        {page.full_name && (
-                          <div className="text-sm text-gray-600">{page.full_name}</div>
-                        )}
-                        <div className="text-xs text-gray-500 mt-1">
-                          {page.client_count} client{page.client_count !== 1 ? 's' : ''} •{' '}
-                          {page.category || 'Uncategorized'}
-                        </div>
-                      </div>
-                      <button
-                        className={`px-3 py-1 text-sm rounded ${
-                          selectedPage?.id === page.id
-                            ? 'bg-blue-600 text-white'
-                            : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
-                        }`}
-                      >
-                        {selectedPage?.id === page.id ? 'Editing' : 'Edit'}
-                      </button>
-                    </div>
-                  </div>
-                ))
-              ) : (
-                <div className="text-center py-12 text-gray-500">
-                  {pagesLoading ? 'Loading pages...' : browseMode ? 'No more pages' : 'Type a username or name to search'}
-                </div>
-              )}
-            </div>
-          </div>
+      {/* Single Column Layout with Inline Forms */}
+      <div className="bg-white rounded-lg shadow">
+        <div className="p-4 border-b">
+          <h2 className="font-semibold">
+            {browseMode ? 'Browse All Pages' : 'Search Results'}
+          </h2>
         </div>
+        <div className="divide-y">
+          {filteredPages && filteredPages.length > 0 ? (
+            filteredPages.map((page) => (
+              <div key={page.id}>
+                {/* Page Row */}
+                <div
+                  onClick={() => setSelectedPage(selectedPage?.id === page.id ? null : page)}
+                  className={`p-4 cursor-pointer hover:bg-blue-50 border-l-4 transition-colors ${
+                    selectedPage?.id === page.id 
+                      ? 'bg-blue-50 border-blue-500' 
+                      : 'border-transparent hover:border-blue-300'
+                  }`}
+                >
+                  <div className="flex items-center justify-between">
+                    <div className="flex-1">
+                      <div className="font-medium">@{page.ig_username}</div>
+                      {page.full_name && (
+                        <div className="text-sm text-gray-600">{page.full_name}</div>
+                      )}
+                      <div className="text-xs text-gray-500 mt-1">
+                        {page.client_count} client{page.client_count !== 1 ? 's' : ''} •{' '}
+                        {page.category || 'Uncategorized'}
+                      </div>
+                    </div>
+                    <button
+                      className={`px-3 py-1 text-sm rounded transition-colors ${
+                        selectedPage?.id === page.id
+                          ? 'bg-blue-600 text-white'
+                          : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
+                      }`}
+                    >
+                      {selectedPage?.id === page.id ? '▼ Collapse' : 'Edit ▶'}
+                    </button>
+                  </div>
+                </div>
 
-        {/* Right: Edit Form */}
-        <div className="lg:col-span-2" id="edit-form-section">
+                {/* Inline Edit Form - expands below the clicked page */}
+                {selectedPage?.id === page.id && selectedPage.id && (
+                  <div className="bg-gray-50 border-t border-b border-blue-200" id="edit-form-section">
           {pagesLoading && !selectedPage ? (
             <div className="bg-white rounded-lg shadow p-12 text-center text-gray-500">
               Loading pages...
@@ -823,6 +808,14 @@ export default function EditPageTab() {
                     : 'Save Changes'}
                 </button>
               </div>
+            </div>
+                  </div>
+                )}
+              </div>
+            ))
+          ) : (
+            <div className="text-center py-12 text-gray-500">
+              {pagesLoading ? 'Loading pages...' : browseMode ? 'No more pages' : 'Type a username or name to search'}
             </div>
           )}
         </div>
