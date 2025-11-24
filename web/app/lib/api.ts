@@ -47,8 +47,9 @@ export interface Page {
   contact_whatsapp?: string
   contact_telegram?: string
   contact_other?: string
+  attempted_contact_methods?: string[]
   // Promo tracking fields
-  manual_promo_status?: 'unknown' | 'warm' | 'not_open'
+  manual_promo_status?: 'unknown' | 'warm' | 'not_open' | 'accepted'
   website_has_promo_page?: boolean
   website_contact_email?: string
   website_has_contact_form?: boolean

@@ -44,6 +44,7 @@ class PageUpdate(BaseModel):
     contact_whatsapp: Optional[str] = None
     contact_telegram: Optional[str] = None
     contact_other: Optional[str] = None
+    attempted_contact_methods: Optional[List[str]] = None
     # Promo tracking fields
     manual_promo_status: Optional[str] = None
     website_has_promo_page: Optional[bool] = None
@@ -81,6 +82,7 @@ class PageResponse(PageBase):
     contact_whatsapp: Optional[str] = None
     contact_telegram: Optional[str] = None
     contact_other: Optional[str] = None
+    attempted_contact_methods: Optional[List[str]] = None
     # Promo tracking fields
     manual_promo_status: Optional[str] = None
     website_has_promo_page: Optional[bool] = None

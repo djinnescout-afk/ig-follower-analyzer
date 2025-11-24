@@ -87,3 +87,12 @@ export const OUTREACH_STATUSES = [
 
 export type OutreachStatus = typeof OUTREACH_STATUSES[number]['value']
 
+export const PROMO_STATUSES = [
+  { value: 'unknown', label: '❓ Unknown', color: 'text-gray-600' },
+  { value: 'warm', label: '🔥 Warm', color: 'text-orange-600' },
+  { value: 'not_open', label: '❌ Not Open', color: 'text-red-600' },
+  { value: 'accepted', label: '✅ Accepted', color: 'text-green-600' },
+] as const
+
+export type PromoStatus = typeof PROMO_STATUSES[number]['value']
+

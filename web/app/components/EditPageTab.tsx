@@ -126,6 +126,7 @@ export default function EditPageTab() {
         contact_whatsapp: selectedPage.contact_whatsapp || '',
         contact_telegram: selectedPage.contact_telegram || '',
         contact_other: selectedPage.contact_other || '',
+        attempted_contact_methods: selectedPage.attempted_contact_methods || [],
         outreach_status: outreach?.status || 'not_contacted',
         date_contacted: outreach?.date_contacted
           ? new Date(outreach.date_contacted).toISOString().split('T')[0]
@@ -203,6 +204,7 @@ export default function EditPageTab() {
         contact_whatsapp: formData.contact_whatsapp || null,
         contact_telegram: formData.contact_telegram || null,
         contact_other: formData.contact_other || null,
+        attempted_contact_methods: formData.attempted_contact_methods?.length > 0 ? formData.attempted_contact_methods : null,
         last_reviewed_by: vaName || 'Unknown VA',
         last_reviewed_at: new Date().toISOString(),
       }
@@ -406,7 +408,41 @@ export default function EditPageTab() {
                     <option value="unknown">❓ Unknown</option>
                     <option value="warm">🔥 Warm (Open to Promos)</option>
                     <option value="not_open">❌ Not Open</option>
+                    <option value="accepted">✅ Accepted (Communication Established)</option>
                   </select>
+                </div>
+
+                {/* Attempted Contact Methods */}
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Attempted Contact Methods (Already Tried)
+                  </label>
+                  <div className="space-y-2">
+                    {CONTACT_METHODS.map((method) => (
+                      <label key={method} className="flex items-center">
+                        <input
+                          type="checkbox"
+                          checked={formData.attempted_contact_methods?.includes(method) || false}
+                          onChange={(e) => {
+                            const methods = formData.attempted_contact_methods || []
+                            if (e.target.checked) {
+                              setFormData({
+                                ...formData,
+                                attempted_contact_methods: [...methods, method],
+                              })
+                            } else {
+                              setFormData({
+                                ...formData,
+                                attempted_contact_methods: methods.filter((m: string) => m !== method),
+                              })
+                            }
+                          }}
+                          className="mr-2"
+                        />
+                        <span className="text-sm">{method}</span>
+                      </label>
+                    ))}
+                  </div>
                 </div>
 
                 {/* Contact Methods */}
