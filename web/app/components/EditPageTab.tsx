@@ -28,12 +28,12 @@ export default function EditPageTab() {
     }
   }, [vaName])
 
-  // Fetch all pages
+  // Fetch all pages (including those with 0 clients)
   const { data: pages, isLoading: pagesLoading } = useQuery({
     queryKey: ['pages', 'all'],
     queryFn: async () => {
       const response = await pagesApi.list({
-        min_client_count: 1,
+        min_client_count: 0,
         limit: 10000,
       })
       return response.data
