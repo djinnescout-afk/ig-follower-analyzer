@@ -29,14 +29,34 @@ export default function EditPageTab() {
   }, [vaName])
 
   // Fetch all pages (including those with 0 clients)
+  // Supabase has a 1000 row limit, so we need to fetch in batches
   const { data: pages, isLoading: pagesLoading } = useQuery({
     queryKey: ['pages', 'all'],
     queryFn: async () => {
-      const response = await pagesApi.list({
-        min_client_count: 0,
-        limit: 10000,
-      })
-      return response.data
+      const allPages = []
+      let offset = 0
+      const limit = 1000
+      
+      // Keep fetching until we get less than 1000 pages (meaning we've reached the end)
+      while (true) {
+        const response = await pagesApi.list({
+          min_client_count: 0,
+          limit: limit,
+          offset: offset,
+        })
+        
+        const batch = response.data
+        allPages.push(...batch)
+        
+        // If we got less than the limit, we've reached the end
+        if (batch.length < limit) {
+          break
+        }
+        
+        offset += limit
+      }
+      
+      return allPages
     },
   })
 
