@@ -76,7 +76,26 @@ export default function EditPageTab() {
   // No more client-side filtering needed!
   const filteredPages = pages
 
-  const selectedPage = pages?.find((p) => p.id === selectedPageId)
+  // Fetch selected page separately (so it's always available even if not in search results)
+  const { data: selectedPage } = useQuery({
+    queryKey: ['page', selectedPageId],
+    queryFn: async () => {
+      if (!selectedPageId) return null
+      try {
+        // Try to find in current pages first (optimization)
+        const pageInList = pages?.find((p) => p.id === selectedPageId)
+        if (pageInList) return pageInList
+        
+        // Otherwise fetch it directly
+        const response = await pagesApi.get(selectedPageId)
+        return response.data
+      } catch (error) {
+        console.error('Error fetching selected page:', error)
+        return null
+      }
+    },
+    enabled: !!selectedPageId,
+  })
 
   // Fetch profile for selected page
   const { data: profile } = useQuery({
