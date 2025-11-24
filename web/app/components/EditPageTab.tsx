@@ -13,6 +13,8 @@ export default function EditPageTab() {
   const [formData, setFormData] = useState<any>({})
   const [vaName, setVaName] = useState('')
   const [showArchived, setShowArchived] = useState(false)
+  const [browseMode, setBrowseMode] = useState(false) // Toggle between search and browse
+  const [browsePage, setBrowsePage] = useState(0) // Pagination for browse mode
   const queryClient = useQueryClient()
 
   // Debounce search query for better performance
@@ -33,11 +35,24 @@ export default function EditPageTab() {
     }
   }, [vaName])
 
-  // Fetch pages with server-side search (much faster!)
+  // Fetch pages with server-side search OR browse mode
   const { data: pages, isLoading: pagesLoading } = useQuery({
-    queryKey: ['pages', 'search', debouncedSearch, showArchived],
+    queryKey: ['pages', 'edit-page', browseMode, browsePage, debouncedSearch, showArchived],
     queryFn: async () => {
-      // Only search when there's a query (don't load all pages - causes CORS issues)
+      // Browse Mode: Load pages in paginated batches
+      if (browseMode) {
+        const pageSize = 200 // Smaller batches to avoid CORS issues
+        const response = await pagesApi.list({
+          include_archived: showArchived,
+          sort_by: 'client_count',
+          order: 'desc',
+          limit: pageSize,
+          offset: browsePage * pageSize,
+        })
+        return response.data
+      }
+      
+      // Search Mode: Only load when there's a query
       if (!debouncedSearch.trim()) {
         return [] // Empty state - user must search
       }
@@ -46,7 +61,7 @@ export default function EditPageTab() {
       const response = await pagesApi.list({
         search: debouncedSearch,
         include_archived: showArchived,
-        limit: 100,  // Limit search results to 100
+        limit: 100,
       })
       return response.data
     },
@@ -249,21 +264,79 @@ export default function EditPageTab() {
         </p>
       </div>
 
-      {/* Search */}
+      {/* Mode Toggle & Search/Browse Controls */}
       <div className="bg-white rounded-lg shadow p-6">
-        <div className="flex items-center gap-4 mb-3">
-          <Search size={20} className="text-gray-400" />
-          <input
-            type="text"
-            placeholder="Search by username or name..."
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            className="flex-1 px-4 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-          />
-          <span className="text-sm text-gray-600">
-            {filteredPages?.length || 0} pages found
-          </span>
+        {/* Mode Toggle */}
+        <div className="flex gap-2 mb-4">
+          <button
+            onClick={() => {
+              setBrowseMode(false)
+              setBrowsePage(0)
+            }}
+            className={`px-4 py-2 rounded font-medium transition-colors ${
+              !browseMode
+                ? 'bg-blue-600 text-white'
+                : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+            }`}
+          >
+            🔍 Search Mode
+          </button>
+          <button
+            onClick={() => {
+              setBrowseMode(true)
+              setBrowsePage(0)
+              setSearchQuery('') // Clear search when switching to browse
+            }}
+            className={`px-4 py-2 rounded font-medium transition-colors ${
+              browseMode
+                ? 'bg-blue-600 text-white'
+                : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+            }`}
+          >
+            📋 Browse All (by Client Count)
+          </button>
         </div>
+
+        {/* Search Input (only in search mode) */}
+        {!browseMode && (
+          <div className="flex items-center gap-4 mb-3">
+            <Search size={20} className="text-gray-400" />
+            <input
+              type="text"
+              placeholder="Search by username or name..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="flex-1 px-4 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+            />
+            <span className="text-sm text-gray-600">
+              {filteredPages?.length || 0} pages found
+            </span>
+          </div>
+        )}
+
+        {/* Browse Mode Pagination */}
+        {browseMode && (
+          <div className="flex items-center justify-between mb-3">
+            <button
+              onClick={() => setBrowsePage(Math.max(0, browsePage - 1))}
+              disabled={browsePage === 0}
+              className="px-4 py-2 bg-gray-200 text-gray-700 rounded hover:bg-gray-300 disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              ← Previous
+            </button>
+            <span className="text-sm text-gray-600 font-medium">
+              Pages {browsePage * 200 + 1}-{browsePage * 200 + (pages?.length || 0)} (Showing {pages?.length || 0} pages)
+            </span>
+            <button
+              onClick={() => setBrowsePage(browsePage + 1)}
+              disabled={!pages || pages.length < 200}
+              className="px-4 py-2 bg-gray-200 text-gray-700 rounded hover:bg-gray-300 disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              Next →
+            </button>
+          </div>
+        )}
+
         <div className="flex items-center gap-2">
           <label className="flex items-center gap-2 text-sm text-gray-600 cursor-pointer">
             <input
@@ -288,7 +361,9 @@ export default function EditPageTab() {
         <div className="lg:col-span-1">
           <div className="bg-white rounded-lg shadow">
             <div className="p-4 border-b">
-              <h2 className="font-semibold">Search Results</h2>
+              <h2 className="font-semibold">
+                {browseMode ? 'Browse All Pages' : 'Search Results'}
+              </h2>
             </div>
             <div className="divide-y max-h-[600px] overflow-y-auto">
               {filteredPages && filteredPages.length > 0 ? (
@@ -327,7 +402,7 @@ export default function EditPageTab() {
                 ))
               ) : (
                 <div className="text-center py-12 text-gray-500">
-                  {pagesLoading ? 'Loading pages...' : 'No pages found'}
+                  {pagesLoading ? 'Loading pages...' : browseMode ? 'No more pages' : 'Type a username or name to search'}
                 </div>
               )}
             </div>
