@@ -70,13 +70,15 @@ export default function EditPageTab() {
   // No more client-side filtering needed!
   const filteredPages = pages
 
-  // Debug logging
+  // Auto-scroll to form when page is selected
   useEffect(() => {
-    if (selectedPage) {
+    if (selectedPage && selectedPage.id) {
       console.log('[EditPageTab] Selected page:', selectedPage.ig_username, selectedPage.id)
-      console.log('[EditPageTab] Should render form:', !!selectedPage && !!selectedPage.id)
-    } else {
-      console.log('[EditPageTab] No page selected')
+      // Scroll to the form section
+      const formSection = document.getElementById('edit-form-section')
+      if (formSection) {
+        formSection.scrollIntoView({ behavior: 'smooth', block: 'start' })
+      }
     }
   }, [selectedPage])
 
@@ -420,7 +422,7 @@ export default function EditPageTab() {
         </div>
 
         {/* Right: Edit Form */}
-        <div className="lg:col-span-2">
+        <div className="lg:col-span-2" id="edit-form-section">
           {pagesLoading && !selectedPage ? (
             <div className="bg-white rounded-lg shadow p-12 text-center text-gray-500">
               Loading pages...
