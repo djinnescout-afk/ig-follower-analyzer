@@ -21,3 +21,4 @@ BEGIN
     RAISE NOTICE '✅ Promo tracking fields added successfully!';
 END $$;
 
+

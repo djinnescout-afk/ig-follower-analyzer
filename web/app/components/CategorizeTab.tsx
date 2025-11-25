@@ -67,8 +67,12 @@ export default function CategorizeTab() {
       
       console.log(`[CategorizeTab] Total uncategorized pages: ${allPages.length}`)
       
+      // Filter to only include pages with at least 10k followers
+      const filteredPages = allPages.filter(p => p.follower_count >= 10000)
+      console.log(`[CategorizeTab] Pages with 10k+ followers: ${filteredPages.length}`)
+      
       // Sort by priority tier, then by client_count, then by follower_count
-      const sorted = allPages.sort((a, b) => {
+      const sorted = filteredPages.sort((a, b) => {
         const tierA = getPriorityTier(a.ig_username, a.full_name, a.client_count)
         const tierB = getPriorityTier(b.ig_username, b.full_name, b.client_count)
         
