@@ -6,6 +6,18 @@ import { pagesApi, outreachApi, scrapesApi, Page, PageProfile, OutreachTracking 
 import { CATEGORIES, CONTACT_METHODS, OUTREACH_STATUSES, getPriorityTier, TIER_LABELS, TIER_COLORS } from '../lib/categories'
 import { ChevronLeft, ChevronRight, Save, SkipForward, RefreshCw } from 'lucide-react'
 
+// Helper function: Calculate adjusted tier with 10k follower requirement for hotlist
+function getAdjustedTier(username: string, fullName: string | null | undefined, clientCount: number, followerCount: number): number {
+  const baseTier = getPriorityTier(username, fullName, clientCount)
+  
+  // If it's hotlist (Tier 1-3) but has <10k followers, demote to Tier 4
+  if (baseTier <= 3 && followerCount < 10000) {
+    return 4
+  }
+  
+  return baseTier
+}
+
 export default function CategorizeTab() {
   const [currentIndex, setCurrentIndex] = useState(0)
   const [formData, setFormData] = useState<any>({})
@@ -67,29 +79,10 @@ export default function CategorizeTab() {
       
       console.log(`[CategorizeTab] Total uncategorized pages: ${allPages.length}`)
       
-      // Filter hotlist (Tiers 1-3) to only include pages with at least 10k followers
-      // Tier 4 (regular pages) have no follower requirement
-      const filteredPages = allPages.filter(p => {
-        const tier = getPriorityTier(p.ig_username, p.full_name, p.client_count)
-        
-        // Tier 1-3 (hotlist) must have 10k+ followers
-        if (tier <= 3) {
-          return p.follower_count >= 10000
-        }
-        
-        // Tier 4 (regular) has no follower requirement
-        return true
-      })
-      
-      const tier1to3Count = allPages.filter(p => getPriorityTier(p.ig_username, p.full_name, p.client_count) <= 3).length
-      const tier1to3Filtered = filteredPages.filter(p => getPriorityTier(p.ig_username, p.full_name, p.client_count) <= 3).length
-      console.log(`[CategorizeTab] Hotlist (Tiers 1-3): ${tier1to3Filtered}/${tier1to3Count} pages with 10k+ followers`)
-      console.log(`[CategorizeTab] After filtering: ${filteredPages.length} pages total`)
-      
-      // Sort by priority tier, then by client_count, then by follower_count
-      const sorted = filteredPages.sort((a, b) => {
-        const tierA = getPriorityTier(a.ig_username, a.full_name, a.client_count)
-        const tierB = getPriorityTier(b.ig_username, b.full_name, b.client_count)
+      // Sort by priority tier (with 10k follower requirement for hotlist), then by client_count, then by follower_count
+      const sorted = allPages.sort((a, b) => {
+        const tierA = getAdjustedTier(a.ig_username, a.full_name, a.client_count, a.follower_count)
+        const tierB = getAdjustedTier(b.ig_username, b.full_name, b.client_count, b.follower_count)
         
         if (tierA !== tierB) return tierA - tierB // Lower tier number = higher priority
         if (a.client_count !== b.client_count) return b.client_count - a.client_count
@@ -453,12 +446,15 @@ export default function CategorizeTab() {
           />
         </div>
         {/* Priority Tier Badge */}
-        {currentPage && (
-          <div className={`px-4 py-2 rounded-lg border-2 font-semibold text-sm ${TIER_COLORS[getPriorityTier(currentPage.ig_username, currentPage.full_name, currentPage.client_count) as keyof typeof TIER_COLORS]}`}>
-            {TIER_LABELS[getPriorityTier(currentPage.ig_username, currentPage.full_name, currentPage.client_count) as keyof typeof TIER_LABELS]}
-            <span className="ml-3 font-bold text-base">({currentPage.client_count} {currentPage.client_count === 1 ? 'client' : 'clients'} following)</span>
-          </div>
-        )}
+        {currentPage && (() => {
+          const adjustedTier = getAdjustedTier(currentPage.ig_username, currentPage.full_name, currentPage.client_count, currentPage.follower_count)
+          return (
+            <div className={`px-4 py-2 rounded-lg border-2 font-semibold text-sm ${TIER_COLORS[adjustedTier as keyof typeof TIER_COLORS]}`}>
+              {TIER_LABELS[adjustedTier as keyof typeof TIER_LABELS]}
+              <span className="ml-3 font-bold text-base">({currentPage.client_count} {currentPage.client_count === 1 ? 'client' : 'clients'} following)</span>
+            </div>
+          )
+        })()}
       </div>
 
       {/* Page Display */}
