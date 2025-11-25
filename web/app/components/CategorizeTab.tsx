@@ -67,9 +67,24 @@ export default function CategorizeTab() {
       
       console.log(`[CategorizeTab] Total uncategorized pages: ${allPages.length}`)
       
-      // Filter to only include pages with at least 10k followers
-      const filteredPages = allPages.filter(p => p.follower_count >= 10000)
-      console.log(`[CategorizeTab] Pages with 10k+ followers: ${filteredPages.length}`)
+      // Filter hotlist (Tiers 1-3) to only include pages with at least 10k followers
+      // Tier 4 (regular pages) have no follower requirement
+      const filteredPages = allPages.filter(p => {
+        const tier = getPriorityTier(p.ig_username, p.full_name, p.client_count)
+        
+        // Tier 1-3 (hotlist) must have 10k+ followers
+        if (tier <= 3) {
+          return p.follower_count >= 10000
+        }
+        
+        // Tier 4 (regular) has no follower requirement
+        return true
+      })
+      
+      const tier1to3Count = allPages.filter(p => getPriorityTier(p.ig_username, p.full_name, p.client_count) <= 3).length
+      const tier1to3Filtered = filteredPages.filter(p => getPriorityTier(p.ig_username, p.full_name, p.client_count) <= 3).length
+      console.log(`[CategorizeTab] Hotlist (Tiers 1-3): ${tier1to3Filtered}/${tier1to3Count} pages with 10k+ followers`)
+      console.log(`[CategorizeTab] After filtering: ${filteredPages.length} pages total`)
       
       // Sort by priority tier, then by client_count, then by follower_count
       const sorted = filteredPages.sort((a, b) => {
