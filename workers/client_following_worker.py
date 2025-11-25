@@ -249,10 +249,10 @@ class ClientFollowingWorker:
                 created_pages.extend(result.data or [])
                 logger.info(f"Created pages batch {i//insert_batch_size + 1}: {len(batch)} pages")
             
-            # Queue profile scrapes for newly created pages to get accurate follower counts
+            # Scrape follower counts for newly created pages (lightweight)
             if created_pages:
-                logger.info(f"Queueing profile scrapes for {len(created_pages)} new pages...")
-                self._queue_profile_scrapes(created_pages)
+                logger.info(f"Scraping follower counts for {len(created_pages)} new pages...")
+                self._scrape_follower_counts(created_pages)
         
         # Now insert client_following relationships
         # First delete existing relationships for this client
@@ -299,43 +299,74 @@ class ClientFollowingWorker:
         
         logger.info(f"✅ Stored following data for client {client_id}: {total_inserted} relationships created")
     
-    def _queue_profile_scrapes(self, pages: list[dict]):
-        """Queue profile scrape jobs for pages that need follower counts"""
+    def _scrape_follower_counts(self, pages: list[dict]):
+        """Scrape follower counts for new pages (lightweight, only follower count)"""
         try:
-            # Only queue scrapes for pages that don't have follower counts or have 0
+            # Only scrape pages that don't have follower counts or have 0
             pages_needing_scrape = [
                 p for p in pages 
                 if not p.get("follower_count") or p.get("follower_count") == 0
             ]
             
             if not pages_needing_scrape:
-                logger.info("All new pages already have follower counts, skipping profile scrapes")
+                logger.info("All new pages already have follower counts from Apify following scraper")
                 return
             
-            logger.info(f"Queueing profile scrapes for {len(pages_needing_scrape)} pages without follower counts...")
+            logger.info(f"Scraping follower counts for {len(pages_needing_scrape)} pages...")
             
-            # Create scrape_jobs for profile scraping (batched)
+            # Batch scrape (max 100 at a time for Apify)
             batch_size = 100
+            total_updated = 0
+            
             for i in range(0, len(pages_needing_scrape), batch_size):
                 batch = pages_needing_scrape[i:i + batch_size]
-                scrape_jobs = [
-                    {
-                        "page_id": page["id"],
-                        "scrape_type": "profile",
-                        "status": "pending",
-                        "priority": 5  # Lower priority than client following scrapes
-                    }
-                    for page in batch
-                ]
+                usernames = [p["ig_username"] for p in batch]
                 
-                self.supabase.table("scrape_jobs").insert(scrape_jobs).execute()
-                logger.info(f"Queued profile scrape batch {i//batch_size + 1}: {len(scrape_jobs)} jobs")
+                try:
+                    logger.info(f"Scraping batch {i//batch_size + 1}: {len(usernames)} usernames...")
+                    
+                    # Use Apify's Instagram Profile Scraper (lightweight)
+                    run_input = {
+                        "usernames": usernames,
+                        "resultsLimit": len(usernames),
+                        "addParentData": False,  # Don't fetch additional data
+                    }
+                    
+                    run = self.apify_client.actor("apify/instagram-profile-scraper").call(run_input=run_input)
+                    dataset = self.apify_client.dataset(run["defaultDatasetId"])
+                    
+                    # Update database with follower counts
+                    for item in dataset.iterate_items():
+                        username = item.get("username")
+                        if not username:
+                            continue
+                        
+                        # Extract follower count
+                        follower_count = 0
+                        if item.get("followersCount"):
+                            follower_count = item["followersCount"]
+                        elif item.get("edge_followed_by", {}).get("count"):
+                            follower_count = item["edge_followed_by"]["count"]
+                        
+                        # Update page
+                        self.supabase.table("pages")\
+                            .update({"follower_count": follower_count})\
+                            .eq("ig_username", username)\
+                            .execute()
+                        
+                        total_updated += 1
+                    
+                    logger.info(f"Updated batch {i//batch_size + 1}: {total_updated} pages total")
+                    
+                except Exception as e:
+                    logger.warning(f"Failed to scrape batch {i//batch_size + 1}: {e}")
+                    continue
             
-            logger.info(f"✅ Successfully queued {len(pages_needing_scrape)} profile scrape jobs")
+            logger.info(f"✅ Successfully scraped follower counts for {total_updated}/{len(pages_needing_scrape)} pages")
             
         except Exception as e:
-            logger.warning(f"Failed to queue profile scrapes: {e}")
-            # Don't fail the whole import if scrape queueing fails
+            logger.warning(f"Failed to scrape follower counts: {e}")
+            # Don't fail the whole import if follower scraping fails
 
 
 def main():
