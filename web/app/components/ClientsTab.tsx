@@ -2,17 +2,14 @@
 
 import { useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { clientsApi, scrapesApi, BulkClientResult } from '../lib/api'
+import { clientsApi, scrapesApi } from '../lib/api'
 import { format } from 'date-fns'
-import { UserPlus, RefreshCw, Trash2, Users } from 'lucide-react'
+import { UserPlus, RefreshCw, Trash2 } from 'lucide-react'
 
 export default function ClientsTab() {
   const queryClient = useQueryClient()
   const [isAddingClient, setIsAddingClient] = useState(false)
-  const [isBulkImporting, setIsBulkImporting] = useState(false)
   const [newClient, setNewClient] = useState({ name: '', ig_username: '' })
-  const [bulkInput, setBulkInput] = useState('')
-  const [bulkResult, setBulkResult] = useState<BulkClientResult | null>(null)
   const [selectedClients, setSelectedClients] = useState<string[]>([])
 
   // Fetch clients
@@ -31,15 +28,6 @@ export default function ClientsTab() {
       queryClient.invalidateQueries({ queryKey: ['clients'] })
       setNewClient({ name: '', ig_username: '' })
       setIsAddingClient(false)
-    },
-  })
-
-  // Bulk import mutation
-  const bulkImportMutation = useMutation({
-    mutationFn: clientsApi.createBulk,
-    onSuccess: (data) => {
-      queryClient.invalidateQueries({ queryKey: ['clients'] })
-      setBulkResult(data.data)
     },
   })
 
@@ -68,36 +56,6 @@ export default function ClientsTab() {
     }
   }
 
-  const handleBulkImport = (e: React.FormEvent) => {
-    e.preventDefault()
-    
-    // Parse input: each line should be "Name, @username" or "Name, username"
-    const lines = bulkInput.split('\n').filter(line => line.trim())
-    const clients = lines.map(line => {
-      const parts = line.split(',').map(p => p.trim())
-      if (parts.length >= 2) {
-        const name = parts[0]
-        let username = parts[1]
-        // Remove @ if present
-        username = username.replace('@', '')
-        return { name, ig_username: username }
-      }
-      // If no comma, assume the whole line is the username and use it as name too
-      const username = line.trim().replace('@', '')
-      return { name: username, ig_username: username }
-    }).filter(c => c.ig_username) // Filter out empty lines
-    
-    if (clients.length > 0) {
-      bulkImportMutation.mutate(clients)
-    }
-  }
-
-  const closeBulkModal = () => {
-    setIsBulkImporting(false)
-    setBulkInput('')
-    setBulkResult(null)
-  }
-
   const handleScrapeSelected = () => {
     if (selectedClients.length > 0) {
       scrapeMutation.mutate(selectedClients)
@@ -122,22 +80,13 @@ export default function ClientsTab() {
       <div className="bg-white rounded-lg shadow p-6">
         <div className="flex items-center justify-between mb-4">
           <h2 className="text-lg font-semibold text-gray-900">Clients</h2>
-          <div className="flex gap-2">
-            <button
-              onClick={() => setIsBulkImporting(true)}
-              className="flex items-center gap-2 px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700"
-            >
-              <Users size={16} />
-              Bulk Import
-            </button>
-            <button
-              onClick={() => setIsAddingClient(!isAddingClient)}
-              className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700"
-            >
-              <UserPlus size={16} />
-              Add Client
-            </button>
-          </div>
+          <button
+            onClick={() => setIsAddingClient(!isAddingClient)}
+            className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700"
+          >
+            <UserPlus size={16} />
+            Add Client
+          </button>
         </div>
 
         {isAddingClient && (
@@ -289,111 +238,6 @@ export default function ClientsTab() {
           )}
         </div>
       </div>
-
-      {/* Bulk Import Modal */}
-      {isBulkImporting && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-white rounded-lg shadow-xl p-6 max-w-2xl w-full mx-4 max-h-[90vh] overflow-y-auto">
-            <div className="flex items-center justify-between mb-4">
-              <h3 className="text-xl font-semibold">Bulk Import Clients</h3>
-              <button
-                onClick={closeBulkModal}
-                className="text-gray-400 hover:text-gray-600"
-              >
-                ✕
-              </button>
-            </div>
-
-            {!bulkResult ? (
-              <form onSubmit={handleBulkImport}>
-                <div className="mb-4">
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Enter clients (one per line)
-                  </label>
-                  <p className="text-xs text-gray-500 mb-2">
-                    Format: <code>Name, @username</code> or just <code>@username</code>
-                  </p>
-                  <p className="text-xs text-gray-500 mb-3">
-                    Example:<br />
-                    <code>John Doe, @johndoe</code><br />
-                    <code>Jane Smith, janesmith</code><br />
-                    <code>@example_user</code>
-                  </p>
-                  <textarea
-                    value={bulkInput}
-                    onChange={(e) => setBulkInput(e.target.value)}
-                    rows={12}
-                    placeholder="John Doe, @johndoe&#10;Jane Smith, janesmith&#10;@example_user"
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 font-mono text-sm"
-                    required
-                  />
-                </div>
-
-                <div className="flex gap-2 justify-end">
-                  <button
-                    type="button"
-                    onClick={closeBulkModal}
-                    className="px-4 py-2 border border-gray-300 rounded-md hover:bg-gray-50"
-                  >
-                    Cancel
-                  </button>
-                  <button
-                    type="submit"
-                    disabled={bulkImportMutation.isPending}
-                    className="px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 disabled:opacity-50"
-                  >
-                    {bulkImportMutation.isPending ? 'Importing...' : 'Import'}
-                  </button>
-                </div>
-              </form>
-            ) : (
-              <div>
-                {/* Success Results */}
-                {bulkResult.success.length > 0 && (
-                  <div className="mb-6">
-                    <h4 className="text-lg font-semibold text-green-600 mb-2">
-                      ✅ Successfully Imported ({bulkResult.success.length})
-                    </h4>
-                    <div className="bg-green-50 rounded-md p-4 max-h-64 overflow-y-auto">
-                      {bulkResult.success.map((client) => (
-                        <div key={client.id} className="text-sm py-1">
-                          {client.name} (@{client.ig_username})
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                )}
-
-                {/* Failed Results */}
-                {bulkResult.failed.length > 0 && (
-                  <div className="mb-6">
-                    <h4 className="text-lg font-semibold text-red-600 mb-2">
-                      ❌ Failed ({bulkResult.failed.length})
-                    </h4>
-                    <div className="bg-red-50 rounded-md p-4 max-h-64 overflow-y-auto">
-                      {bulkResult.failed.map((failed, idx) => (
-                        <div key={idx} className="text-sm py-2 border-b border-red-100 last:border-0">
-                          <div className="font-medium">{failed.name} (@{failed.ig_username})</div>
-                          <div className="text-red-600 text-xs">{failed.reason}</div>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                )}
-
-                <div className="flex justify-end">
-                  <button
-                    onClick={closeBulkModal}
-                    className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700"
-                  >
-                    Done
-                  </button>
-                </div>
-              </div>
-            )}
-          </div>
-        </div>
-      )}
     </div>
   )
 }

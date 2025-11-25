@@ -1,93 +1,36 @@
 'use client'
 
 import { useState } from 'react'
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { pagesApi, scrapesApi } from '../lib/api'
-import { CheckCircle, Users, Eye, RefreshCw } from 'lucide-react'
-import { useDebounce } from '../lib/hooks/useDebounce'
+import { useQuery } from '@tanstack/react-query'
+import { pagesApi } from '../lib/api'
+import { CheckCircle, Users, Eye } from 'lucide-react'
 
 export default function PagesTab() {
   const [minClientCount, setMinClientCount] = useState(2)
   const [selectedPage, setSelectedPage] = useState<string | null>(null)
-  const [page, setPage] = useState(0)
-  const [pageSize, setPageSize] = useState(100)
-  const [searchQuery, setSearchQuery] = useState('')
-  const queryClient = useQueryClient()
 
-  // Debounce search query to reduce API calls (500ms delay)
-  const debouncedSearch = useDebounce(searchQuery, 500)
-
-  // Get total count
-  const { data: totalCountData } = useQuery({
-    queryKey: ['pages', 'count', minClientCount, debouncedSearch],
-    queryFn: async () => {
-      const response = await pagesApi.getCount({
-        min_client_count: minClientCount,
-        search: debouncedSearch || undefined,
-      })
-      return response.data
-    },
-  })
-
-  const totalPages = Math.ceil((totalCountData?.count || 0) / pageSize)
-
-  // Fetch pages with pagination
+  // Fetch pages
   const { data: pages, isLoading } = useQuery({
-    queryKey: ['pages', minClientCount, page, pageSize, debouncedSearch],
+    queryKey: ['pages', minClientCount],
     queryFn: async () => {
       const response = await pagesApi.list({ 
         min_client_count: minClientCount,
-        search: debouncedSearch || undefined,
-        sort_by: 'client_count',
-        order: 'desc',
-        limit: pageSize,
-        offset: page * pageSize,
+        limit: 10000  // Fetch all pages (increase if you have more than 10k)
       })
       return response.data
     },
   })
-
-  // Reset to page 0 when filter changes
-  const handleMinClientCountChange = (value: number) => {
-    setMinClientCount(value)
-    setPage(0)
-  }
-
-  // Reset to page 0 when search changes
-  const handleSearchChange = (query: string) => {
-    setSearchQuery(query)
-    setPage(0)
-  }
 
   // Fetch selected page profile
   const { data: profile } = useQuery({
     queryKey: ['page-profile', selectedPage],
     queryFn: async () => {
       if (!selectedPage) return null
-      try {
-        const response = await pagesApi.getProfile(selectedPage)
-        return response.data
-      } catch (error) {
-        return null
-      }
+      const response = await pagesApi.getProfile(selectedPage)
+      return response.data
     },
     enabled: !!selectedPage,
   })
-
-  // Trigger profile scrape mutation
-  const scrapeProfileMutation = useMutation({
-    mutationFn: async (pageId: string) => {
-      await scrapesApi.triggerProfileScrape([pageId])
-    },
-    onSuccess: () => {
-      alert('Profile scrape started! Refresh in 30-60 seconds to see results.')
-      queryClient.invalidateQueries({ queryKey: ['page-profile'] })
-    },
-  })
-
-  const handleScrapeProfile = (pageId: string) => {
-    scrapeProfileMutation.mutate(pageId)
-  }
 
   if (isLoading) {
     return <div className="text-center py-8">Loading pages...</div>
@@ -97,39 +40,20 @@ export default function PagesTab() {
     <div className="space-y-6">
       {/* Filters */}
       <div className="bg-white rounded-lg shadow p-6">
-        <div className="space-y-4">
-          <div className="flex items-center gap-4">
-            <label className="text-sm font-medium text-gray-700">
-              Minimum Clients Following:
-            </label>
-            <input
-              type="number"
-              min="1"
-              value={minClientCount}
-              onChange={(e) => handleMinClientCountChange(parseInt(e.target.value) || 1)}
-              className="w-24 px-3 py-2 border border-gray-300 rounded-md"
-            />
-            <span className="text-sm text-gray-600">
-              Showing pages followed by {minClientCount}+ clients
-            </span>
-          </div>
-          <div className="flex items-center gap-2">
-            <input
-              type="text"
-              placeholder="Search by username or name..."
-              value={searchQuery}
-              onChange={(e) => handleSearchChange(e.target.value)}
-              className="flex-1 px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-            />
-            {searchQuery && (
-              <button
-                onClick={() => handleSearchChange('')}
-                className="px-4 py-2 text-sm text-gray-600 hover:text-gray-800"
-              >
-                Clear
-              </button>
-            )}
-          </div>
+        <div className="flex items-center gap-4">
+          <label className="text-sm font-medium text-gray-700">
+            Minimum Clients Following:
+          </label>
+          <input
+            type="number"
+            min="1"
+            value={minClientCount}
+            onChange={(e) => setMinClientCount(parseInt(e.target.value) || 1)}
+            className="w-24 px-3 py-2 border border-gray-300 rounded-md"
+          />
+          <span className="text-sm text-gray-600">
+            Showing pages followed by {minClientCount}+ clients
+          </span>
         </div>
       </div>
 
@@ -139,7 +63,7 @@ export default function PagesTab() {
         <div className="bg-white rounded-lg shadow">
           <div className="p-6 border-b">
             <h2 className="text-lg font-semibold text-gray-900">
-              Pages ({totalCountData?.count || 0} total, showing {pages?.length || 0})
+              Pages ({pages?.length || 0})
             </h2>
           </div>
           <div className="divide-y max-h-[600px] overflow-y-auto">
@@ -174,22 +98,9 @@ export default function PagesTab() {
                       </span>
                     </div>
                   </div>
-                  <div className="flex gap-2">
-                    <button 
-                      onClick={(e) => {
-                        e.stopPropagation()
-                        handleScrapeProfile(page.id)
-                      }}
-                      disabled={scrapeProfileMutation.isPending}
-                      className="text-purple-600 hover:text-purple-800 disabled:opacity-50"
-                      title="Scrape profile"
-                    >
-                      <RefreshCw size={16} className={scrapeProfileMutation.isPending ? 'animate-spin' : ''} />
-                    </button>
-                    <button className="text-blue-600 hover:text-blue-800" title="View details">
-                      <Eye size={18} />
-                    </button>
-                  </div>
+                  <button className="text-blue-600 hover:text-blue-800">
+                    <Eye size={18} />
+                  </button>
                 </div>
               </div>
             ))}
@@ -200,46 +111,6 @@ export default function PagesTab() {
               </div>
             )}
           </div>
-
-          {/* Pagination Controls */}
-          {pages && pages.length > 0 && (
-            <div className="px-6 py-4 border-t bg-gray-50 flex items-center justify-between">
-              <div className="flex items-center gap-4">
-                <div className="text-sm text-gray-700">
-                  Page {page + 1} of {totalPages}
-                </div>
-                <select
-                  value={pageSize}
-                  onChange={(e) => {
-                    setPageSize(Number(e.target.value))
-                    setPage(0)
-                  }}
-                  className="text-sm border border-gray-300 rounded px-2 py-1"
-                >
-                  <option value={50}>50 per page</option>
-                  <option value={100}>100 per page</option>
-                  <option value={250}>250 per page</option>
-                </select>
-              </div>
-
-              <div className="flex gap-2">
-                <button
-                  onClick={() => setPage(Math.max(0, page - 1))}
-                  disabled={page === 0}
-                  className="px-3 py-1 text-sm border border-gray-300 rounded hover:bg-gray-100 disabled:opacity-50 disabled:cursor-not-allowed"
-                >
-                  Previous
-                </button>
-                <button
-                  onClick={() => setPage(Math.min(totalPages - 1, page + 1))}
-                  disabled={page >= totalPages - 1}
-                  className="px-3 py-1 text-sm border border-gray-300 rounded hover:bg-gray-100 disabled:opacity-50 disabled:cursor-not-allowed"
-                >
-                  Next
-                </button>
-              </div>
-            </div>
-          )}
         </div>
 
         {/* Page Details */}

@@ -2,87 +2,29 @@
 
 import { useState, useEffect } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { pagesApi, outreachApi, scrapesApi, Page, PageProfile, OutreachTracking } from '../lib/api'
+import { pagesApi, outreachApi, Page, PageProfile, OutreachTracking } from '../lib/api'
 import { CATEGORIES, CONTACT_METHODS, OUTREACH_STATUSES, getPriorityTier, TIER_LABELS, TIER_COLORS } from '../lib/categories'
-import { ChevronLeft, ChevronRight, Save, SkipForward, RefreshCw } from 'lucide-react'
-
-// Helper function: Calculate adjusted tier with 10k follower requirement for hotlist
-function getAdjustedTier(username: string, fullName: string | null | undefined, clientCount: number, followerCount: number): number {
-  const baseTier = getPriorityTier(username, fullName, clientCount)
-  
-  // If it's hotlist (Tier 1-3) but has <10k followers, demote to Tier 4
-  if (baseTier <= 3 && followerCount < 10000) {
-    return 4
-  }
-  
-  return baseTier
-}
+import { ChevronLeft, ChevronRight, Save, SkipForward } from 'lucide-react'
 
 export default function CategorizeTab() {
   const [currentIndex, setCurrentIndex] = useState(0)
   const [formData, setFormData] = useState<any>({})
-  const [vaName, setVaName] = useState('')
-  const [viewMode, setViewMode] = useState<'uncategorized' | 'archived'>('uncategorized')
-  const [showArchiveDialog, setShowArchiveDialog] = useState(false)
-  const [archiveReason, setArchiveReason] = useState('')
   const queryClient = useQueryClient()
 
-  // Load VA name from localStorage on mount
-  useEffect(() => {
-    const savedVaName = localStorage.getItem('vaName')
-    if (savedVaName) {
-      setVaName(savedVaName)
-    }
-  }, [])
-
-  // Save VA name to localStorage whenever it changes
-  useEffect(() => {
-    if (vaName) {
-      localStorage.setItem('vaName', vaName)
-    }
-  }, [vaName])
-
-  // Reset index when switching view modes
-  useEffect(() => {
-    setCurrentIndex(0)
-  }, [viewMode])
-
-  // Fetch uncategorized pages (exclude archived) - with pagination to bypass 1000 limit
-  const { data: uncategorizedPages, isLoading: uncategorizedLoading } = useQuery({
+  // Fetch uncategorized pages
+  const { data: pages, isLoading: pagesLoading } = useQuery({
     queryKey: ['pages', 'uncategorized'],
     queryFn: async () => {
-      const allPages = []
-      let offset = 0
-      const limit = 1000 // Supabase limit
+      const response = await pagesApi.list({ 
+        categorized: false, 
+        min_client_count: 1,
+        limit: 10000 
+      })
       
-      console.log('[CategorizeTab] Fetching all uncategorized pages...')
-      
-      while (true) {
-        const response = await pagesApi.list({ 
-          categorized: false, 
-          min_client_count: 1,
-          include_archived: false,
-          limit: limit,
-          offset: offset,
-        })
-        
-        const batch = response.data
-        allPages.push(...batch)
-        
-        console.log(`[CategorizeTab] Fetched batch at offset ${offset}: ${batch.length} pages`)
-        
-        if (batch.length < limit) {
-          break // No more pages
-        }
-        offset += limit
-      }
-      
-      console.log(`[CategorizeTab] Total uncategorized pages: ${allPages.length}`)
-      
-      // Sort by priority tier (with 10k follower requirement for hotlist), then by client_count, then by follower_count
-      const sorted = allPages.sort((a, b) => {
-        const tierA = getAdjustedTier(a.ig_username, a.full_name, a.client_count, a.follower_count)
-        const tierB = getAdjustedTier(b.ig_username, b.full_name, b.client_count, b.follower_count)
+      // Sort by priority tier, then by client_count, then by follower_count
+      const sorted = response.data.sort((a, b) => {
+        const tierA = getPriorityTier(a.ig_username, a.full_name, a.client_count)
+        const tierB = getPriorityTier(b.ig_username, b.full_name, b.client_count)
         
         if (tierA !== tierB) return tierA - tierB // Lower tier number = higher priority
         if (a.client_count !== b.client_count) return b.client_count - a.client_count
@@ -91,51 +33,7 @@ export default function CategorizeTab() {
       
       return sorted
     },
-    enabled: viewMode === 'uncategorized',
-    staleTime: 5 * 60 * 1000, // Cache for 5 minutes
   })
-
-  // Fetch archived pages - with pagination to bypass 1000 limit
-  const { data: archivedPages, isLoading: archivedLoading } = useQuery({
-    queryKey: ['pages', 'archived'],
-    queryFn: async () => {
-      const allPages = []
-      let offset = 0
-      const limit = 1000 // Supabase limit
-      
-      console.log('[CategorizeTab] Fetching all archived pages...')
-      
-      while (true) {
-        const response = await pagesApi.list({ 
-          include_archived: true,
-          limit: limit,
-          offset: offset,
-        })
-        
-        const batch = response.data
-        allPages.push(...batch)
-        
-        console.log(`[CategorizeTab] Fetched batch at offset ${offset}: ${batch.length} pages`)
-        
-        if (batch.length < limit) {
-          break
-        }
-        offset += limit
-      }
-      
-      // Filter to only archived pages
-      const archived = allPages.filter(p => p.archived)
-      console.log(`[CategorizeTab] Total archived pages: ${archived.length}`)
-      
-      return archived
-    },
-    enabled: viewMode === 'archived',
-    staleTime: 5 * 60 * 1000, // Cache for 5 minutes
-  })
-
-  // Use appropriate pages and loading state based on view mode
-  const pages = viewMode === 'uncategorized' ? uncategorizedPages : archivedPages
-  const pagesLoading = viewMode === 'uncategorized' ? uncategorizedLoading : archivedLoading
 
   const currentPage = pages?.[currentIndex]
 
@@ -148,17 +46,10 @@ export default function CategorizeTab() {
         const response = await pagesApi.getProfile(currentPage.id)
         return response.data
       } catch (error) {
-        // 404 is expected if profile hasn't been scraped yet
-        const axiosError = error as { response?: { status?: number } }
-        if (axiosError?.response?.status === 404) {
-          return null
-        }
-        console.error('Error fetching profile:', error)
         return null
       }
     },
     enabled: !!currentPage,
-    retry: false, // Don't retry 404s
   })
 
   // Fetch outreach tracking
@@ -170,17 +61,10 @@ export default function CategorizeTab() {
         const response = await outreachApi.get(currentPage.id)
         return response.data
       } catch (error) {
-        // 404 is expected if no outreach record exists yet
-        const axiosError = error as { response?: { status?: number } }
-        if (axiosError?.response?.status === 404) {
-          return null
-        }
-        console.error('Error fetching outreach:', error)
         return null
       }
     },
     enabled: !!currentPage,
-    retry: false, // Don't retry 404s
   })
 
   // Initialize form data when page changes
@@ -193,15 +77,8 @@ export default function CategorizeTab() {
         current_main_contact_method: currentPage.current_main_contact_method || '',
         ig_account_for_dm: currentPage.ig_account_for_dm || '',
         promo_price: currentPage.promo_price || '',
-        manual_promo_status: currentPage.manual_promo_status || 'unknown',
         website_url: currentPage.website_url || '',
         va_notes: currentPage.va_notes || '',
-        contact_email: currentPage.contact_email || '',
-        contact_phone: currentPage.contact_phone || '',
-        contact_whatsapp: currentPage.contact_whatsapp || '',
-        contact_telegram: currentPage.contact_telegram || '',
-        contact_other: currentPage.contact_other || '',
-        attempted_contact_methods: currentPage.attempted_contact_methods || [],
         outreach_status: outreach?.status || 'not_contacted',
         date_contacted: outreach?.date_contacted ? new Date(outreach.date_contacted).toISOString().split('T')[0] : '',
         follow_up_date: outreach?.follow_up_date ? new Date(outreach.follow_up_date).toISOString().split('T')[0] : '',
@@ -236,59 +113,6 @@ export default function CategorizeTab() {
     },
   })
 
-  // Trigger profile scrape mutation
-  const scrapeProfileMutation = useMutation({
-    mutationFn: async (pageId: string) => {
-      await scrapesApi.triggerProfileScrape([pageId])
-    },
-    onSuccess: () => {
-      alert('Profile scrape started! Refresh in 30-60 seconds to see results.')
-      queryClient.invalidateQueries({ queryKey: ['page-profile'] })
-    },
-  })
-
-  const handleScrapeProfile = () => {
-    if (currentPage) {
-      scrapeProfileMutation.mutate(currentPage.id)
-    }
-  }
-
-  // Archive page mutation
-  const archivePageMutation = useMutation({
-    mutationFn: async () => {
-      if (!currentPage) return
-      await pagesApi.update(currentPage.id, {
-        archived: true,
-        archived_by: vaName || 'Unknown VA',
-        archived_at: new Date().toISOString(),
-        archive_reason: archiveReason || 'Marked for deletion',
-      })
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['pages'] })
-      setShowArchiveDialog(false)
-      setArchiveReason('')
-      // List will refresh automatically
-    },
-  })
-
-  // Unarchive page mutation
-  const unarchivePageMutation = useMutation({
-    mutationFn: async () => {
-      if (!currentPage) return
-      await pagesApi.update(currentPage.id, {
-        archived: false,
-        archived_by: null,
-        archived_at: null,
-        archive_reason: null,
-      })
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['pages'] })
-      // List will refresh automatically
-    },
-  })
-
   const handleSaveAndNext = async () => {
     try {
       // Extract page fields
@@ -299,16 +123,9 @@ export default function CategorizeTab() {
         current_main_contact_method: formData.current_main_contact_method || null,
         ig_account_for_dm: formData.ig_account_for_dm || null,
         promo_price: formData.promo_price ? parseFloat(formData.promo_price) : null,
-        manual_promo_status: formData.manual_promo_status || 'unknown',
         website_url: formData.website_url || null,
         va_notes: formData.va_notes || null,
-        contact_email: formData.contact_email || null,
-        contact_phone: formData.contact_phone || null,
-        contact_whatsapp: formData.contact_whatsapp || null,
-        contact_telegram: formData.contact_telegram || null,
-        contact_other: formData.contact_other || null,
-        attempted_contact_methods: formData.attempted_contact_methods?.length > 0 ? formData.attempted_contact_methods : null,
-        last_reviewed_by: vaName || 'Unknown VA',
+        last_reviewed_by: 'VA', // TODO: Get from auth
         last_reviewed_at: new Date().toISOString(),
       }
 
@@ -320,27 +137,18 @@ export default function CategorizeTab() {
         notes: formData.outreach_notes || null,
       }
 
-      console.log('Saving page data:', pageData)
-      console.log('Saving outreach data:', outreachData)
-
       await Promise.all([
         updatePageMutation.mutateAsync(pageData),
         updateOutreachMutation.mutateAsync(outreachData),
       ])
 
-      // Refetch the list (categorized page will be removed)
-      // Stay at same index - the next uncategorized page will appear
-      queryClient.invalidateQueries({ queryKey: ['pages', 'uncategorized'] })
-      
-      // If we're at the last page, go back one
-      if (currentIndex >= (pages?.length || 0) - 1) {
-        setCurrentIndex(Math.max(0, currentIndex - 1))
+      // Move to next page
+      if (currentIndex < (pages?.length || 0) - 1) {
+        setCurrentIndex(currentIndex + 1)
       }
-    } catch (error: any) {
+    } catch (error) {
       console.error('Error saving:', error)
-      console.error('Error response:', error.response?.data)
-      const errorMsg = error.response?.data?.detail || error.message || 'Unknown error'
-      alert(`Failed to save: ${errorMsg}`)
+      alert('Failed to save. Please try again.')
     }
   }
 
@@ -375,47 +183,6 @@ export default function CategorizeTab() {
 
   return (
     <div className="space-y-6">
-      {/* VA Name Input */}
-      <div className="bg-blue-50 border-2 border-blue-200 rounded-lg shadow p-4">
-        <label className="block text-sm font-semibold text-gray-700 mb-2">
-          Your Name (VA)
-        </label>
-        <input
-          type="text"
-          value={vaName}
-          onChange={(e) => setVaName(e.target.value)}
-          placeholder="Enter your name to track your work"
-          className="w-full px-3 py-2 border rounded focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-        />
-        <p className="text-xs text-gray-500 mt-1">
-          This will be recorded as &quot;Last Reviewed By&quot; when you save
-        </p>
-      </div>
-
-      {/* View Mode Toggle */}
-      <div className="flex gap-2">
-        <button
-          onClick={() => setViewMode('uncategorized')}
-          className={`px-6 py-3 rounded-lg font-medium transition-colors ${
-            viewMode === 'uncategorized' 
-              ? 'bg-blue-600 text-white shadow-lg' 
-              : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
-          }`}
-        >
-          📋 Uncategorized ({uncategorizedPages?.length || 0})
-        </button>
-        <button
-          onClick={() => setViewMode('archived')}
-          className={`px-6 py-3 rounded-lg font-medium transition-colors ${
-            viewMode === 'archived' 
-              ? 'bg-red-600 text-white shadow-lg' 
-              : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
-          }`}
-        >
-          🗑️ Archived ({archivedPages?.length || 0})
-        </button>
-      </div>
-
       {/* Progress Bar */}
       <div className="bg-white rounded-lg shadow p-4">
         <div className="flex justify-between items-center mb-2">
@@ -446,15 +213,11 @@ export default function CategorizeTab() {
           />
         </div>
         {/* Priority Tier Badge */}
-        {currentPage && (() => {
-          const adjustedTier = getAdjustedTier(currentPage.ig_username, currentPage.full_name, currentPage.client_count, currentPage.follower_count)
-          return (
-            <div className={`px-4 py-2 rounded-lg border-2 font-semibold text-sm ${TIER_COLORS[adjustedTier as keyof typeof TIER_COLORS]}`}>
-              {TIER_LABELS[adjustedTier as keyof typeof TIER_LABELS]}
-              <span className="ml-3 font-bold text-base">({currentPage.client_count} {currentPage.client_count === 1 ? 'client' : 'clients'} following)</span>
-            </div>
-          )
-        })()}
+        {currentPage && (
+          <div className={`px-4 py-2 rounded-lg border-2 font-semibold text-sm ${TIER_COLORS[getPriorityTier(currentPage.ig_username, currentPage.full_name, currentPage.client_count) as keyof typeof TIER_COLORS]}`}>
+            {TIER_LABELS[getPriorityTier(currentPage.ig_username, currentPage.full_name, currentPage.client_count) as keyof typeof TIER_LABELS]}
+          </div>
+        )}
       </div>
 
       {/* Page Display */}
@@ -482,45 +245,12 @@ export default function CategorizeTab() {
               {/* Info */}
               <div className="flex-1">
                 <h2 className="text-2xl font-bold">@{currentPage.ig_username}</h2>
-                <p className="text-gray-600 mb-2">{currentPage.full_name || 'N/A'}</p>
-                
-                {/* Stats Row */}
-                <div className="mt-3 flex flex-wrap gap-3 text-sm">
-                  {/* Follower Count - More Prominent */}
-                  <span className="font-semibold text-purple-700 bg-purple-50 px-3 py-1.5 rounded-lg border border-purple-200">
-                    👥 {currentPage.follower_count ? currentPage.follower_count.toLocaleString() : '0'} followers
-                  </span>
-                  
-                  {/* Client Count */}
-                  <span className="font-semibold text-blue-700 bg-blue-50 px-3 py-1.5 rounded-lg border border-blue-200">
-                    🎯 {currentPage.client_count} client{currentPage.client_count !== 1 ? 's' : ''}
-                  </span>
-                  
-                  {/* Verified Badge */}
-                  {currentPage.is_verified && (
-                    <span className="font-semibold text-blue-600 bg-blue-50 px-3 py-1.5 rounded-lg border border-blue-200">
-                      ✓ Verified
-                    </span>
-                  )}
-                  
-                  {/* Private Account Badge */}
-                  {currentPage.is_private && (
-                    <span className="font-semibold text-gray-600 bg-gray-100 px-3 py-1.5 rounded-lg border border-gray-300">
-                      🔒 Private
-                    </span>
-                  )}
+                <p className="text-gray-600">{currentPage.full_name || 'N/A'}</p>
+                <div className="mt-2 flex gap-4 text-sm text-gray-600">
+                  <span>{currentPage.follower_count.toLocaleString()} followers</span>
+                  <span>{currentPage.client_count} client{currentPage.client_count !== 1 ? 's' : ''}</span>
+                  {currentPage.is_verified && <span className="text-blue-600">✓ Verified</span>}
                 </div>
-
-                {/* Scrape Status */}
-                {currentPage.last_scrape_status === 'failed' && (
-                  <div className="mt-3 px-3 py-2 bg-red-50 border border-red-200 rounded-md">
-                    <div className="flex items-start gap-2">
-                      <span className="text-red-600 font-semibold text-sm">⚠️ Last scrape failed:</span>
-                      <span className="text-red-700 text-sm">{currentPage.last_scrape_error || 'Unknown error'}</span>
-                    </div>
-                  </div>
-                )}
-
                 <a
                   href={`https://instagram.com/${currentPage.ig_username}`}
                   target="_blank"
@@ -539,47 +269,6 @@ export default function CategorizeTab() {
                 <p className="text-sm whitespace-pre-wrap">{profile.bio}</p>
               </div>
             )}
-
-            {/* Auto-Detected Promo Signals */}
-            {profile?.promo_indicators && profile.promo_indicators.length > 0 && (
-              <div className="mt-4 p-3 bg-green-50 border border-green-200 rounded-lg">
-                <h4 className="text-sm font-semibold text-green-800 mb-2">
-                  🎯 Auto-Detected Promo Signals in Bio:
-                </h4>
-                <div className="flex flex-wrap gap-2">
-                  {profile.promo_indicators.map((indicator, i) => (
-                    <span key={i} className="px-2 py-1 text-xs bg-green-100 text-green-700 rounded">
-                      {indicator}
-                    </span>
-                  ))}
-                </div>
-                <p className="text-xs text-green-700 mt-2">
-                  Auto Status: <strong>{profile.promo_status}</strong>
-                </p>
-              </div>
-            )}
-
-            {/* Scrape Profile Button */}
-            {!profileLoading && (
-              <div className="mt-4 pt-4 border-t">
-                <button
-                  onClick={handleScrapeProfile}
-                  disabled={scrapeProfileMutation.isPending}
-                  className={`w-full px-4 py-2 disabled:opacity-50 disabled:cursor-not-allowed text-white rounded flex items-center justify-center gap-2 ${
-                    profile 
-                      ? 'bg-gray-600 hover:bg-gray-700'
-                      : 'bg-purple-600 hover:bg-purple-700'
-                  }`}
-                >
-                  <RefreshCw size={16} className={scrapeProfileMutation.isPending ? 'animate-spin' : ''} />
-                  {scrapeProfileMutation.isPending 
-                    ? 'Starting scrape...' 
-                    : profile 
-                      ? 'Re-scrape Profile' 
-                      : 'Scrape Profile Data'}
-                </button>
-              </div>
-            )}
           </div>
 
           {/* Recent Posts */}
@@ -588,17 +277,17 @@ export default function CategorizeTab() {
             {profileLoading ? (
               <div className="text-center py-8 text-gray-500">Loading posts...</div>
             ) : profile?.posts && profile.posts.length > 0 ? (
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '8px', maxWidth: '500px' }}>
+              <div className="grid grid-cols-3 gap-2">
                 {profile.posts.slice(0, 9).map((post: any, idx: number) => (
-                  <div key={idx} style={{ width: '100%', paddingBottom: '100%', position: 'relative' }} className="bg-gray-100 rounded overflow-hidden">
+                  <div key={idx} className="aspect-square bg-gray-100 rounded overflow-hidden">
                     {post.images && post.images[0] ? (
                       <img
                         src={`data:${post.images[0].mime_type};base64,${post.images[0].image_base64}`}
                         alt="Post"
-                        style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', objectFit: 'cover' }}
+                        className="w-full h-full object-cover"
                       />
                     ) : (
-                      <div style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%' }} className="flex items-center justify-center text-gray-400 text-xs">
+                      <div className="w-full h-full flex items-center justify-center text-gray-400 text-xs">
                         No image
                       </div>
                     )}
@@ -638,23 +327,6 @@ export default function CategorizeTab() {
               </select>
             </div>
 
-            {/* Manual Promo Status */}
-            <div className="mb-4">
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                Manual Promo Status
-              </label>
-              <select
-                value={formData.manual_promo_status || 'unknown'}
-                onChange={(e) => setFormData({ ...formData, manual_promo_status: e.target.value })}
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-              >
-                <option value="unknown">❓ Unknown</option>
-                <option value="warm">🔥 Warm (Open to Promos)</option>
-                <option value="not_open">❌ Not Open</option>
-                <option value="accepted">✅ Accepted (Communication Established)</option>
-              </select>
-            </div>
-
             {/* Contact Methods */}
             <div className="mb-4">
               <label className="block text-sm font-medium text-gray-700 mb-2">
@@ -677,117 +349,6 @@ export default function CategorizeTab() {
                           setFormData({
                             ...formData,
                             known_contact_methods: methods.filter((m: string) => m !== method),
-                          })
-                        }
-                      }}
-                      className="mr-2"
-                    />
-                    <span className="text-sm">{method}</span>
-                  </label>
-                ))}
-              </div>
-
-              {/* Conditional Contact Detail Fields */}
-              <div className="mt-4 space-y-3">
-                {formData.known_contact_methods?.includes('Email') && (
-                  <div>
-                    <label className="block text-xs font-medium text-gray-600 mb-1">
-                      Email Address
-                    </label>
-                    <input
-                      type="email"
-                      value={formData.contact_email || ''}
-                      onChange={(e) => setFormData({ ...formData, contact_email: e.target.value })}
-                      placeholder="example@email.com"
-                      className="w-full px-3 py-2 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    />
-                  </div>
-                )}
-
-                {formData.known_contact_methods?.includes('Phone') && (
-                  <div>
-                    <label className="block text-xs font-medium text-gray-600 mb-1">
-                      Phone Number
-                    </label>
-                    <input
-                      type="tel"
-                      value={formData.contact_phone || ''}
-                      onChange={(e) => setFormData({ ...formData, contact_phone: e.target.value })}
-                      placeholder="+1234567890"
-                      className="w-full px-3 py-2 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    />
-                  </div>
-                )}
-
-                {formData.known_contact_methods?.includes('WhatsApp') && (
-                  <div>
-                    <label className="block text-xs font-medium text-gray-600 mb-1">
-                      WhatsApp Number
-                    </label>
-                    <input
-                      type="tel"
-                      value={formData.contact_whatsapp || ''}
-                      onChange={(e) => setFormData({ ...formData, contact_whatsapp: e.target.value })}
-                      placeholder="+1234567890"
-                      className="w-full px-3 py-2 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    />
-                  </div>
-                )}
-
-                {formData.known_contact_methods?.includes('Telegram') && (
-                  <div>
-                    <label className="block text-xs font-medium text-gray-600 mb-1">
-                      Telegram Handle
-                    </label>
-                    <input
-                      type="text"
-                      value={formData.contact_telegram || ''}
-                      onChange={(e) => setFormData({ ...formData, contact_telegram: e.target.value })}
-                      placeholder="@username"
-                      className="w-full px-3 py-2 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    />
-                  </div>
-                )}
-
-                {formData.known_contact_methods?.includes('Other') && (
-                  <div>
-                    <label className="block text-xs font-medium text-gray-600 mb-1">
-                      Other Contact Info
-                    </label>
-                    <input
-                      type="text"
-                      value={formData.contact_other || ''}
-                      onChange={(e) => setFormData({ ...formData, contact_other: e.target.value })}
-                      placeholder="Enter contact details"
-                      className="w-full px-3 py-2 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    />
-                  </div>
-                )}
-              </div>
-            </div>
-
-            {/* Attempted Contact Methods */}
-            <div className="mb-4">
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                Attempted Contact Methods (Already Tried)
-              </label>
-              <div className="space-y-2">
-                {CONTACT_METHODS.map((method) => (
-                  <label key={method} className="flex items-center">
-                    <input
-                      type="checkbox"
-                      checked={formData.attempted_contact_methods?.includes(method) || false}
-                      onChange={(e) => {
-                        const methods = formData.attempted_contact_methods || []
-                        if (e.target.checked) {
-                          setFormData({
-                            ...formData,
-                            attempted_contact_methods: [...methods, method],
-                          })
-                        } else {
-                          setFormData({
-                            ...formData,
-                            attempted_contact_methods: methods.filter((m: string) => m !== method),
                           })
                         }
                       }}
@@ -982,85 +543,9 @@ export default function CategorizeTab() {
                 ? 'Save & Next'
                 : 'Save & Finish'}
             </button>
-
-            {/* Archive/Restore Button */}
-            {viewMode === 'uncategorized' ? (
-              <button
-                onClick={() => setShowArchiveDialog(true)}
-                disabled={archivePageMutation.isPending}
-                className="w-full px-6 py-3 bg-red-600 hover:bg-red-700 disabled:opacity-50 disabled:cursor-not-allowed text-white font-semibold rounded-lg mt-3"
-              >
-                🗑️ {archivePageMutation.isPending ? 'Archiving...' : 'Mark for Deletion'}
-              </button>
-            ) : (
-              <button
-                onClick={() => unarchivePageMutation.mutate()}
-                disabled={unarchivePageMutation.isPending}
-                className="w-full px-6 py-3 bg-green-600 hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed text-white font-semibold rounded-lg mt-3"
-              >
-                ↩️ {unarchivePageMutation.isPending ? 'Restoring...' : 'Restore Page'}
-              </button>
-            )}
-
-            {/* Archive Info Display (in archived view) */}
-            {viewMode === 'archived' && currentPage?.archived && (
-              <div className="mt-4 p-4 bg-red-50 border-2 border-red-200 rounded-lg">
-                <h4 className="font-semibold text-red-900 mb-2">Archive Information</h4>
-                <p className="text-sm text-red-800 mb-1">
-                  <strong>Archived:</strong> {currentPage.archived_at ? new Date(currentPage.archived_at).toLocaleDateString() : 'N/A'}
-                </p>
-                {currentPage.archived_by && (
-                  <p className="text-sm text-red-800 mb-1">
-                    <strong>By:</strong> {currentPage.archived_by}
-                  </p>
-                )}
-                {currentPage.archive_reason && (
-                  <p className="text-sm text-red-800">
-                    <strong>Reason:</strong> {currentPage.archive_reason}
-                  </p>
-                )}
-              </div>
-            )}
           </div>
         </div>
       </div>
-
-      {/* Archive Confirmation Dialog */}
-      {showArchiveDialog && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-white rounded-lg p-6 max-w-md w-full mx-4">
-            <h3 className="text-lg font-bold mb-4">Archive This Page?</h3>
-            <p className="text-sm text-gray-600 mb-4">
-              This will move the page to the Archived tab. It won't be deleted and can be restored later if needed.
-            </p>
-            <textarea
-              placeholder="Reason for archiving (optional)"
-              value={archiveReason}
-              onChange={(e) => setArchiveReason(e.target.value)}
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg mb-4 focus:outline-none focus:ring-2 focus:ring-red-500"
-              rows={3}
-            />
-            <div className="flex gap-2">
-              <button
-                onClick={() => archivePageMutation.mutate()}
-                disabled={archivePageMutation.isPending}
-                className="flex-1 px-4 py-2 bg-red-600 hover:bg-red-700 disabled:opacity-50 text-white rounded-lg font-medium"
-              >
-                {archivePageMutation.isPending ? 'Archiving...' : 'Archive'}
-              </button>
-              <button
-                onClick={() => {
-                  setShowArchiveDialog(false)
-                  setArchiveReason('')
-                }}
-                className="flex-1 px-4 py-2 bg-gray-200 hover:bg-gray-300 text-gray-700 rounded-lg font-medium"
-              >
-                Cancel
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
     </div>
   )
 }

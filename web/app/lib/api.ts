@@ -28,8 +28,6 @@ export interface Page {
   is_private: boolean
   client_count: number
   last_scraped?: string
-  last_scrape_status?: 'success' | 'failed'
-  last_scrape_error?: string
   // VA Categorization fields
   category?: string
   known_contact_methods?: string[]
@@ -41,28 +39,6 @@ export interface Page {
   va_notes?: string
   last_reviewed_by?: string
   last_reviewed_at?: string
-  // Contact detail fields
-  contact_email?: string
-  contact_phone?: string
-  contact_whatsapp?: string
-  contact_telegram?: string
-  contact_other?: string
-  attempted_contact_methods?: string[]
-  // Promo tracking fields
-  manual_promo_status?: 'unknown' | 'warm' | 'not_open' | 'accepted'
-  website_has_promo_page?: boolean
-  website_contact_email?: string
-  website_has_contact_form?: boolean
-  website_last_scraped_at?: string
-  // Archival fields
-  archived?: boolean
-  archived_at?: string
-  archived_by?: string
-  archive_reason?: string
-  // Outreach tracking fields (embedded from outreach_tracking table)
-  outreach_status?: string
-  outreach_date_contacted?: string
-  outreach_follow_up_date?: string
 }
 
 export interface ScrapeRun {
@@ -83,8 +59,8 @@ export interface PageProfile {
   profile_pic_mime_type?: string
   bio?: string
   posts?: any[]
-  promo_status?: 'warm' | 'unknown' | 'not_open'  // Auto-detected from bio
-  promo_indicators?: string[]  // Auto-detected keywords from bio
+  promo_status?: string
+  promo_indicators?: string[]
   contact_email?: string
   scraped_at: string
 }
@@ -101,18 +77,11 @@ export interface OutreachTracking {
 }
 
 // Client API
-export interface BulkClientResult {
-  success: Client[]
-  failed: Array<{ name: string; ig_username: string; reason: string }>
-}
-
 export const clientsApi = {
   list: () => api.get<Client[]>('/clients'),
   get: (id: string) => api.get<Client>(`/clients/${id}`),
   create: (data: { name: string; ig_username: string }) => 
     api.post<Client>('/clients', data),
-  createBulk: (clients: Array<{ name: string; ig_username: string }>) =>
-    api.post<BulkClientResult>('/clients/bulk', { clients }),
   delete: (id: string) => api.delete(`/clients/${id}`),
 }
 
@@ -122,23 +91,12 @@ export const pagesApi = {
     min_client_count?: number
     categorized?: boolean
     category?: string
-    search?: string
-    include_archived?: boolean
-    sort_by?: string
-    order?: 'asc' | 'desc'
     limit?: number
     offset?: number 
   }) => api.get<Page[]>('/pages', { params }),
   get: (id: string) => api.get<Page>(`/pages/${id}`),
   getProfile: (id: string) => api.get<PageProfile>(`/pages/${id}/profile`),
   update: (id: string, data: any) => api.put(`/pages/${id}`, data),
-  getCount: (params?: {
-    min_client_count?: number
-    categorized?: boolean
-    category?: string
-    search?: string
-  }) => api.get<{ count: number }>('/pages/count', { params }),
-  getCategoryCounts: () => api.get<Record<string, number>>('/pages/category-counts'),
 }
 
 // Scrapes API

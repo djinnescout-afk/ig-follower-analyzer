@@ -1,5 +1,5 @@
 from datetime import datetime
-from typing import Optional, List
+from typing import Optional
 
 from pydantic import BaseModel, Field, ConfigDict
 
@@ -28,13 +28,4 @@ class ClientResponse(ClientBase):
     updated_at: datetime
 
     model_config = ConfigDict(from_attributes=True)
-
-
-class ClientBulkCreate(BaseModel):
-    clients: List[ClientCreate] = Field(..., description="List of clients to create")
-
-
-class ClientBulkResult(BaseModel):
-    success: List[ClientResponse] = Field(default_factory=list, description="Successfully created clients")
-    failed: List[dict] = Field(default_factory=list, description="Failed clients with error reasons")
 

@@ -10,6 +10,10 @@ Background workers that process scraping jobs from the queue.
 - Calculates coverage vs expected count
 - Stores results in `pages` and `client_following` tables
 - Updates scrape run status and results
+- **Smart Follower Count Scraping**: Automatically scrapes follower counts ONLY for high-value pages:
+  - Hotlist pages (match keywords + uncategorized)
+  - Pages with 2+ clients
+  - This saves Apify credits by skipping low-value pages
 
 ### 2. Profile Scraper Worker (`profile_scrape_worker.py`)
 - Polls `scrape_runs` table for `profile_scrape` jobs
@@ -17,24 +21,6 @@ Background workers that process scraping jobs from the queue.
 - Downloads and base64-encodes images
 - Detects promo openness and contact emails
 - Stores results in `page_profiles` table
-
-### 3. Backfill Follower Counts Script (`backfill_follower_counts.py`)
-**One-time script to fix existing data**
-- Finds all pages with `follower_count = 0` or `NULL`
-- Queues profile scrape jobs for them
-- Ensures all pages have accurate follower data
-
-**How to run:**
-```bash
-# Set environment variables
-export SUPABASE_URL="..."
-export SUPABASE_SERVICE_KEY="..."
-
-# Run the backfill script
-python backfill_follower_counts.py
-```
-
-This script should be run once to fix historical data. After that, the client following worker automatically queues profile scrapes for new pages.
 
 ## Environment Variables
 

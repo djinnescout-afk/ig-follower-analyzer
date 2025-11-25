@@ -4,86 +4,10 @@ import logging
 from fastapi import APIRouter, HTTPException, Query, status
 
 from ..db import fetch_rows, get_supabase_client, insert_row, upsert_row
-from ..schemas.page import PageCreate, PageResponse, PageUpdate, PageProfile
+from ..schemas.page import PageCreate, PageResponse, PageUpdate
 
 router = APIRouter(prefix="/pages", tags=["pages"])
 logger = logging.getLogger(__name__)
-
-
-@router.get("/category-counts")
-def get_category_counts():
-    """Get count of pages per category using efficient SQL aggregation."""
-    try:
-        client = get_supabase_client()
-        
-        # Try to use the efficient SQL function first
-        try:
-            response = client.rpc("get_category_counts").execute()
-            
-            if response.data:
-                # Convert list of {category, count} to dict
-                counts = {item["category"]: item["count"] for item in response.data}
-                return counts
-        except Exception as rpc_error:
-            logger.warning(f"RPC function not found, falling back to manual count: {rpc_error}")
-        
-        # Fallback: Manual counting (slower but works without SQL function)
-        # Get all unique categories
-        categories_response = client.table("pages").select("category").not_.is_("category", "null").execute()
-        
-        if not categories_response.data:
-            return {}
-        
-        # Count pages for each unique category
-        all_categories = set(row["category"] for row in categories_response.data if row.get("category"))
-        counts = {}
-        
-        for category in all_categories:
-            count_response = client.table("pages").select("id", count="exact").eq("category", category).execute()
-            counts[category] = count_response.count or 0
-        
-        logger.info(f"Fallback category counts: {counts}")
-        return counts
-        
-    except Exception as e:
-        logger.error(f"Error in get_category_counts: {e}", exc_info=True)
-        # Last resort: return empty dict
-        return {}
-
-
-@router.get("/count")
-def get_pages_count(
-    min_client_count: Optional[int] = Query(None),
-    categorized: Optional[bool] = Query(None),
-    category: Optional[str] = Query(None),
-    search: Optional[str] = Query(None),
-):
-    """Get total count of pages matching filters (for pagination)."""
-    try:
-        client = get_supabase_client()
-        query = client.table("pages").select("id", count="exact")
-        
-        if min_client_count is not None:
-            query = query.gte("client_count", min_client_count)
-        
-        if categorized is not None:
-            if categorized:
-                query = query.filter("category", "not.is", "null")
-            else:
-                query = query.filter("category", "is", "null")
-        
-        if category is not None:
-            query = query.eq("category", category)
-        
-        if search is not None:
-            search_pattern = f"%{search}%"
-            query = query.or_(f"ig_username.ilike.{search_pattern},full_name.ilike.{search_pattern}")
-        
-        response = query.execute()
-        return {"count": response.count}
-    except Exception as e:
-        logger.error(f"Error in get_pages_count: {e}", exc_info=True)
-        raise HTTPException(status_code=500, detail=str(e))
 
 
 @router.get("/", response_model=list[PageResponse])
@@ -91,66 +15,76 @@ def list_pages(
     min_client_count: Optional[int] = Query(None, description="Filter by minimum client count"),
     categorized: Optional[bool] = Query(None, description="Filter by categorization status (true=categorized, false=uncategorized)"),
     category: Optional[str] = Query(None, description="Filter by specific category"),
-    search: Optional[str] = Query(None, description="Search by username or full name (case-insensitive partial match)"),
-    include_archived: Optional[bool] = Query(False, description="Include archived pages (default: false)"),
-    sort_by: Optional[str] = Query("client_count", description="Field to sort by (client_count, follower_count, last_reviewed_at)"),
-    order: Optional[str] = Query("desc", description="Sort order (asc or desc)"),
-    limit: Optional[int] = Query(100, description="Max pages to return (default 100)"),
+    limit: Optional[int] = Query(10000, description="Max pages to return"),
     offset: Optional[int] = Query(0, description="Pagination offset"),
 ):
-    """List pages with optional filtering, sorting, and pagination.
+    """List pages with optional filtering.
     
-    Efficient server-side pagination with database-level sorting.
+    Uses the client_count column from the database (maintained by triggers).
     """
-    try:
-        logger.info(f"[PAGES API] Request: min_client_count={min_client_count}, categorized={categorized}, category={category}, sort_by={sort_by}, order={order}, limit={limit}, offset={offset}")
+    client = get_supabase_client()
+    
+    # Build query with filter applied at database level
+    query = client.table("pages").select("*")
+    
+    # Apply min_client_count filter
+    if min_client_count is not None:
+        query = query.gte("client_count", min_client_count)
+    
+    # Apply categorization filter
+    if categorized is not None:
+        if categorized:
+            query = query.is_not("category", "null")
+        else:
+            query = query.is_("category", "null")
+    
+    # Apply specific category filter
+    if category is not None:
+        query = query.eq("category", category)
+    
+    # Sort by client_count descending
+    query = query.order("client_count", desc=True)
+    
+    # Fetch pages in batches (Supabase limit is 1000 per query)
+    all_pages = []
+    batch_size = 1000
+    start = 0
+    iteration = 0
+    
+    print(f"[PAGES API] Starting batch fetch of pages (min_client_count={min_client_count})...")
+    
+    while True:
+        iteration += 1
+        end = start + batch_size - 1
+        print(f"[PAGES API] Batch {iteration}: Fetching range({start}, {end})")
         
-        client = get_supabase_client()
-        
-        # Build query with filter applied at database level
-        query = client.table("pages").select("*")
-        
-        # Apply min_client_count filter
-        if min_client_count is not None:
-            query = query.gte("client_count", min_client_count)
-        
-        # Apply categorization filter
-        if categorized is not None:
-            if categorized:
-                query = query.filter("category", "not.is", "null")
-            else:
-                query = query.filter("category", "is", "null")
-        
-        # Apply specific category filter
-        if category is not None:
-            query = query.eq("category", category)
-        
-        # Apply search filter (username or full_name)
-        if search is not None:
-            # Use PostgREST's ilike for case-insensitive pattern matching
-            search_pattern = f"%{search}%"
-            # Search in both username and full_name using OR logic
-            query = query.or_(f"ig_username.ilike.{search_pattern},full_name.ilike.{search_pattern}")
-        
-        # Apply archived filter (exclude archived by default)
-        if not include_archived:
-            query = query.eq("archived", False)
-        
-        # Apply sorting
-        desc_order = order.lower() == "desc"
-        query = query.order(sort_by, desc=desc_order)
-        
-        # Apply pagination using range (Supabase uses 0-based indexing)
-        end = offset + limit - 1
-        response = query.range(offset, end).execute()
-        
-        result = response.data if response.data else []
-        logger.info(f"[PAGES API] Returning {len(result)} pages (offset={offset}, limit={limit})")
-        
-        return result
-    except Exception as e:
-        logger.error(f"Error in list_pages: {e}", exc_info=True)
-        raise HTTPException(status_code=500, detail=f"Internal server error: {str(e)}")
+        try:
+            batch = query.range(start, end).execute()
+            batch_count = len(batch.data) if batch.data else 0
+            print(f"[PAGES API] Batch {iteration}: Retrieved {batch_count} items")
+            
+            if not batch.data:
+                print(f"[PAGES API] Batch {iteration}: No data, breaking")
+                break
+                
+            all_pages.extend(batch.data)
+            print(f"[PAGES API] Total pages so far: {len(all_pages)}")
+            
+            if len(batch.data) < batch_size:
+                print(f"[PAGES API] Batch {iteration}: Last batch (partial), breaking")
+                break  # Last batch
+                
+            start += batch_size
+        except Exception as e:
+            print(f"[PAGES API] Batch {iteration}: ERROR - {str(e)}")
+            break
+    
+    print(f"[PAGES API] Finished fetching. Total pages: {len(all_pages)}")
+    
+    # Apply pagination
+    result = all_pages[offset:offset+limit]
+    print(f"[PAGES API] Returning slice [offset={offset}:offset+limit={offset+limit}]: {len(result)} pages")
+    return result
 
 
 @router.post("/", response_model=PageResponse, status_code=status.HTTP_201_CREATED)
@@ -164,7 +98,7 @@ def create_page(payload: PageCreate):
     return row
 
 
-@router.get("/{page_id}/profile", response_model=PageProfile)
+@router.get("/{page_id}/profile")
 def get_page_profile(page_id: str):
     """Get the most recent profile data for a page."""
     client = get_supabase_client()
@@ -193,15 +127,7 @@ def update_page(page_id: str, payload: PageUpdate):
         if not row:
             raise HTTPException(status_code=404, detail="Page not found")
         return row[0]
-    
-    # Use direct update instead of upsert to avoid null constraint issues
-    from ..db import get_supabase_client, serialize_for_db
-    client = get_supabase_client()
-    serialized_data = serialize_for_db(data)
-    response = client.table("pages").update(serialized_data).eq("id", page_id).execute()
-    
-    if not response.data:
-        raise HTTPException(status_code=404, detail="Page not found")
-    
-    return response.data[0]
+    data["id"] = page_id
+    row = upsert_row("pages", data, on_conflict="id")
+    return row
 

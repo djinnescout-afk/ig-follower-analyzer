@@ -99,19 +99,8 @@ class ProfileScrapeWorker:
                     self.scrape_profile(page["id"], page["ig_username"])
                     success_count += 1
                 except Exception as e:
-                    error_msg = str(e)
-                    logger.error(f"Failed to scrape @{page['ig_username']}: {error_msg}")
+                    logger.error(f"Failed to scrape @{page['ig_username']}: {e}")
                     failed_usernames.append(page["ig_username"])
-                    
-                    # Update page with failure status
-                    self.supabase.table("pages")\
-                        .update({
-                            "last_scraped": datetime.utcnow().isoformat(),
-                            "last_scrape_status": "failed",
-                            "last_scrape_error": error_msg[:500]  # Limit error message length
-                        })\
-                        .eq("id", page["id"])\
-                        .execute()
             
             # Update scrape run as completed
             self.supabase.table("scrape_runs")\
@@ -175,27 +164,13 @@ class ProfileScrapeWorker:
             processed_posts = []
             for post in posts[:12]:  # Limit to 12 posts
                 post_images = []
-                
-                # Handle displayUrl - can be a string or a list
-                display_url = post.get("displayUrl")
-                if display_url:
-                    # If it's a string, treat as single image
-                    if isinstance(display_url, str):
-                        img_base64, img_mime = self.download_and_encode_image(display_url)
-                        if img_base64:
-                            post_images.append({
-                                "image_base64": img_base64,
-                                "mime_type": img_mime
-                            })
-                    # If it's a list, process multiple images
-                    elif isinstance(display_url, list):
-                        for img_url in display_url[:3]:  # Max 3 images per post
-                            img_base64, img_mime = self.download_and_encode_image(img_url)
-                            if img_base64:
-                                post_images.append({
-                                    "image_base64": img_base64,
-                                    "mime_type": img_mime
-                                })
+                for img_url in post.get("displayUrl", [])[:3]:  # Max 3 images per post
+                    img_base64, img_mime = self.download_and_encode_image(img_url)
+                    if img_base64:
+                        post_images.append({
+                            "image_base64": img_base64,
+                            "mime_type": img_mime
+                        })
                 
                 processed_posts.append({
                     "caption": post.get("caption", ""),
@@ -230,8 +205,6 @@ class ProfileScrapeWorker:
             self.supabase.table("pages")\
                 .update({
                     "last_scraped": datetime.utcnow().isoformat(),
-                    "last_scrape_status": "success",
-                    "last_scrape_error": None,
                     "follower_count": profile_data.get("followersCount", 0),
                     "is_verified": profile_data.get("verified", False),
                     "is_private": profile_data.get("private", False)

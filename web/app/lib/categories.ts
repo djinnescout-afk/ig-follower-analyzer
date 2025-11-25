@@ -4,12 +4,10 @@ export const CATEGORIES = [
   'White Theme Page',
   'Text only Theme Page',
   'Black BG White Text Theme Page',
-  'Black Personal Brand Entrepreneur',
-  'Other Personal Brand Entrepreneur',
+  'Personal Brand Entrepreneur',
   'Black Celebrity',
   'White Celebrity',
   'Ethnic (All Others) Celebrity',
-  'Black Other',
   'Other',
 ] as const
 
@@ -86,13 +84,4 @@ export const OUTREACH_STATUSES = [
 ] as const
 
 export type OutreachStatus = typeof OUTREACH_STATUSES[number]['value']
-
-export const PROMO_STATUSES = [
-  { value: 'unknown', label: '❓ Unknown', color: 'text-gray-600' },
-  { value: 'warm', label: '🔥 Warm', color: 'text-orange-600' },
-  { value: 'not_open', label: '❌ Not Open', color: 'text-red-600' },
-  { value: 'accepted', label: '✅ Accepted', color: 'text-green-600' },
-] as const
-
-export type PromoStatus = typeof PROMO_STATUSES[number]['value']
 

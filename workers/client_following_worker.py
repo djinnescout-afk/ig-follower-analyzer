@@ -241,18 +241,10 @@ class ClientFollowingWorker:
         if pages_to_create:
             logger.info(f"Creating {len(pages_to_create)} new pages...")
             insert_batch_size = 100
-            created_pages = []
-            
             for i in range(0, len(pages_to_create), insert_batch_size):
                 batch = pages_to_create[i:i + insert_batch_size]
-                result = self.supabase.table("pages").insert(batch).execute()
-                created_pages.extend(result.data or [])
+                self.supabase.table("pages").insert(batch).execute()
                 logger.info(f"Created pages batch {i//insert_batch_size + 1}: {len(batch)} pages")
-            
-            # Scrape follower counts for newly created pages (lightweight)
-            if created_pages:
-                logger.info(f"Scraping follower counts for {len(created_pages)} new pages...")
-                self._scrape_follower_counts(created_pages)
         
         # Now insert client_following relationships
         # First delete existing relationships for this client
@@ -298,28 +290,79 @@ class ClientFollowingWorker:
                 logger.info(f"Inserted relationship batch {i//relationship_batch_size + 1}: {len(relationships)} relationships (total: {total_inserted})")
         
         logger.info(f"✅ Stored following data for client {client_id}: {total_inserted} relationships created")
+        
+        # After storing relationships, scrape follower counts for high-value pages
+        if pages_to_create:
+            logger.info("Checking which new pages need follower counts (hotlist or 2+ clients)...")
+            self._scrape_targeted_follower_counts([p["ig_username"] for p in pages_to_create])
     
-    def _scrape_follower_counts(self, pages: list[dict]):
-        """Scrape follower counts for new pages (lightweight, only follower count)"""
+    def _scrape_targeted_follower_counts(self, new_usernames: list[str]):
+        """
+        Scrape follower counts ONLY for high-value pages:
+        - Hotlist pages (match keywords + not categorized)
+        - Pages with 2+ clients
+        
+        This saves Apify credits by not scraping low-value pages.
+        """
         try:
-            # Only scrape pages that don't have follower counts or have 0
-            pages_needing_scrape = [
-                p for p in pages 
-                if not p.get("follower_count") or p.get("follower_count") == 0
+            # Hotlist keywords
+            HOTLIST_KEYWORDS = [
+                'hustl', 'afri', 'afro', 'black', 'melanin', 
+                'blvck', 'culture', 'kulture', 'brown', 'noir', 'ebony'
             ]
             
-            if not pages_needing_scrape:
-                logger.info("All new pages already have follower counts from Apify following scraper")
+            # Fetch the newly created pages with their current client counts
+            pages = self.supabase.table("pages")\
+                .select("id, ig_username, full_name, follower_count, client_count, category")\
+                .in_("ig_username", new_usernames)\
+                .execute()
+            
+            pages_data = pages.data or []
+            
+            # Filter to high-value pages needing follower counts
+            targeted_pages = []
+            
+            for page in pages_data:
+                # Skip if already has follower count
+                if page.get("follower_count") and page.get("follower_count") > 0:
+                    continue
+                
+                username = page.get("ig_username", "").lower()
+                full_name = (page.get("full_name") or "").lower()
+                client_count = page.get("client_count", 0)
+                category = page.get("category")
+                
+                # Check if hotlist (matches keywords AND not categorized)
+                is_hotlist = (
+                    any(keyword in f"{username} {full_name}" for keyword in HOTLIST_KEYWORDS)
+                    and not category
+                )
+                
+                # Check if 2+ clients
+                has_multiple_clients = client_count >= 2
+                
+                # Only scrape if hotlist OR 2+ clients
+                if is_hotlist or has_multiple_clients:
+                    targeted_pages.append(page)
+                    reason = []
+                    if is_hotlist:
+                        reason.append("hotlist")
+                    if has_multiple_clients:
+                        reason.append(f"{client_count} clients")
+                    logger.info(f"  📌 {username}: {', '.join(reason)}")
+            
+            if not targeted_pages:
+                logger.info(f"✅ No high-value pages need follower counts (checked {len(pages_data)} new pages)")
                 return
             
-            logger.info(f"Scraping follower counts for {len(pages_needing_scrape)} pages...")
+            logger.info(f"🎯 Found {len(targeted_pages)} high-value pages to scrape (out of {len(pages_data)} new pages)")
             
             # Batch scrape (max 100 at a time for Apify)
             batch_size = 100
             total_updated = 0
             
-            for i in range(0, len(pages_needing_scrape), batch_size):
-                batch = pages_needing_scrape[i:i + batch_size]
+            for i in range(0, len(targeted_pages), batch_size):
+                batch = targeted_pages[i:i + batch_size]
                 usernames = [p["ig_username"] for p in batch]
                 
                 try:
@@ -355,6 +398,7 @@ class ClientFollowingWorker:
                             .execute()
                         
                         total_updated += 1
+                        logger.info(f"    ✓ @{username}: {follower_count:,} followers")
                     
                     logger.info(f"Updated batch {i//batch_size + 1}: {total_updated} pages total")
                     
@@ -362,7 +406,7 @@ class ClientFollowingWorker:
                     logger.warning(f"Failed to scrape batch {i//batch_size + 1}: {e}")
                     continue
             
-            logger.info(f"✅ Successfully scraped follower counts for {total_updated}/{len(pages_needing_scrape)} pages")
+            logger.info(f"✅ Successfully scraped follower counts for {total_updated}/{len(targeted_pages)} high-value pages")
             
         except Exception as e:
             logger.warning(f"Failed to scrape follower counts: {e}")
