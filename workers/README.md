@@ -18,6 +18,24 @@ Background workers that process scraping jobs from the queue.
 - Detects promo openness and contact emails
 - Stores results in `page_profiles` table
 
+### 3. Backfill Follower Counts Script (`backfill_follower_counts.py`)
+**One-time script to fix existing data**
+- Finds all pages with `follower_count = 0` or `NULL`
+- Queues profile scrape jobs for them
+- Ensures all pages have accurate follower data
+
+**How to run:**
+```bash
+# Set environment variables
+export SUPABASE_URL="..."
+export SUPABASE_SERVICE_KEY="..."
+
+# Run the backfill script
+python backfill_follower_counts.py
+```
+
+This script should be run once to fix historical data. After that, the client following worker automatically queues profile scrapes for new pages.
+
 ## Environment Variables
 
 Required for all workers:

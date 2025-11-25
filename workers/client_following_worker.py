@@ -241,10 +241,18 @@ class ClientFollowingWorker:
         if pages_to_create:
             logger.info(f"Creating {len(pages_to_create)} new pages...")
             insert_batch_size = 100
+            created_pages = []
+            
             for i in range(0, len(pages_to_create), insert_batch_size):
                 batch = pages_to_create[i:i + insert_batch_size]
-                self.supabase.table("pages").insert(batch).execute()
+                result = self.supabase.table("pages").insert(batch).execute()
+                created_pages.extend(result.data or [])
                 logger.info(f"Created pages batch {i//insert_batch_size + 1}: {len(batch)} pages")
+            
+            # Queue profile scrapes for newly created pages to get accurate follower counts
+            if created_pages:
+                logger.info(f"Queueing profile scrapes for {len(created_pages)} new pages...")
+                self._queue_profile_scrapes(created_pages)
         
         # Now insert client_following relationships
         # First delete existing relationships for this client
@@ -290,6 +298,44 @@ class ClientFollowingWorker:
                 logger.info(f"Inserted relationship batch {i//relationship_batch_size + 1}: {len(relationships)} relationships (total: {total_inserted})")
         
         logger.info(f"✅ Stored following data for client {client_id}: {total_inserted} relationships created")
+    
+    def _queue_profile_scrapes(self, pages: list[dict]):
+        """Queue profile scrape jobs for pages that need follower counts"""
+        try:
+            # Only queue scrapes for pages that don't have follower counts or have 0
+            pages_needing_scrape = [
+                p for p in pages 
+                if not p.get("follower_count") or p.get("follower_count") == 0
+            ]
+            
+            if not pages_needing_scrape:
+                logger.info("All new pages already have follower counts, skipping profile scrapes")
+                return
+            
+            logger.info(f"Queueing profile scrapes for {len(pages_needing_scrape)} pages without follower counts...")
+            
+            # Create scrape_jobs for profile scraping (batched)
+            batch_size = 100
+            for i in range(0, len(pages_needing_scrape), batch_size):
+                batch = pages_needing_scrape[i:i + batch_size]
+                scrape_jobs = [
+                    {
+                        "page_id": page["id"],
+                        "scrape_type": "profile",
+                        "status": "pending",
+                        "priority": 5  # Lower priority than client following scrapes
+                    }
+                    for page in batch
+                ]
+                
+                self.supabase.table("scrape_jobs").insert(scrape_jobs).execute()
+                logger.info(f"Queued profile scrape batch {i//batch_size + 1}: {len(scrape_jobs)} jobs")
+            
+            logger.info(f"✅ Successfully queued {len(pages_needing_scrape)} profile scrape jobs")
+            
+        except Exception as e:
+            logger.warning(f"Failed to queue profile scrapes: {e}")
+            # Don't fail the whole import if scrape queueing fails
 
 
 def main():
