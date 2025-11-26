@@ -87,9 +87,8 @@ export type OutreachStatus = typeof OUTREACH_STATUSES[number]['value']
 
 export const PROMO_STATUSES = [
   { value: 'unknown', label: 'Unknown' },
-  { value: 'cold', label: 'Cold' },
   { value: 'warm', label: 'Warm' },
-  { value: 'hot', label: 'Hot' },
+  { value: 'not_open', label: 'Not Open' },
   { value: 'accepted', label: 'Accepted' },
 ] as const
 

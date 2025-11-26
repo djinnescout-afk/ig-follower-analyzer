@@ -25,6 +25,7 @@ class PageUpdate(BaseModel):
     last_scraped: Optional[datetime] = None
     # VA Categorization fields
     category: Optional[str] = None
+    manual_promo_status: Optional[str] = None
     known_contact_methods: Optional[List[str]] = None
     successful_contact_method: Optional[str] = None
     current_main_contact_method: Optional[str] = None
@@ -44,6 +45,7 @@ class PageResponse(PageBase):
     updated_at: datetime
     # VA Categorization fields
     category: Optional[str] = None
+    manual_promo_status: Optional[str] = None
     known_contact_methods: Optional[List[str]] = None
     successful_contact_method: Optional[str] = None
     current_main_contact_method: Optional[str] = None
