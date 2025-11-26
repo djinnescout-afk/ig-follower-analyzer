@@ -210,8 +210,9 @@ class ClientFollowingWorker:
         """Store following results in database"""
         logger.info(f"Storing {len(following_list)} following records...")
         
-        # First, ensure all pages exist (batch create)
+        # First, ensure all pages exist (batch create) AND update follower counts for existing pages
         pages_to_create = []
+        pages_to_update = {}  # Map username to account data
         batch_check_size = 50  # Smaller batches for .in() query
         
         for i in range(0, len(following_list), batch_check_size):
@@ -226,16 +227,21 @@ class ClientFollowingWorker:
             
             existing_usernames = {p["ig_username"] for p in (existing.data or [])}
             
-            # Add non-existing pages to create list
+            # Add non-existing pages to create list, existing pages to update list
             for account in batch:
+                page_data = {
+                    "ig_username": account["username"],
+                    "full_name": account.get("full_name"),
+                    "follower_count": account.get("follower_count", 0),
+                    "is_verified": account.get("is_verified", False),
+                    "is_private": account.get("is_private", False),
+                }
+                
                 if account["username"] not in existing_usernames:
-                    pages_to_create.append({
-                        "ig_username": account["username"],
-                        "full_name": account.get("full_name"),
-                        "follower_count": account.get("follower_count", 0),
-                        "is_verified": account.get("is_verified", False),
-                        "is_private": account.get("is_private", False),
-                    })
+                    pages_to_create.append(page_data)
+                else:
+                    # Update existing pages with fresh data (especially follower_count)
+                    pages_to_update[account["username"]] = account
         
         # Batch insert new pages
         if pages_to_create:
@@ -245,6 +251,32 @@ class ClientFollowingWorker:
                 batch = pages_to_create[i:i + insert_batch_size]
                 self.supabase.table("pages").insert(batch).execute()
                 logger.info(f"Created pages batch {i//insert_batch_size + 1}: {len(batch)} pages")
+        
+        # Update existing pages with fresh follower counts
+        if pages_to_update:
+            logger.info(f"Updating follower counts for {len(pages_to_update)} existing pages...")
+            update_count = 0
+            for username, account in pages_to_update.items():
+                # Only update if we have a valid follower count
+                if account.get("follower_count", 0) > 0:
+                    self.supabase.table("pages")\
+                        .update({
+                            "follower_count": account["follower_count"],
+                            "full_name": account.get("full_name"),
+                            "is_verified": account.get("is_verified", False),
+                            "is_private": account.get("is_private", False),
+                        })\
+                        .eq("ig_username", username)\
+                        .execute()
+                    update_count += 1
+                    
+                    # Log updates for high-value pages
+                    if update_count <= 10:  # Show first 10
+                        logger.info(f"  Updated @{username}: {account['follower_count']:,} followers")
+                    
+            if update_count > 10:
+                logger.info(f"  ... and {update_count - 10} more pages")
+            logger.info(f"✅ Updated {update_count} existing pages with fresh follower counts")
         
         # Now insert client_following relationships
         # First delete existing relationships for this client
@@ -290,13 +322,8 @@ class ClientFollowingWorker:
                 logger.info(f"Inserted relationship batch {i//relationship_batch_size + 1}: {len(relationships)} relationships (total: {total_inserted})")
         
         logger.info(f"✅ Stored following data for client {client_id}: {total_inserted} relationships created")
-        
-        # After storing relationships, scrape follower counts for high-value pages
-        if pages_to_create:
-            logger.info("Checking which new pages need follower counts (hotlist or 2+ clients)...")
-            self._scrape_targeted_follower_counts([p["ig_username"] for p in pages_to_create])
     
-    def _scrape_targeted_follower_counts(self, new_usernames: list[str]):
+    def _scrape_targeted_follower_counts_OLD(self, new_usernames: list[str]):
         """
         Scrape follower counts ONLY for high-value pages:
         - Hotlist pages (match keywords + not categorized)
