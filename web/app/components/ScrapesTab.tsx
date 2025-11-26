@@ -1,11 +1,23 @@
 'use client'
 
+import { useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
-import { scrapesApi } from '../lib/api'
+import { scrapesApi, clientsApi, pagesApi } from '../lib/api'
 import { format } from 'date-fns'
-import { CheckCircle, XCircle, Clock, Loader } from 'lucide-react'
+import { CheckCircle, XCircle, Clock, Loader, ChevronDown, ChevronUp } from 'lucide-react'
 
 export default function ScrapesTab() {
+  const [expandedJobs, setExpandedJobs] = useState<Set<string>>(new Set())
+
+  const toggleExpanded = (jobId: string) => {
+    const newExpanded = new Set(expandedJobs)
+    if (newExpanded.has(jobId)) {
+      newExpanded.delete(jobId)
+    } else {
+      newExpanded.add(jobId)
+    }
+    setExpandedJobs(newExpanded)
+  }
   // Fetch scrape runs
   const { data: scrapes, isLoading } = useQuery({
     queryKey: ['scrapes'],
@@ -14,6 +26,25 @@ export default function ScrapesTab() {
       return response.data
     },
     refetchInterval: 5000, // Refresh every 5 seconds to show real-time status
+  })
+
+  // Fetch all clients for lookups
+  const { data: clients } = useQuery({
+    queryKey: ['clients'],
+    queryFn: async () => {
+      const response = await clientsApi.list()
+      return response.data
+    },
+  })
+
+  // Fetch all pages for lookups (only when needed)
+  const { data: pages } = useQuery({
+    queryKey: ['pages', 'all'],
+    queryFn: async () => {
+      const response = await pagesApi.list({ limit: 10000 })
+      return response.data
+    },
+    enabled: !!scrapes?.some(s => s.page_ids && s.page_ids.length > 0),
   })
 
   if (isLoading) {
@@ -91,14 +122,53 @@ export default function ScrapesTab() {
                         Completed: {format(new Date(scrape.completed_at), 'MMM d, yyyy HH:mm:ss')}
                       </p>
                     )}
+                    
+                    {/* Show which clients/pages were attempted */}
+                    {scrape.client_id && clients && (
+                      <p>
+                        <span className="font-medium">Client:</span>{' '}
+                        {clients.find(c => c.id === scrape.client_id)?.name || scrape.client_id}
+                        {' (@'}
+                        {clients.find(c => c.id === scrape.client_id)?.ig_username || 'unknown'}
+                        {')'}
+                      </p>
+                    )}
+                    {scrape.page_ids && scrape.page_ids.length > 0 && (
+                      <div>
+                        <p><span className="font-medium">Pages attempted:</span> {scrape.page_ids.length}</p>
+                        {pages && expandedJobs.has(scrape.id) && (
+                          <ul className="mt-1 ml-4 text-xs space-y-0.5">
+                            {scrape.page_ids.slice(0, 10).map((pageId: string) => {
+                              const page = pages.find(p => p.id === pageId)
+                              return (
+                                <li key={pageId}>
+                                  • @{page?.ig_username || pageId}
+                                </li>
+                              )
+                            })}
+                            {scrape.page_ids.length > 10 && (
+                              <li className="text-gray-500">... and {scrape.page_ids.length - 10} more</li>
+                            )}
+                          </ul>
+                        )}
+                      </div>
+                    )}
                   </div>
 
                   {/* Results */}
                   {scrape.result && (
                     <div className="mt-3 p-3 bg-gray-50 rounded-md">
-                      <h4 className="text-sm font-medium text-gray-900 mb-2">Results</h4>
+                      <button
+                        onClick={() => toggleExpanded(scrape.id)}
+                        className="flex items-center gap-2 text-sm font-medium text-gray-900 w-full hover:text-blue-600"
+                      >
+                        {expandedJobs.has(scrape.id) ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
+                        <span>Results & Details</span>
+                      </button>
 
-                      {scrape.status === 'completed' && scrape.scrape_type === 'client_following' && (
+                      {expandedJobs.has(scrape.id) && (
+                        <div className="mt-3 space-y-3">
+                          {scrape.status === 'completed' && scrape.scrape_type === 'client_following' && (
                         <div className="text-sm text-gray-700 space-y-1">
                           <p>
                             Accounts scraped: {scrape.result.accounts_scraped?.toLocaleString() || 0}
@@ -153,8 +223,27 @@ export default function ScrapesTab() {
                         </div>
                       )}
 
-                      {scrape.status === 'failed' && scrape.result.error && (
-                        <p className="text-sm text-red-600">{scrape.result.error}</p>
+                          {scrape.status === 'failed' && scrape.result.error && (
+                            <div className="bg-red-50 border border-red-200 rounded p-3">
+                              <h5 className="text-sm font-medium text-red-900 mb-2">Error Details:</h5>
+                              <pre className="text-xs text-red-700 whitespace-pre-wrap font-mono overflow-x-auto">
+                                {typeof scrape.result.error === 'string' 
+                                  ? scrape.result.error 
+                                  : JSON.stringify(scrape.result.error, null, 2)}
+                              </pre>
+                            </div>
+                          )}
+
+                          {/* Show full result object for debugging */}
+                          <details className="mt-2">
+                            <summary className="text-xs text-gray-500 cursor-pointer hover:text-gray-700">
+                              Raw result data (for debugging)
+                            </summary>
+                            <pre className="mt-2 text-xs bg-gray-100 p-2 rounded overflow-x-auto">
+                              {JSON.stringify(scrape.result, null, 2)}
+                            </pre>
+                          </details>
+                        </div>
                       )}
                     </div>
                   )}
