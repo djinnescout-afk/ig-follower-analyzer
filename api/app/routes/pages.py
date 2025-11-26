@@ -206,17 +206,26 @@ def update_page(page_id: str, payload: PageUpdate):
 @router.get("/{page_id}/followers")
 def get_page_followers(page_id: str):
     """Get list of clients that follow this page."""
-    client = get_supabase_client()
-    
-    # Get client_following records for this page
-    cf_response = client.table("client_following").select("client_id").eq("page_id", page_id).execute()
-    
-    if not cf_response.data:
-        return []
-    
-    # Get client details
-    client_ids = [cf["client_id"] for cf in cf_response.data]
-    clients_response = client.table("clients").select("id, ig_username, full_name").in_("id", client_ids).execute()
-    
-    return clients_response.data
+    try:
+        client = get_supabase_client()
+        
+        # Get client_following records for this page
+        cf_response = client.table("client_following").select("client_id").eq("page_id", page_id).execute()
+        
+        if not cf_response.data:
+            return []
+        
+        # Get client details for each client_id
+        clients = []
+        for cf in cf_response.data:
+            client_id = cf["client_id"]
+            client_response = client.table("clients").select("id, ig_username, full_name").eq("id", client_id).execute()
+            
+            if client_response.data:
+                clients.append(client_response.data[0])
+        
+        return clients
+    except Exception as e:
+        logging.error(f"Error fetching followers for page {page_id}: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
 
