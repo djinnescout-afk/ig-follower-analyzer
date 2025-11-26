@@ -11,18 +11,37 @@ export default function CategorizeTab() {
   const [formData, setFormData] = useState<any>({})
   const queryClient = useQueryClient()
 
-  // Fetch uncategorized pages
+  // Fetch uncategorized pages with batch loading
   const { data: pages, isLoading: pagesLoading } = useQuery({
     queryKey: ['pages', 'uncategorized'],
     queryFn: async () => {
-      const response = await pagesApi.list({ 
-        categorized: false, 
-        min_client_count: 1,
-        limit: 10000 
-      })
+      console.log('[CategorizeTab] Fetching all uncategorized pages...')
+      const allPages: Page[] = []
+      let offset = 0
+      const limit = 1000
+
+      while (true) {
+        const response = await pagesApi.list({
+          categorized: false,
+          min_client_count: 1,
+          limit: limit,
+          offset: offset,
+        })
+        
+        const batch = response.data || []
+        console.log(`[CategorizeTab] Fetched batch at offset ${offset}: ${batch.length} pages`)
+        allPages.push(...batch)
+
+        if (batch.length < limit) {
+          break
+        }
+        offset += limit
+      }
+
+      console.log(`[CategorizeTab] Total uncategorized pages: ${allPages.length}`)
       
       // Sort by priority tier, then by client_count, then by follower_count
-      const sorted = response.data.sort((a, b) => {
+      const sorted = allPages.sort((a, b) => {
         const tierA = getPriorityTier(a.ig_username, a.full_name, a.client_count)
         const tierB = getPriorityTier(b.ig_username, b.full_name, b.client_count)
         

@@ -9,35 +9,67 @@ import { Users, DollarSign, Phone, Calendar } from 'lucide-react'
 export default function ViewCategorizedTab() {
   const [selectedCategory, setSelectedCategory] = useState<string>('')
 
-  // Fetch categorized pages for selected category
+  // Fetch categorized pages for selected category with batch loading
   const { data: pages, isLoading } = useQuery({
     queryKey: ['pages', 'categorized', selectedCategory],
     queryFn: async () => {
-      const response = await pagesApi.list({
-        categorized: true,
-        category: selectedCategory || undefined,
-        limit: 10000,
-      })
-      return response.data
+      const allPages: Page[] = []
+      let offset = 0
+      const limit = 1000
+
+      while (true) {
+        const response = await pagesApi.list({
+          categorized: true,
+          category: selectedCategory || undefined,
+          limit: limit,
+          offset: offset,
+        })
+        
+        const batch = response.data || []
+        allPages.push(...batch)
+
+        if (batch.length < limit) {
+          break
+        }
+        offset += limit
+      }
+
+      return allPages
     },
     enabled: !!selectedCategory,
   })
 
-  // Count pages by category
+  // Count pages by category with batch loading
   const { data: categoryCounts } = useQuery({
     queryKey: ['pages', 'category-counts'],
     queryFn: async () => {
       const counts: Record<string, number> = {}
       
-      // Fetch pages for each category
+      // Fetch pages for each category with batch loading
       await Promise.all(
         CATEGORIES.map(async (category) => {
-          const response = await pagesApi.list({
-            categorized: true,
-            category,
-            limit: 10000,
-          })
-          counts[category] = response.data.length
+          let total = 0
+          let offset = 0
+          const limit = 1000
+
+          while (true) {
+            const response = await pagesApi.list({
+              categorized: true,
+              category,
+              limit: limit,
+              offset: offset,
+            })
+            
+            const batch = response.data || []
+            total += batch.length
+
+            if (batch.length < limit) {
+              break
+            }
+            offset += limit
+          }
+
+          counts[category] = total
         })
       )
       
