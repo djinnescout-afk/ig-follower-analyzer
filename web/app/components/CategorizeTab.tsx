@@ -58,8 +58,8 @@ export default function CategorizeTab() {
       
       // Sort by priority tier, then by client_count, then by follower_count
       const sorted = allPages.sort((a, b) => {
-        const tierA = getPriorityTier(a.ig_username, a.full_name, a.client_count)
-        const tierB = getPriorityTier(b.ig_username, b.full_name, b.client_count)
+        const tierA = getPriorityTier(a.ig_username, a.full_name, a.client_count, a.follower_count)
+        const tierB = getPriorityTier(b.ig_username, b.full_name, b.client_count, b.follower_count)
         
         if (tierA !== tierB) return tierA - tierB // Lower tier number = higher priority
         if (a.client_count !== b.client_count) return b.client_count - a.client_count
@@ -285,8 +285,8 @@ export default function CategorizeTab() {
         </div>
         {/* Priority Tier Badge */}
         {currentPage && (
-          <div className={`px-4 py-2 rounded-lg border-2 font-semibold text-sm ${TIER_COLORS[getPriorityTier(currentPage.ig_username, currentPage.full_name, currentPage.client_count) as keyof typeof TIER_COLORS]}`}>
-            {TIER_LABELS[getPriorityTier(currentPage.ig_username, currentPage.full_name, currentPage.client_count) as keyof typeof TIER_LABELS]}
+          <div className={`px-4 py-2 rounded-lg border-2 font-semibold text-sm ${TIER_COLORS[getPriorityTier(currentPage.ig_username, currentPage.full_name, currentPage.client_count, currentPage.follower_count) as keyof typeof TIER_COLORS]}`}>
+            {TIER_LABELS[getPriorityTier(currentPage.ig_username, currentPage.full_name, currentPage.client_count, currentPage.follower_count) as keyof typeof TIER_LABELS]}
           </div>
         )}
       </div>

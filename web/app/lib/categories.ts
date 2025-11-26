@@ -39,15 +39,19 @@ export function matchesHotlist(username: string, fullName: string | null | undef
 }
 
 // Calculate priority tier for a page
-// Tier 1 (Highest): Hotlist + 2+ clients
-// Tier 2: Hotlist + 1 client
+// Tier 1 (Highest): Hotlist + 2+ clients + 10k+ followers
+// Tier 2: Hotlist + 1 client + 10k+ followers
 // Tier 3: Non-hotlist + 2+ clients
-// Tier 4 (Lowest): Non-hotlist + 1 client
-export function getPriorityTier(username: string, fullName: string | null | undefined, clientCount: number): number {
+// Tier 4 (Lowest): Non-hotlist + 1 client OR hotlist with <10k followers
+export function getPriorityTier(username: string, fullName: string | null | undefined, clientCount: number, followerCount?: number): number {
   const isHotlist = matchesHotlist(username, fullName)
+  const hasEnoughFollowers = !followerCount || followerCount >= 10000 // Null/0 treated as "unknown" - allow through
   
-  if (isHotlist && clientCount >= 2) return 1
-  if (isHotlist && clientCount === 1) return 2
+  // Hotlist pages with <10k followers get demoted to Tier 4
+  if (isHotlist && followerCount && followerCount < 10000) return 4
+  
+  if (isHotlist && hasEnoughFollowers && clientCount >= 2) return 1
+  if (isHotlist && hasEnoughFollowers && clientCount === 1) return 2
   if (!isHotlist && clientCount >= 2) return 3
   return 4
 }
