@@ -28,6 +28,7 @@ export interface Page {
   is_private: boolean
   client_count: number
   last_scraped?: string
+  last_scrape_status?: string
   // VA Categorization fields
   category?: string
   manual_promo_status?: string
