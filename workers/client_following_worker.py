@@ -328,10 +328,6 @@ class ClientFollowingWorker:
             targeted_pages = []
             
             for page in pages_data:
-                # Skip if already has follower count
-                if page.get("follower_count") and page.get("follower_count") > 0:
-                    continue
-                
                 username = page.get("ig_username", "").lower()
                 full_name = (page.get("full_name") or "").lower()
                 client_count = page.get("client_count", 0)
@@ -346,7 +342,7 @@ class ClientFollowingWorker:
                 # Check if 2+ clients
                 has_multiple_clients = client_count >= 2
                 
-                # Only scrape if hotlist OR 2+ clients
+                # Scrape if hotlist OR 2+ clients (always update high-value pages)
                 if is_hotlist or has_multiple_clients:
                     targeted_pages.append(page)
                     reason = []
