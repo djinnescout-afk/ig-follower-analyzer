@@ -361,7 +361,7 @@ export default function ViewCategorizedTab() {
                         <div className="text-sm text-gray-900">
                           @{page.ig_username}
                           {page.is_verified && (
-                            <span className="ml-1 text-blue-600">Γ£ô</span>
+                            <span className="ml-1 text-blue-600">✓</span>
                           )}
                         </div>
                       </td>
@@ -456,7 +456,7 @@ export default function ViewCategorizedTab() {
                           )}
                           {page.website_url && (
                             <div>
-                              ≡ƒîÉ <a
+                              🌐 <a
                                 href={page.website_url}
                                 target="_blank"
                                 rel="noopener noreferrer"
@@ -469,7 +469,7 @@ export default function ViewCategorizedTab() {
                           {!page.contact_email && !page.contact_phone && !page.contact_whatsapp && 
                            !page.contact_telegram && !page.contact_other && !page.ig_account_for_dm && 
                            !page.website_url && (
-                            <span className="text-gray-400">ΓÇö</span>
+                            <span className="text-gray-400">—</span>
                           )}
                         </div>
                       </td>
@@ -567,7 +567,7 @@ export default function ViewCategorizedTab() {
                           )}
                           {page.last_scrape_status === 'failed' && (
                             <div className="mt-1 text-red-600 font-medium">
-                              ΓÜá∩╕Å Scrape failed
+                              ⚠️ Scrape failed
                             </div>
                           )}
                         </div>
@@ -598,7 +598,7 @@ export default function ViewCategorizedTab() {
                             rel="noopener noreferrer"
                             className="text-blue-600 hover:text-blue-800 text-sm font-medium whitespace-nowrap"
                           >
-                            View IG ΓåÆ
+                            View IG →
                           </a>
                           <button
                             onClick={() => {
@@ -607,7 +607,7 @@ export default function ViewCategorizedTab() {
                             }}
                             className="px-3 py-1 bg-blue-600 text-white text-sm rounded hover:bg-blue-700 whitespace-nowrap"
                           >
-                            πò╝ Edit
+                            📝 Edit
                           </button>
                         </div>
                       </td>
