@@ -8,19 +8,43 @@ import { Users, DollarSign, Phone, Calendar } from 'lucide-react'
 
 export default function ViewCategorizedTab() {
   const [selectedCategory, setSelectedCategory] = useState<string>('')
+  const [currentPage, setCurrentPage] = useState(0)
+  const [goToPageInput, setGoToPageInput] = useState('')
+  const [allPages, setAllPages] = useState<Page[]>([])
+  
+  const pageSize = 100 // Display 100 pages at a time
 
-  // Fetch categorized pages for selected category
-  const { data: pages, isLoading } = useQuery({
+  // Fetch ALL categorized pages for selected category
+  const { data: fetchedPages, isLoading } = useQuery({
     queryKey: ['pages', 'categorized', selectedCategory],
     queryFn: async () => {
+      if (!selectedCategory) return []
+      
       try {
-        const response = await pagesApi.list({
-          categorized: true,
-          category: selectedCategory || undefined,
-          limit: 1000, // Start with smaller limit to avoid backend timeout
-          offset: 0,
-        })
-        return response.data || []
+        const allFetched: Page[] = []
+        let offset = 0
+        const batchSize = 1000 // Fetch in batches of 1000
+
+        while (true) {
+          const response = await pagesApi.list({
+            categorized: true,
+            category: selectedCategory,
+            limit: batchSize,
+            offset: offset,
+          })
+          
+          const batch = response.data || []
+          allFetched.push(...batch)
+          
+          // Stop if we got less than batchSize (no more pages)
+          if (batch.length < batchSize) {
+            break
+          }
+          
+          offset += batchSize
+        }
+        
+        return allFetched
       } catch (error) {
         console.error('Error fetching categorized pages:', error)
         return []
@@ -28,6 +52,16 @@ export default function ViewCategorizedTab() {
     },
     enabled: !!selectedCategory,
   })
+  
+  // Update allPages when fetch completes
+  if (fetchedPages && fetchedPages !== allPages) {
+    setAllPages(fetchedPages)
+    setCurrentPage(0) // Reset to first page when category changes
+  }
+  
+  // Paginate the allPages array client-side
+  const totalPages = Math.ceil((allPages?.length || 0) / pageSize)
+  const paginatedPages = allPages?.slice(currentPage * pageSize, (currentPage + 1) * pageSize) || []
 
   // Don't pre-count categories - too expensive for backend
   // Show counts after user selects a category
@@ -62,16 +96,76 @@ export default function ViewCategorizedTab() {
       {selectedCategory && (
         <div className="bg-white rounded-lg shadow">
           <div className="p-6 border-b">
-            <h2 className="text-lg font-semibold">
-              {selectedCategory} ({pages?.length || 0} pages)
-            </h2>
+            <div className="flex items-center justify-between">
+              <h2 className="text-lg font-semibold">
+                {selectedCategory} ({allPages?.length || 0} total pages)
+              </h2>
+              
+              {/* Pagination Controls */}
+              {!isLoading && allPages && allPages.length > pageSize && (
+                <div className="flex items-center gap-4">
+                  <button
+                    onClick={() => setCurrentPage(Math.max(0, currentPage - 1))}
+                    disabled={currentPage === 0}
+                    className="px-3 py-1 text-sm bg-gray-200 text-gray-700 rounded hover:bg-gray-300 disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    ← Prev
+                  </button>
+                  
+                  <div className="flex items-center gap-2">
+                    <span className="text-sm text-gray-600">Page</span>
+                    <input
+                      type="number"
+                      min="1"
+                      max={totalPages}
+                      value={goToPageInput || currentPage + 1}
+                      onChange={(e) => setGoToPageInput(e.target.value)}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter' && goToPageInput) {
+                          const pageNum = parseInt(goToPageInput) - 1
+                          if (pageNum >= 0 && pageNum < totalPages) {
+                            setCurrentPage(pageNum)
+                            setGoToPageInput('')
+                          }
+                        }
+                      }}
+                      onBlur={() => {
+                        if (goToPageInput) {
+                          const pageNum = parseInt(goToPageInput) - 1
+                          if (pageNum >= 0 && pageNum < totalPages) {
+                            setCurrentPage(pageNum)
+                          }
+                          setGoToPageInput('')
+                        }
+                      }}
+                      className="w-16 px-2 py-1 border border-gray-300 rounded text-center text-sm"
+                    />
+                    <span className="text-sm text-gray-600">of {totalPages}</span>
+                  </div>
+                  
+                  <button
+                    onClick={() => setCurrentPage(Math.min(totalPages - 1, currentPage + 1))}
+                    disabled={currentPage >= totalPages - 1}
+                    className="px-3 py-1 text-sm bg-gray-200 text-gray-700 rounded hover:bg-gray-300 disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    Next →
+                  </button>
+                </div>
+              )}
+            </div>
+            
+            {!isLoading && allPages && allPages.length > 0 && (
+              <div className="mt-2 text-sm text-gray-500">
+                Showing {currentPage * pageSize + 1}-{Math.min((currentPage + 1) * pageSize, allPages.length)} of {allPages.length}
+              </div>
+            )}
           </div>
 
           {isLoading ? (
             <div className="text-center py-12 text-gray-500">Loading pages...</div>
-          ) : pages && pages.length > 0 ? (
+          ) : paginatedPages && paginatedPages.length > 0 ? (
             <div className="divide-y">
-              {pages.map((page) => (
+              {paginatedPages.map((page) => (
                 <div key={page.id} className="p-6 hover:bg-gray-50 transition-colors">
                   <div className="flex gap-6">
                     {/* Left: Basic Info */}

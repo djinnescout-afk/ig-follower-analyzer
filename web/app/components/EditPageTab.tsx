@@ -15,7 +15,10 @@ export default function EditPageTab() {
   const [showArchived, setShowArchived] = useState(false)
   const [browseMode, setBrowseMode] = useState(false) // Toggle between search and browse
   const [browsePage, setBrowsePage] = useState(0) // Pagination for browse mode
+  const [goToPageInput, setGoToPageInput] = useState('') // For direct page navigation
   const queryClient = useQueryClient()
+  
+  const pageSize = 1000 // Pages per browse page
 
   // Debounce search query for better performance
   const debouncedSearch = useDebounce(searchQuery, 300)
@@ -41,7 +44,6 @@ export default function EditPageTab() {
     queryFn: async () => {
       // Browse Mode: Load pages in paginated batches
       if (browseMode) {
-        const pageSize = 200 // Smaller batches to avoid CORS issues
         const response = await pagesApi.list({
           include_archived: showArchived,
           sort_by: 'client_count',
@@ -324,7 +326,7 @@ export default function EditPageTab() {
 
         {/* Browse Mode Pagination */}
         {browseMode && (
-          <div className="flex items-center justify-between mb-3">
+          <div className="flex items-center gap-4 mb-3">
             <button
               onClick={() => setBrowsePage(Math.max(0, browsePage - 1))}
               disabled={browsePage === 0}
@@ -332,12 +334,48 @@ export default function EditPageTab() {
             >
               ← Previous
             </button>
+            
+            <div className="flex items-center gap-2">
+              <span className="text-sm text-gray-600">Page</span>
+              <input
+                type="number"
+                min="1"
+                value={goToPageInput || browsePage + 1}
+                onChange={(e) => setGoToPageInput(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter' && goToPageInput) {
+                    const pageNum = parseInt(goToPageInput) - 1
+                    if (pageNum >= 0) {
+                      setBrowsePage(pageNum)
+                      setGoToPageInput('')
+                    }
+                  }
+                }}
+                onBlur={() => {
+                  if (goToPageInput) {
+                    const pageNum = parseInt(goToPageInput) - 1
+                    if (pageNum >= 0) {
+                      setBrowsePage(pageNum)
+                    }
+                    setGoToPageInput('')
+                  }
+                }}
+                className="w-16 px-2 py-1 border border-gray-300 rounded text-center text-sm"
+              />
+            </div>
+            
             <span className="text-sm text-gray-600 font-medium">
-              Pages {browsePage * 200 + 1}-{browsePage * 200 + (pages?.length || 0)} (Showing {pages?.length || 0} pages)
+              Pages {(browsePage * pageSize + 1).toLocaleString()}-{(browsePage * pageSize + (pages?.length || 0)).toLocaleString()}
+              {pages && pages.length === pageSize && ' (more available)'}
+              {' • Total: '}
+              {pages && pages.length < pageSize 
+                ? (browsePage * pageSize + pages.length).toLocaleString() 
+                : `${((browsePage + 1) * pageSize).toLocaleString()}+`}
             </span>
+            
             <button
               onClick={() => setBrowsePage(browsePage + 1)}
-              disabled={!pages || pages.length < 200}
+              disabled={!pages || pages.length < pageSize}
               className="px-4 py-2 bg-gray-200 text-gray-700 rounded hover:bg-gray-300 disabled:opacity-50 disabled:cursor-not-allowed"
             >
               Next →
