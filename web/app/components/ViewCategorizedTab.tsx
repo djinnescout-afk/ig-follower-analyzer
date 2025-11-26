@@ -144,14 +144,25 @@ export default function ViewCategorizedTab() {
                           </h3>
                           <p className="text-gray-600">{page.full_name || 'N/A'}</p>
                         </div>
-                        <a
-                          href={`https://instagram.com/${page.ig_username}`}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="text-blue-600 hover:underline text-sm"
-                        >
-                          View on IG →
-                        </a>
+                        <div className="flex gap-3">
+                          <a
+                            href={`https://instagram.com/${page.ig_username}`}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="text-blue-600 hover:underline text-sm whitespace-nowrap"
+                          >
+                            View on IG →
+                          </a>
+                          <button
+                            onClick={() => {
+                              navigator.clipboard.writeText(page.ig_username)
+                              alert(`Username "@${page.ig_username}" copied! Go to Edit Page tab to search and edit.`)
+                            }}
+                            className="px-3 py-1 bg-blue-600 text-white text-sm rounded hover:bg-blue-700 whitespace-nowrap"
+                          >
+                            📝 Edit
+                          </button>
+                        </div>
                       </div>
 
                       <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
