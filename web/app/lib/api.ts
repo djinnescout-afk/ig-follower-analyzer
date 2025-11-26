@@ -47,6 +47,10 @@ export interface Page {
   contact_whatsapp?: string
   contact_telegram?: string
   contact_other?: string
+  // Outreach tracking fields
+  outreach_status?: string
+  outreach_date_contacted?: string
+  outreach_follow_up_date?: string
 }
 
 export interface ScrapeRun {
