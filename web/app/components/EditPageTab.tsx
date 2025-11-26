@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { pagesApi, outreachApi, scrapesApi, Page } from '../lib/api'
-import { CATEGORIES, CONTACT_METHODS, OUTREACH_STATUSES, PROMO_STATUSES } from '../lib/categories'
+import { CATEGORIES, CONTACT_METHODS, OUTREACH_STATUSES } from '../lib/categories'
 import { Search, Save, RefreshCw } from 'lucide-react'
 import { useDebounce } from '../lib/hooks/useDebounce'
 
@@ -41,7 +41,7 @@ export default function EditPageTab() {
     queryFn: async () => {
       // Browse Mode: Load pages in paginated batches
       if (browseMode) {
-        const pageSize = 5000 // Larger batch size for faster loading
+        const pageSize = 200 // Smaller batches to avoid CORS issues
         const response = await pagesApi.list({
           include_archived: showArchived,
           sort_by: 'client_count',
@@ -240,10 +240,11 @@ export default function EditPageTab() {
         updatePageMutation.mutateAsync(pageData),
         updateOutreachMutation.mutateAsync(outreachData),
       ])
-    } catch (error: any) {
+    } catch (error) {
       console.error('Error saving:', error)
-      console.error('Error response:', error.response?.data)
-      const errorMsg = error.response?.data?.detail || error.message || 'Unknown error'
+      const axiosError = error as { response?: { data?: { detail?: string } }; message?: string }
+      console.error('Error response:', axiosError.response?.data)
+      const errorMsg = axiosError.response?.data?.detail || axiosError.message || 'Unknown error'
       alert(`Failed to save: ${errorMsg}`)
     }
   }
@@ -407,16 +408,7 @@ export default function EditPageTab() {
 
                 {/* Inline Edit Form - expands below the clicked page */}
                 {selectedPage?.id === page.id && selectedPage.id && (
-                  <div className="bg-gray-50 border-t border-b border-blue-200" id="edit-form-section">
-          {pagesLoading && !selectedPage ? (
-            <div className="bg-white rounded-lg shadow p-12 text-center text-gray-500">
-              Loading pages...
-            </div>
-          ) : !selectedPage || !selectedPage.id ? (
-            <div className="bg-white rounded-lg shadow p-12 text-center text-gray-500">
-              {browseMode ? 'Click on a page to edit' : 'Search and select a page to edit'}
-            </div>
-          ) : (
+                  <div className="bg-gray-50 border-t border-b border-blue-200 p-6" id="edit-form-section">
             <div className="bg-white rounded-lg shadow p-6">
               <div className="mb-6">
                 <h2 className="text-2xl font-bold">@{selectedPage.ig_username}</h2>
@@ -471,16 +463,14 @@ export default function EditPageTab() {
                     Manual Promo Status
                   </label>
                   <select
-                    value={formData.manual_promo_status || ''}
+                    value={formData.manual_promo_status || 'unknown'}
                     onChange={(e) => setFormData({ ...formData, manual_promo_status: e.target.value })}
                     className="w-full px-3 py-2 border border-gray-300 rounded-md"
                   >
-                    <option value="">Select status...</option>
-                    {PROMO_STATUSES.map((status) => (
-                      <option key={status.value} value={status.value}>
-                        {status.label}
-                      </option>
-                    ))}
+                    <option value="unknown">❓ Unknown</option>
+                    <option value="warm">🔥 Warm (Open to Promos)</option>
+                    <option value="not_open">❌ Not Open</option>
+                    <option value="accepted">✅ Accepted (Communication Established)</option>
                   </select>
                 </div>
 
