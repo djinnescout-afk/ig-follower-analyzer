@@ -316,13 +316,22 @@ class ClientFollowingWorker:
                 'blvck', 'culture', 'kulture', 'brown', 'noir', 'ebony'
             ]
             
-            # Fetch the newly created pages with their current client counts
-            pages = self.supabase.table("pages")\
-                .select("id, ig_username, full_name, follower_count, client_count, category")\
-                .in_("ig_username", new_usernames)\
-                .execute()
+            # Fetch pages in batches to avoid URL length limits
+            pages_data = []
+            batch_size = 100  # Query 100 usernames at a time
             
-            pages_data = pages.data or []
+            for i in range(0, len(new_usernames), batch_size):
+                batch = new_usernames[i:i + batch_size]
+                try:
+                    result = self.supabase.table("pages")\
+                        .select("id, ig_username, full_name, follower_count, client_count, category")\
+                        .in_("ig_username", batch)\
+                        .execute()
+                    pages_data.extend(result.data or [])
+                except Exception as e:
+                    logger.warning(f"Failed to fetch batch {i//batch_size + 1}: {e}")
+            
+            logger.info(f"Fetched {len(pages_data)} pages from database")
             
             # Filter to high-value pages needing follower counts
             targeted_pages = []
