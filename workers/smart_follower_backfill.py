@@ -116,7 +116,7 @@ def main():
     print(f"\n📋 Getting client details...")
     
     clients = supabase.table("clients")\
-        .select("id, ig_username, full_name")\
+        .select("id, ig_username")\
         .in_("id", list(client_ids))\
         .execute()
     
@@ -158,7 +158,6 @@ def main():
             "client_id": client["id"],
             "scrape_type": "client_following",
             "status": "pending",
-            "priority": 5,  # High priority
         }).execute()
         
         queued += 1
