@@ -527,7 +527,7 @@ export default function ViewCategorizedTab() {
                               ${page.promo_price.toLocaleString()}
                             </span>
                           ) : (
-                            <span className="text-gray-400">ΓÇö</span>
+                            <span className="text-gray-400">—</span>
                           )}
                         </div>
                       </td>
@@ -541,16 +541,18 @@ export default function ViewCategorizedTab() {
                               <span className={
                                 page.manual_promo_status === 'warm' ? 'text-green-600 font-semibold' :
                                 page.manual_promo_status === 'not_open' ? 'text-red-600' :
+                                page.manual_promo_status === 'accepted' ? 'text-blue-600' :
                                 'text-gray-600'
                               }>
-                                {page.manual_promo_status === 'warm' ? '≡ƒöÑ Warm' :
-                                 page.manual_promo_status === 'not_open' ? 'Γ¥î Not Open' :
-                                 'Γ¥ô Unknown'}
+                                {page.manual_promo_status === 'warm' ? '🔥 Warm' :
+                                 page.manual_promo_status === 'not_open' ? '❌ Not Open' :
+                                 page.manual_promo_status === 'accepted' ? '✅ Accepted' :
+                                 '❓ Unknown'}
                               </span>
                             </div>
                           )}
                           {!page.manual_promo_status && (
-                            <span className="text-gray-400">ΓÇö</span>
+                            <span className="text-gray-400">—</span>
                           )}
                         </div>
                       </td>
@@ -563,7 +565,7 @@ export default function ViewCategorizedTab() {
                               {page.va_notes}
                             </div>
                           ) : (
-                            <span className="text-gray-400">ΓÇö</span>
+                            <span className="text-gray-400">—</span>
                           )}
                           {page.last_scrape_status === 'failed' && (
                             <div className="mt-1 text-red-600 font-medium">
