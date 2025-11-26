@@ -367,8 +367,8 @@ class ClientFollowingWorker:
             
             logger.info(f"≡ƒÄ» Found {len(targeted_pages)} high-value pages to scrape (out of {len(pages_data)} new pages)")
             
-            # Batch scrape (max 100 at a time for Apify)
-            batch_size = 100
+            # Batch scrape (smaller batches to avoid Instagram rate limiting)
+            batch_size = 25  # Reduced from 100 to avoid rate limiting
             total_updated = 0
             
             for i in range(0, len(targeted_pages), batch_size):
