@@ -115,6 +115,11 @@ export default function CategorizeTab() {
         promo_price: currentPage.promo_price || '',
         website_url: currentPage.website_url || '',
         va_notes: currentPage.va_notes || '',
+        contact_email: currentPage.contact_email || '',
+        contact_phone: currentPage.contact_phone || '',
+        contact_whatsapp: currentPage.contact_whatsapp || '',
+        contact_telegram: currentPage.contact_telegram || '',
+        contact_other: currentPage.contact_other || '',
         outreach_status: outreach?.status || 'not_contacted',
         date_contacted: outreach?.date_contacted ? new Date(outreach.date_contacted).toISOString().split('T')[0] : '',
         follow_up_date: outreach?.follow_up_date ? new Date(outreach.follow_up_date).toISOString().split('T')[0] : '',
@@ -162,6 +167,11 @@ export default function CategorizeTab() {
         promo_price: formData.promo_price ? parseFloat(formData.promo_price) : null,
         website_url: formData.website_url || null,
         va_notes: formData.va_notes || null,
+        contact_email: formData.contact_email || null,
+        contact_phone: formData.contact_phone || null,
+        contact_whatsapp: formData.contact_whatsapp || null,
+        contact_telegram: formData.contact_telegram || null,
+        contact_other: formData.contact_other || null,
         last_reviewed_by: vaName || 'VA',
         last_reviewed_at: new Date().toISOString(),
       }
@@ -439,6 +449,92 @@ export default function CategorizeTab() {
                 ))}
               </div>
             </div>
+
+            {/* Conditional Contact Detail Inputs */}
+            {formData.known_contact_methods?.includes('Email') && (
+              <div className="mb-4">
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Email Address
+                </label>
+                <input
+                  type="email"
+                  value={formData.contact_email || ''}
+                  onChange={(e) =>
+                    setFormData({ ...formData, contact_email: e.target.value })
+                  }
+                  placeholder="email@example.com"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                />
+              </div>
+            )}
+
+            {formData.known_contact_methods?.includes('Phone') && (
+              <div className="mb-4">
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Phone Number
+                </label>
+                <input
+                  type="tel"
+                  value={formData.contact_phone || ''}
+                  onChange={(e) =>
+                    setFormData({ ...formData, contact_phone: e.target.value })
+                  }
+                  placeholder="+1234567890"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                />
+              </div>
+            )}
+
+            {formData.known_contact_methods?.includes('WhatsApp') && (
+              <div className="mb-4">
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  WhatsApp Number
+                </label>
+                <input
+                  type="tel"
+                  value={formData.contact_whatsapp || ''}
+                  onChange={(e) =>
+                    setFormData({ ...formData, contact_whatsapp: e.target.value })
+                  }
+                  placeholder="+1234567890"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                />
+              </div>
+            )}
+
+            {formData.known_contact_methods?.includes('Telegram') && (
+              <div className="mb-4">
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Telegram Username
+                </label>
+                <input
+                  type="text"
+                  value={formData.contact_telegram || ''}
+                  onChange={(e) =>
+                    setFormData({ ...formData, contact_telegram: e.target.value })
+                  }
+                  placeholder="@username"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                />
+              </div>
+            )}
+
+            {formData.known_contact_methods?.includes('Other') && (
+              <div className="mb-4">
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Other Contact Method
+                </label>
+                <input
+                  type="text"
+                  value={formData.contact_other || ''}
+                  onChange={(e) =>
+                    setFormData({ ...formData, contact_other: e.target.value })
+                  }
+                  placeholder="Describe contact method and details"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                />
+              </div>
+            )}
 
             {/* Successful Contact Method */}
             <div className="mb-4">
