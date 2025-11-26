@@ -194,7 +194,7 @@ class ClientFollowingWorker:
                     following_list.append({
                         "username": item.get("username"),
                         "full_name": item.get("full_name", ""),
-                        "follower_count": item.get("follower_count", 0),
+                        # Note: follower_count not available from following scraper
                         "is_verified": item.get("is_verified", False),
                         "is_private": item.get("is_private", False),
                     })
@@ -232,7 +232,8 @@ class ClientFollowingWorker:
                     pages_to_create.append({
                         "ig_username": account["username"],
                         "full_name": account.get("full_name"),
-                        "follower_count": account.get("follower_count", 0),
+                        # follower_count will be scraped separately for high-value pages
+                        "follower_count": 0,  # Default to 0, will be updated by profile scraper
                         "is_verified": account.get("is_verified", False),
                         "is_private": account.get("is_private", False),
                     })
@@ -246,36 +247,9 @@ class ClientFollowingWorker:
                 self.supabase.table("pages").insert(batch).execute()
                 logger.info(f"Created pages batch {i//insert_batch_size + 1}: {len(batch)} pages")
         
-        # Update follower counts for ALL pages in the scrape
-        # Note: This does individual UPDATEs because Supabase Python doesn't support bulk UPDATE
-        # It will take ~1-2 seconds per 100 pages, which is acceptable
-        logger.info(f"Updating follower counts for all {len(following_list)} pages...")
-        
-        timestamp = datetime.utcnow().isoformat()
-        updated_count = 0
-        skipped_count = 0
-        
-        for i, account in enumerate(following_list):
-            follower_count = account.get("follower_count", 0) or account.get("followersCount", 0)
-            
-            if follower_count > 0:  # Only update if we have valid data
-                try:
-                    self.supabase.table("pages").update({
-                        "follower_count": follower_count,
-                        "last_scraped": timestamp
-                    }).eq("ig_username", account["username"]).execute()
-                    updated_count += 1
-                except Exception:
-                    # Silently skip failures
-                    skipped_count += 1
-            else:
-                skipped_count += 1
-            
-            # Log progress every 50 pages
-            if (i + 1) % 50 == 0:
-                logger.info(f"Progress: {i + 1}/{len(following_list)} pages processed ({updated_count} updated, {skipped_count} skipped)")
-        
-        logger.info(f"✓ Follower count updates complete: {updated_count} updated, {skipped_count} skipped")
+        # Note: The following scraper does NOT return follower counts
+        # Follower counts are scraped separately for high-value pages via _scrape_targeted_follower_counts
+        logger.info(f"Note: Follower counts will be scraped separately for high-value pages (hotlist, 2+ clients)")
         
         # Now insert client_following relationships
         # First delete existing relationships for this client
@@ -322,10 +296,10 @@ class ClientFollowingWorker:
         
         logger.info(f"Γ£à Stored following data for client {client_id}: {total_inserted} relationships created")
         
-        # After storing relationships, scrape follower counts for high-value pages
-        if pages_to_create:
-            logger.info("Checking which new pages need follower counts (hotlist or 2+ clients)...")
-            self._scrape_targeted_follower_counts([p["ig_username"] for p in pages_to_create])
+        # After storing relationships, scrape follower counts for ALL high-value pages (new AND existing)
+        logger.info("Checking which pages need follower counts (hotlist or 2+ clients)...")
+        all_usernames = [account["username"] for account in following_list]
+        self._scrape_targeted_follower_counts(all_usernames)
     
     def _scrape_targeted_follower_counts(self, new_usernames: list[str]):
         """
