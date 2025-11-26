@@ -67,10 +67,12 @@ def list_pages(
     min_client_count: Optional[int] = Query(None, description="Filter by minimum client count"),
     categorized: Optional[bool] = Query(None, description="Filter by categorization status (true=categorized, false=uncategorized)"),
     category: Optional[str] = Query(None, description="Filter by specific category"),
+    search: Optional[str] = Query(None, description="Search by username or name"),
     sort_by: Optional[str] = Query("client_count", description="Field to sort by (client_count, follower_count, last_reviewed_at)"),
     order: Optional[str] = Query("desc", description="Sort order (asc or desc)"),
     limit: Optional[int] = Query(10000, description="Max pages to return"),
     offset: Optional[int] = Query(0, description="Pagination offset"),
+    include_archived: Optional[bool] = Query(False, description="Include archived pages"),
 ):
     """List pages with optional filtering, sorting, and pagination.
     
@@ -95,6 +97,18 @@ def list_pages(
     # Apply specific category filter
     if category is not None:
         query = query.eq("category", category)
+    
+    # Apply search filter
+    if search is not None and search.strip():
+        query = query.or_(f"ig_username.ilike.%{search}%,full_name.ilike.%{search}%")
+    
+    # Filter archived pages
+    if not include_archived:
+        # Only filter if archived column exists, otherwise skip
+        try:
+            query = query.eq("archived", False)
+        except Exception:
+            pass  # archived column might not exist yet
     
     # Apply sorting
     desc_order = order.lower() == "desc"

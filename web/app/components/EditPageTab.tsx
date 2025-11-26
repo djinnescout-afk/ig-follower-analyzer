@@ -76,7 +76,7 @@ export default function EditPageTab() {
       const response = await pagesApi.list({
         search: debouncedSearch,
         include_archived: showArchived,
-        limit: 100,
+        limit: 1000,
       })
       return response.data
     },
