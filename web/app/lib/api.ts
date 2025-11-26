@@ -109,6 +109,12 @@ export const pagesApi = {
   get: (id: string) => api.get<Page>(`/pages/${id}`),
   getProfile: (id: string) => api.get<PageProfile>(`/pages/${id}/profile`),
   update: (id: string, data: any) => api.put(`/pages/${id}`, data),
+  getCategoryCounts: () => api.get<Record<string, number>>('/pages/category-counts'),
+  getCount: (params?: {
+    categorized?: boolean
+    category?: string
+    search?: string
+  }) => api.get<{ count: number }>('/pages/count', { params }),
 }
 
 // Scrapes API

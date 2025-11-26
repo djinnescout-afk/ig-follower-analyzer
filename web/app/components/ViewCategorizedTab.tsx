@@ -8,64 +8,62 @@ import { Users, DollarSign, Phone, Calendar } from 'lucide-react'
 
 export default function ViewCategorizedTab() {
   const [selectedCategory, setSelectedCategory] = useState<string>('')
-  const [currentPage, setCurrentPage] = useState(0)
-  const [goToPageInput, setGoToPageInput] = useState('')
-  const [allPages, setAllPages] = useState<Page[]>([])
-  
-  const pageSize = 100 // Display 100 pages at a time
+  const [page, setPage] = useState(0)
+  const [pageSize, setPageSize] = useState(100)
 
-  // Fetch ALL categorized pages for selected category
-  const { data: fetchedPages, isLoading } = useQuery({
-    queryKey: ['pages', 'categorized', selectedCategory],
+  // Efficient category counts using SQL aggregation
+  const { data: categoryCounts } = useQuery({
+    queryKey: ['pages', 'category-counts'],
     queryFn: async () => {
-      if (!selectedCategory) return []
-      
-      try {
-        const allFetched: Page[] = []
-        let offset = 0
-        const batchSize = 1000 // Fetch in batches of 1000
+      console.log('[ViewCategorized] Fetching category counts (efficient)...')
+      const response = await pagesApi.getCategoryCounts()
+      console.log('[ViewCategorized] Category counts:', response.data)
+      return response.data
+    },
+    staleTime: 30000, // Cache for 30 seconds
+    refetchOnMount: true,
+  })
 
-        while (true) {
-          const response = await pagesApi.list({
-            categorized: true,
-            category: selectedCategory,
-            limit: batchSize,
-            offset: offset,
-          })
-          
-          const batch = response.data || []
-          allFetched.push(...batch)
-          
-          // Stop if we got less than batchSize (no more pages)
-          if (batch.length < batchSize) {
-            break
-          }
-          
-          offset += batchSize
-        }
-        
-        return allFetched
-      } catch (error) {
-        console.error('Error fetching categorized pages:', error)
-        return []
-      }
+  // Get total count for selected category
+  const { data: totalCountData } = useQuery({
+    queryKey: ['pages', 'count', selectedCategory],
+    queryFn: async () => {
+      const response = await pagesApi.getCount({
+        categorized: true,
+        category: selectedCategory || undefined,
+      })
+      return response.data
     },
     enabled: !!selectedCategory,
   })
-  
-  // Update allPages when fetch completes
-  if (fetchedPages && fetchedPages !== allPages) {
-    setAllPages(fetchedPages)
-    setCurrentPage(0) // Reset to first page when category changes
-  }
-  
-  // Paginate the allPages array client-side
-  const totalPages = Math.ceil((allPages?.length || 0) / pageSize)
-  const paginatedPages = allPages?.slice(currentPage * pageSize, (currentPage + 1) * pageSize) || []
 
-  // Don't pre-count categories - too expensive for backend
-  // Show counts after user selects a category
-  const categoryCounts: Record<string, number> = {}
+  const totalPages = Math.ceil((totalCountData?.count || 0) / pageSize)
+
+  // Fetch paginated pages for selected category
+  const { data: pages, isLoading } = useQuery({
+    queryKey: ['pages', 'categorized', selectedCategory, page, pageSize],
+    queryFn: async () => {
+      console.log('[ViewCategorized] Fetching pages for category:', selectedCategory, 'page:', page)
+      const response = await pagesApi.list({
+        categorized: true,
+        category: selectedCategory || undefined,
+        sort_by: 'client_count',
+        order: 'desc',
+        limit: pageSize,
+        offset: page * pageSize,
+      })
+      console.log('[ViewCategorized] Response data:', response.data)
+      console.log('[ViewCategorized] Found', response.data.length, 'pages')
+      return response.data
+    },
+    enabled: !!selectedCategory,
+  })
+
+  // Reset to page 0 when category changes
+  const handleCategoryChange = (category: string) => {
+    setSelectedCategory(category)
+    setPage(0)
+  }
 
   return (
     <div className="space-y-6">
@@ -74,98 +72,64 @@ export default function ViewCategorizedTab() {
         <h2 className="text-xl font-semibold mb-4">Select Category</h2>
         <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-3">
           {CATEGORIES.map((category) => {
+            const count = categoryCounts?.[category] || 0
             return (
               <button
                 key={category}
-                onClick={() => setSelectedCategory(category)}
+                onClick={() => handleCategoryChange(category)}
                 className={`p-4 rounded-lg border-2 transition-all ${
                   selectedCategory === category
                     ? 'border-blue-600 bg-blue-50'
                     : 'border-gray-200 hover:border-gray-300 bg-white'
                 }`}
               >
-                <div className="font-medium text-sm">{category}</div>
-                <div className="text-xs text-gray-500 mt-1">Click to view</div>
+                <div className="font-medium text-sm mb-1">{category}</div>
+                <div className="text-2xl font-bold text-gray-700">{count}</div>
               </button>
             )
           })}
         </div>
       </div>
 
-      {/* Pages List */}
+      {/* Pages Table */}
       {selectedCategory && (
-        <div className="bg-white rounded-lg shadow">
+        <div className="bg-white rounded-lg shadow overflow-hidden">
           <div className="p-6 border-b">
             <div className="flex items-center justify-between">
               <h2 className="text-lg font-semibold">
-                {selectedCategory} ({allPages?.length || 0} total pages)
+                {selectedCategory} ({totalCountData?.count || 0} total pages)
               </h2>
               
               {/* Pagination Controls */}
-              {!isLoading && allPages && allPages.length > pageSize && (
-                <div className="flex items-center gap-4">
-                  <button
-                    onClick={() => setCurrentPage(Math.max(0, currentPage - 1))}
-                    disabled={currentPage === 0}
-                    className="px-3 py-1 text-sm bg-gray-200 text-gray-700 rounded hover:bg-gray-300 disabled:opacity-50 disabled:cursor-not-allowed"
-                  >
-                    ← Prev
-                  </button>
-                  
-                  <div className="flex items-center gap-2">
-                    <span className="text-sm text-gray-600">Page</span>
-                    <input
-                      type="number"
-                      min="1"
-                      max={totalPages}
-                      value={goToPageInput || currentPage + 1}
-                      onChange={(e) => setGoToPageInput(e.target.value)}
-                      onKeyDown={(e) => {
-                        if (e.key === 'Enter' && goToPageInput) {
-                          const pageNum = parseInt(goToPageInput) - 1
-                          if (pageNum >= 0 && pageNum < totalPages) {
-                            setCurrentPage(pageNum)
-                            setGoToPageInput('')
-                          }
-                        }
-                      }}
-                      onBlur={() => {
-                        if (goToPageInput) {
-                          const pageNum = parseInt(goToPageInput) - 1
-                          if (pageNum >= 0 && pageNum < totalPages) {
-                            setCurrentPage(pageNum)
-                          }
-                          setGoToPageInput('')
-                        }
-                      }}
-                      className="w-16 px-2 py-1 border border-gray-300 rounded text-center text-sm"
-                    />
-                    <span className="text-sm text-gray-600">of {totalPages}</span>
-                  </div>
-                  
-                  <button
-                    onClick={() => setCurrentPage(Math.min(totalPages - 1, currentPage + 1))}
-                    disabled={currentPage >= totalPages - 1}
-                    className="px-3 py-1 text-sm bg-gray-200 text-gray-700 rounded hover:bg-gray-300 disabled:opacity-50 disabled:cursor-not-allowed"
-                  >
-                    Next →
-                  </button>
-                </div>
-              )}
-            </div>
-            
-            {!isLoading && allPages && allPages.length > 0 && (
-              <div className="mt-2 text-sm text-gray-500">
-                Showing {currentPage * pageSize + 1}-{Math.min((currentPage + 1) * pageSize, allPages.length)} of {allPages.length}
+              <div className="flex items-center gap-4">
+                <button
+                  onClick={() => setPage(Math.max(0, page - 1))}
+                  disabled={page === 0}
+                  className="px-4 py-2 bg-gray-200 text-gray-700 rounded hover:bg-gray-300 disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  ← Previous
+                </button>
+                
+                <span className="text-sm text-gray-600">
+                  Page {page + 1} of {totalPages || 1}
+                </span>
+                
+                <button
+                  onClick={() => setPage(Math.min(totalPages - 1, page + 1))}
+                  disabled={page >= totalPages - 1}
+                  className="px-4 py-2 bg-gray-200 text-gray-700 rounded hover:bg-gray-300 disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  Next →
+                </button>
               </div>
-            )}
+            </div>
           </div>
 
           {isLoading ? (
             <div className="text-center py-12 text-gray-500">Loading pages...</div>
-          ) : paginatedPages && paginatedPages.length > 0 ? (
+          ) : pages && pages.length > 0 ? (
             <div className="divide-y">
-              {paginatedPages.map((page) => (
+              {pages.map((page) => (
                 <div key={page.id} className="p-6 hover:bg-gray-50 transition-colors">
                   <div className="flex gap-6">
                     {/* Left: Basic Info */}
@@ -216,6 +180,21 @@ export default function ViewCategorizedTab() {
                           </div>
                         )}
                       </div>
+
+                      {/* Promo Status */}
+                      {page.manual_promo_status && (
+                        <div className="mt-3 text-sm">
+                          <span className="font-medium">Promo Status:</span>{' '}
+                          <span className={`px-2 py-1 rounded ${
+                            page.manual_promo_status === 'warm' ? 'bg-green-100 text-green-800' :
+                            page.manual_promo_status === 'accepted' ? 'bg-blue-100 text-blue-800' :
+                            page.manual_promo_status === 'not_open' ? 'bg-red-100 text-red-800' :
+                            'bg-gray-100 text-gray-800'
+                          }`}>
+                            {page.manual_promo_status}
+                          </span>
+                        </div>
+                      )}
 
                       {/* Contact Info */}
                       {(page.known_contact_methods && page.known_contact_methods.length > 0) && (
@@ -282,5 +261,3 @@ export default function ViewCategorizedTab() {
     </div>
   )
 }
-
-
