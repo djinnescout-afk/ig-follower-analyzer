@@ -1,6 +1,6 @@
 from fastapi import APIRouter, HTTPException, status
 
-from ..db import get_supabase_client, insert_row, upsert_row, fetch_rows
+from ..db import get_supabase_client, insert_row, update_row, upsert_row, fetch_rows
 from ..schemas.outreach import OutreachCreate, OutreachResponse, OutreachUpdate
 
 router = APIRouter(prefix="/outreach", tags=["outreach"])
@@ -38,8 +38,8 @@ def update_outreach(page_id: str, payload: OutreachUpdate):
     if not existing:
         raise HTTPException(status_code=404, detail="Outreach tracking not found")
     
-    data["id"] = existing[0]["id"]
-    row = upsert_row("outreach_tracking", data, on_conflict="id")
+    # Use update instead of upsert to only modify specified fields
+    row = update_row("outreach_tracking", existing[0]["id"], data)
     return row
 
 
