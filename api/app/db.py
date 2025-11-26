@@ -1,9 +1,24 @@
+from datetime import datetime
 from functools import lru_cache
 from typing import Any
 
 from supabase import Client, create_client
 
 from .config import get_settings
+
+
+def serialize_datetime(data: dict[str, Any]) -> dict[str, Any]:
+    """Convert datetime objects to ISO strings for JSON serialization."""
+    result = {}
+    for key, value in data.items():
+        if isinstance(value, datetime):
+            result[key] = value.isoformat()
+        elif isinstance(value, list):
+            # Handle lists of datetimes
+            result[key] = [v.isoformat() if isinstance(v, datetime) else v for v in value]
+        else:
+            result[key] = value
+    return result
 
 
 @lru_cache(maxsize=1)
@@ -14,13 +29,15 @@ def get_supabase_client() -> Client:
 
 def insert_row(table: str, data: dict[str, Any]) -> dict[str, Any]:
     client = get_supabase_client()
-    response = client.table(table).insert(data).execute()
+    serialized_data = serialize_datetime(data)
+    response = client.table(table).insert(serialized_data).execute()
     return response.data[0]
 
 
 def upsert_row(table: str, data: dict[str, Any], on_conflict: str) -> dict[str, Any]:
     client = get_supabase_client()
-    response = client.table(table).upsert(data, on_conflict=on_conflict).execute()
+    serialized_data = serialize_datetime(data)
+    response = client.table(table).upsert(serialized_data, on_conflict=on_conflict).execute()
     return response.data[0]
 
 
