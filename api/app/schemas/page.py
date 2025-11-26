@@ -23,10 +23,12 @@ class PageUpdate(BaseModel):
     is_verified: Optional[bool] = None
     is_private: Optional[bool] = None
     last_scraped: Optional[datetime] = None
+    last_scrape_status: Optional[str] = None
     # VA Categorization fields
     category: Optional[str] = None
     manual_promo_status: Optional[str] = None
     known_contact_methods: Optional[List[str]] = None
+    attempted_contact_methods: Optional[List[str]] = None
     successful_contact_method: Optional[str] = None
     current_main_contact_method: Optional[str] = None
     ig_account_for_dm: Optional[str] = None
@@ -35,18 +37,26 @@ class PageUpdate(BaseModel):
     va_notes: Optional[str] = None
     last_reviewed_by: Optional[str] = None
     last_reviewed_at: Optional[datetime] = None
+    # Contact detail fields
+    contact_email: Optional[str] = None
+    contact_phone: Optional[str] = None
+    contact_whatsapp: Optional[str] = None
+    contact_telegram: Optional[str] = None
+    contact_other: Optional[str] = None
 
 
 class PageResponse(PageBase):
     id: str
     client_count: int = 0
     last_scraped: Optional[datetime] = None
+    last_scrape_status: Optional[str] = None
     created_at: datetime
     updated_at: datetime
     # VA Categorization fields
     category: Optional[str] = None
     manual_promo_status: Optional[str] = None
     known_contact_methods: Optional[List[str]] = None
+    attempted_contact_methods: Optional[List[str]] = None
     successful_contact_method: Optional[str] = None
     current_main_contact_method: Optional[str] = None
     ig_account_for_dm: Optional[str] = None
@@ -55,6 +65,12 @@ class PageResponse(PageBase):
     va_notes: Optional[str] = None
     last_reviewed_by: Optional[str] = None
     last_reviewed_at: Optional[datetime] = None
+    # Contact detail fields
+    contact_email: Optional[str] = None
+    contact_phone: Optional[str] = None
+    contact_whatsapp: Optional[str] = None
+    contact_telegram: Optional[str] = None
+    contact_other: Optional[str] = None
 
     model_config = ConfigDict(from_attributes=True)
 
