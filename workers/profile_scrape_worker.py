@@ -117,10 +117,10 @@ class ProfileScrapeWorker:
                 .eq("id", job_id)\
                 .execute()
             
-            logger.info(f"✅ Job {job_id} completed: {success_count}/{total} profiles scraped")
+            logger.info(f"âœ… Job {job_id} completed: {success_count}/{total} profiles scraped")
             
         except Exception as e:
-            logger.error(f"❌ Job {job_id} failed: {e}", exc_info=True)
+            logger.error(f"âŒ Job {job_id} failed: {e}", exc_info=True)
             
             # Mark job as failed
             self.supabase.table("scrape_runs")\
@@ -231,7 +231,7 @@ class ProfileScrapeWorker:
                 .eq("id", page_id)\
                 .execute()
             
-            logger.info(f"✅ Profile saved for @{ig_username} (promo: {promo_status})")
+            logger.info(f"âœ… Profile saved for @{ig_username} (promo: {promo_status})")
             
         except Exception as e:
             logger.error(f"Failed to scrape @{ig_username}: {e}")
