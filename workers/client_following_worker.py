@@ -246,6 +246,29 @@ class ClientFollowingWorker:
                 self.supabase.table("pages").insert(batch).execute()
                 logger.info(f"Created pages batch {i//insert_batch_size + 1}: {len(batch)} pages")
         
+        # Update follower counts for ALL pages (existing and new)
+        logger.info(f"Updating follower counts for all {len(following_list)} pages...")
+        update_batch_size = 50
+        updated_count = 0
+        for i in range(0, len(following_list), update_batch_size):
+            batch = following_list[i:i + update_batch_size]
+            for account in batch:
+                follower_count = account.get("follower_count", 0) or account.get("followersCount", 0)
+                if follower_count > 0:  # Only update if we have a real count
+                    try:
+                        self.supabase.table("pages").update({
+                            "follower_count": follower_count,
+                            "last_scraped": datetime.utcnow().isoformat()
+                        }).eq("ig_username", account["username"]).execute()
+                        updated_count += 1
+                    except Exception as e:
+                        logger.warning(f"Failed to update follower count for @{account['username']}: {e}")
+            
+            if (i // update_batch_size + 1) % 10 == 0:  # Log every 10 batches
+                logger.info(f"Updated follower counts: {updated_count}/{len(following_list)} so far...")
+        
+        logger.info(f"✓ Updated follower counts for {updated_count} pages")
+        
         # Now insert client_following relationships
         # First delete existing relationships for this client
         logger.info(f"Deleting existing relationships for client {client_id}...")
