@@ -143,14 +143,32 @@ class ProfileScrapeWorker:
                 "resultsLimit": 12,  # Get 12 recent posts
             }
             
+            logger.info(f"Starting Apify actor for @{ig_username}...")
             run = self.apify_client.actor("apify/instagram-profile-scraper").call(run_input=run_input)
+            logger.info(f"Apify actor completed for @{ig_username}, status: {run.get('status')}")
+            
             dataset = self.apify_client.dataset(run["defaultDatasetId"])
             
             items = list(dataset.iterate_items())
+            logger.info(f"Retrieved {len(items)} items from Apify for @{ig_username}")
+            
             if not items:
-                raise Exception("No data returned from Apify")
+                # Mark page with failed scrape status
+                self.supabase.table("pages")\
+                    .update({"last_scrape_status": "failed"})\
+                    .eq("id", page_id)\
+                    .execute()
+                raise Exception(f"No data returned from Apify for @{ig_username}. Run status: {run.get('status')}, Run ID: {run.get('id')}")
             
             profile_data = items[0]
+            
+            # Check if profile was found
+            if not profile_data.get("id"):
+                self.supabase.table("pages")\
+                    .update({"last_scrape_status": "failed"})\
+                    .eq("id", page_id)\
+                    .execute()
+                raise Exception(f"Profile not found or inaccessible for @{ig_username}")
             
             # Extract profile info
             profile_pic_url = profile_data.get("profilePicUrl")
@@ -205,6 +223,7 @@ class ProfileScrapeWorker:
             self.supabase.table("pages")\
                 .update({
                     "last_scraped": datetime.utcnow().isoformat(),
+                    "last_scrape_status": "success",
                     "follower_count": profile_data.get("followersCount", 0),
                     "is_verified": profile_data.get("verified", False),
                     "is_private": profile_data.get("private", False)
@@ -216,6 +235,14 @@ class ProfileScrapeWorker:
             
         except Exception as e:
             logger.error(f"Failed to scrape @{ig_username}: {e}")
+            # Mark page with failed scrape status
+            try:
+                self.supabase.table("pages")\
+                    .update({"last_scrape_status": "failed"})\
+                    .eq("id", page_id)\
+                    .execute()
+            except Exception as update_error:
+                logger.error(f"Failed to update scrape status: {update_error}")
             raise
     
     def download_and_encode_image(self, url: Optional[str]) -> tuple[Optional[str], Optional[str]]:
