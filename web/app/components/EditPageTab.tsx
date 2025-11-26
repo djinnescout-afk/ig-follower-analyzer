@@ -6,6 +6,7 @@ import { pagesApi, outreachApi, scrapesApi, Page } from '../lib/api'
 import { CATEGORIES, CONTACT_METHODS, OUTREACH_STATUSES } from '../lib/categories'
 import { Search, Save, RefreshCw } from 'lucide-react'
 import { useDebounce } from '../lib/hooks/useDebounce'
+import ClientFollowersModal from './ClientFollowersModal'
 
 export default function EditPageTab() {
   const [searchQuery, setSearchQuery] = useState('')
@@ -437,9 +438,14 @@ export default function EditPageTab() {
                       {page.full_name && (
                         <div className="text-sm text-gray-600">{page.full_name}</div>
                       )}
-                      <div className="text-xs text-gray-500 mt-1">
-                        {page.client_count} client{page.client_count !== 1 ? 's' : ''} •{' '}
-                        {page.category || 'Uncategorized'}
+                      <div className="text-xs text-gray-500 mt-1 flex items-center gap-2">
+                        <ClientFollowersModal 
+                          pageId={page.id}
+                          pageUsername={page.ig_username}
+                          clientCount={page.client_count}
+                        />
+                        <span>•</span>
+                        <span>{page.category || 'Uncategorized'}</span>
                       </div>
                     </div>
                     <button
@@ -466,7 +472,11 @@ export default function EditPageTab() {
                     {selectedPage.follower_count ? selectedPage.follower_count.toLocaleString() : '0'} followers
                   </span>
                   <span className="font-bold text-blue-700 bg-blue-50 px-2 py-1 rounded">
-                    {selectedPage.client_count} client{selectedPage.client_count !== 1 ? 's' : ''}
+                    <ClientFollowersModal 
+                      pageId={selectedPage.id}
+                      pageUsername={selectedPage.ig_username}
+                      clientCount={selectedPage.client_count}
+                    />
                   </span>
                 </div>
                 {/* Scrape Profile Button */}

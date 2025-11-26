@@ -202,3 +202,21 @@ def update_page(page_id: str, payload: PageUpdate):
     row = update_row("pages", page_id, data)
     return row
 
+
+@router.get("/{page_id}/followers")
+def get_page_followers(page_id: str):
+    """Get list of clients that follow this page."""
+    client = get_supabase_client()
+    
+    # Get client_following records for this page
+    cf_response = client.table("client_following").select("client_id").eq("page_id", page_id).execute()
+    
+    if not cf_response.data:
+        return []
+    
+    # Get client details
+    client_ids = [cf["client_id"] for cf in cf_response.data]
+    clients_response = client.table("clients").select("id, ig_username, full_name").in_("id", client_ids).execute()
+    
+    return clients_response.data
+

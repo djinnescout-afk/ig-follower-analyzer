@@ -5,6 +5,7 @@ import { useQuery } from '@tanstack/react-query'
 import { pagesApi, Page } from '../lib/api'
 import { CATEGORIES, CONTACT_METHODS, PROMO_STATUSES, OUTREACH_STATUSES } from '../lib/categories'
 import { useDebounce } from '../lib/hooks/useDebounce'
+import ClientFollowersModal from './ClientFollowersModal'
 
 export default function ViewCategorizedTab() {
   const [selectedCategory, setSelectedCategory] = useState<string>('')
@@ -376,7 +377,11 @@ export default function ViewCategorizedTab() {
                       {/* Clients */}
                       <td className="px-6 py-6" style={{ border: '1px solid #9ca3af' }}>
                         <span className="inline-flex px-2 py-1 text-xs font-bold rounded bg-blue-100 text-blue-800">
-                          {page.client_count}
+                          <ClientFollowersModal 
+                            pageId={page.id}
+                            pageUsername={page.ig_username}
+                            clientCount={page.client_count}
+                          />
                         </span>
                       </td>
 
