@@ -56,8 +56,17 @@ export default function CategorizeTab() {
 
       console.log(`[CategorizeTab] Total uncategorized pages: ${allPages.length}`)
       
+      // Deduplicate by id (in case same page appears in multiple batches)
+      const uniquePages = Array.from(
+        new Map(allPages.map(page => [page.id, page])).values()
+      )
+      
+      if (uniquePages.length < allPages.length) {
+        console.warn(`[CategorizeTab] Removed ${allPages.length - uniquePages.length} duplicate pages`)
+      }
+      
       // Sort by priority tier, then by client_count, then by follower_count
-      const sorted = allPages.sort((a, b) => {
+      const sorted = uniquePages.sort((a, b) => {
         const tierA = getPriorityTier(a.ig_username, a.full_name, a.client_count, a.follower_count)
         const tierB = getPriorityTier(b.ig_username, b.full_name, b.client_count, b.follower_count)
         
