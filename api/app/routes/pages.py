@@ -219,7 +219,7 @@ def get_page_followers(page_id: str):
         clients = []
         for cf in cf_response.data:
             client_id = cf["client_id"]
-            client_response = client.table("clients").select("id, ig_username, full_name").eq("id", client_id).execute()
+            client_response = client.table("clients").select("id, ig_username").eq("id", client_id).execute()
             
             if client_response.data:
                 clients.append(client_response.data[0])
