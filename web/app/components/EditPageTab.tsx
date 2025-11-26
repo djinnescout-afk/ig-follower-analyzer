@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { pagesApi, outreachApi, Page } from '../lib/api'
-import { CATEGORIES, CONTACT_METHODS, OUTREACH_STATUSES } from '../lib/categories'
+import { CATEGORIES, CONTACT_METHODS, OUTREACH_STATUSES, PROMO_STATUSES } from '../lib/categories'
 import { Search, Save } from 'lucide-react'
 
 export default function EditPageTab() {
@@ -12,15 +12,35 @@ export default function EditPageTab() {
   const [formData, setFormData] = useState<any>({})
   const queryClient = useQueryClient()
 
-  // Fetch all pages
+  // Fetch all pages using batch loading
   const { data: pages, isLoading: pagesLoading } = useQuery({
     queryKey: ['pages', 'all'],
     queryFn: async () => {
-      const response = await pagesApi.list({
-        min_client_count: 1,
-        limit: 10000,
-      })
-      return response.data
+      console.log('[EditPageTab] Fetching all pages in batches...')
+      const allPages: Page[] = []
+      let offset = 0
+      const limit = 1000
+
+      while (true) {
+        const response = await pagesApi.list({
+          min_client_count: 0,
+          limit: limit,
+          offset: offset,
+          include_archived: false,
+        })
+        
+        const batch = response.data || []
+        console.log(`[EditPageTab] Fetched batch at offset ${offset}: ${batch.length} pages`)
+        allPages.push(...batch)
+
+        if (batch.length < limit) {
+          break
+        }
+        offset += limit
+      }
+
+      console.log(`[EditPageTab] Total pages fetched: ${allPages.length}`)
+      return allPages
     },
   })
 
@@ -70,6 +90,7 @@ export default function EditPageTab() {
     if (selectedPage) {
       setFormData({
         category: selectedPage.category || '',
+        manual_promo_status: selectedPage.manual_promo_status || '',
         known_contact_methods: selectedPage.known_contact_methods || [],
         successful_contact_method: selectedPage.successful_contact_method || '',
         current_main_contact_method: selectedPage.current_main_contact_method || '',
@@ -121,6 +142,7 @@ export default function EditPageTab() {
       // Extract page fields
       const pageData = {
         category: formData.category || null,
+        manual_promo_status: formData.manual_promo_status || null,
         known_contact_methods:
           formData.known_contact_methods.length > 0
             ? formData.known_contact_methods
@@ -228,15 +250,9 @@ export default function EditPageTab() {
               <div className="mb-6">
                 <h2 className="text-2xl font-bold">@{selectedPage.ig_username}</h2>
                 <p className="text-gray-600">{selectedPage.full_name || 'N/A'}</p>
-                <div className="mt-2 flex gap-4 text-sm">
-                  <span className="font-semibold text-gray-700">
-                    {selectedPage.follower_count ? selectedPage.follower_count.toLocaleString() : '0'} followers
-                  </span>
-                  <span className="text-gray-500">
-                    {selectedPage.client_count} client{selectedPage.client_count !== 1 ? 's' : ''}
-                  </span>
-                  {selectedPage.is_verified && <span className="text-blue-600">✓ Verified</span>}
-                  {selectedPage.is_private && <span className="text-orange-600">🔒 Private</span>}
+                <div className="mt-2 text-sm text-gray-500">
+                  {selectedPage.follower_count ? selectedPage.follower_count.toLocaleString() : '0'} followers •{' '}
+                  {selectedPage.client_count} client{selectedPage.client_count !== 1 ? 's' : ''}
                 </div>
               </div>
 
@@ -256,6 +272,25 @@ export default function EditPageTab() {
                     {CATEGORIES.map((cat) => (
                       <option key={cat} value={cat}>
                         {cat}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                {/* Promo Status */}
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Promo Status
+                  </label>
+                  <select
+                    value={formData.manual_promo_status || ''}
+                    onChange={(e) => setFormData({ ...formData, manual_promo_status: e.target.value })}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md"
+                  >
+                    <option value="">Select status...</option>
+                    {PROMO_STATUSES.map((status) => (
+                      <option key={status.value} value={status.value}>
+                        {status.label}
                       </option>
                     ))}
                   </select>

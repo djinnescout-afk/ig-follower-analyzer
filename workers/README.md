@@ -10,10 +10,6 @@ Background workers that process scraping jobs from the queue.
 - Calculates coverage vs expected count
 - Stores results in `pages` and `client_following` tables
 - Updates scrape run status and results
-- **Smart Follower Count Scraping**: Automatically scrapes follower counts ONLY for high-value pages:
-  - Hotlist pages (match keywords + uncategorized)
-  - Pages with 2+ clients
-  - This saves Apify credits by skipping low-value pages
 
 ### 2. Profile Scraper Worker (`profile_scrape_worker.py`)
 - Polls `scrape_runs` table for `profile_scrape` jobs

@@ -85,3 +85,14 @@ export const OUTREACH_STATUSES = [
 
 export type OutreachStatus = typeof OUTREACH_STATUSES[number]['value']
 
+export const PROMO_STATUSES = [
+  { value: 'needs_nurturing', label: 'Needs Nurturing' },
+  { value: 'ready_to_contact', label: 'Ready to Contact' },
+  { value: 'contacted', label: 'Contacted' },
+  { value: 'accepted', label: 'Accepted' },
+  { value: 'declined', label: 'Declined' },
+  { value: 'blacklisted', label: 'Blacklisted' },
+] as const
+
+export type PromoStatus = typeof PROMO_STATUSES[number]['value']
+

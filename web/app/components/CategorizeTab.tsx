@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { pagesApi, outreachApi, Page, PageProfile, OutreachTracking } from '../lib/api'
-import { CATEGORIES, CONTACT_METHODS, OUTREACH_STATUSES, getPriorityTier, TIER_LABELS, TIER_COLORS } from '../lib/categories'
+import { CATEGORIES, CONTACT_METHODS, OUTREACH_STATUSES, PROMO_STATUSES, getPriorityTier, TIER_LABELS, TIER_COLORS } from '../lib/categories'
 import { ChevronLeft, ChevronRight, Save, SkipForward } from 'lucide-react'
 
 export default function CategorizeTab() {
@@ -72,6 +72,7 @@ export default function CategorizeTab() {
     if (currentPage) {
       setFormData({
         category: currentPage.category || '',
+        manual_promo_status: currentPage.manual_promo_status || '',
         known_contact_methods: currentPage.known_contact_methods || [],
         successful_contact_method: currentPage.successful_contact_method || '',
         current_main_contact_method: currentPage.current_main_contact_method || '',
@@ -118,6 +119,7 @@ export default function CategorizeTab() {
       // Extract page fields
       const pageData = {
         category: formData.category || null,
+        manual_promo_status: formData.manual_promo_status || null,
         known_contact_methods: formData.known_contact_methods.length > 0 ? formData.known_contact_methods : null,
         successful_contact_method: formData.successful_contact_method || null,
         current_main_contact_method: formData.current_main_contact_method || null,
@@ -247,12 +249,9 @@ export default function CategorizeTab() {
                 <h2 className="text-2xl font-bold">@{currentPage.ig_username}</h2>
                 <p className="text-gray-600">{currentPage.full_name || 'N/A'}</p>
                 <div className="mt-2 flex gap-4 text-sm text-gray-600">
-                  <span className="font-semibold">
-                    {currentPage.follower_count ? currentPage.follower_count.toLocaleString() : '0'} followers
-                  </span>
+                  <span>{currentPage.follower_count ? currentPage.follower_count.toLocaleString() : '0'} followers</span>
                   <span>{currentPage.client_count} client{currentPage.client_count !== 1 ? 's' : ''}</span>
                   {currentPage.is_verified && <span className="text-blue-600">✓ Verified</span>}
-                  {currentPage.is_private && <span className="text-orange-600">🔒 Private</span>}
                 </div>
                 <a
                   href={`https://instagram.com/${currentPage.ig_username}`}
@@ -325,6 +324,25 @@ export default function CategorizeTab() {
                 {CATEGORIES.map((cat) => (
                   <option key={cat} value={cat}>
                     {cat}
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            {/* Promo Status */}
+            <div className="mb-4">
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Promo Status
+              </label>
+              <select
+                value={formData.manual_promo_status || ''}
+                onChange={(e) => setFormData({ ...formData, manual_promo_status: e.target.value })}
+                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+              >
+                <option value="">Select status...</option>
+                {PROMO_STATUSES.map((status) => (
+                  <option key={status.value} value={status.value}>
+                    {status.label}
                   </option>
                 ))}
               </select>

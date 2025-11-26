@@ -110,11 +110,9 @@ export default function ViewCategorizedTab() {
                       </div>
 
                       <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
-                        <div className="flex items-center gap-2 text-gray-700">
+                        <div className="flex items-center gap-2 text-gray-600">
                           <Users size={16} />
-                          <span className="font-semibold">
-                            {page.follower_count ? page.follower_count.toLocaleString() : '0'} followers
-                          </span>
+                          <span>{page.follower_count ? page.follower_count.toLocaleString() : '0'} followers</span>
                         </div>
                         <div className="flex items-center gap-2 text-gray-600">
                           <Users size={16} />
