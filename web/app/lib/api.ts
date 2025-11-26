@@ -30,6 +30,7 @@ export interface Page {
   last_scraped?: string
   // VA Categorization fields
   category?: string
+  manual_promo_status?: string
   known_contact_methods?: string[]
   successful_contact_method?: string
   current_main_contact_method?: string
@@ -92,7 +93,8 @@ export const pagesApi = {
     categorized?: boolean
     category?: string
     limit?: number
-    offset?: number 
+    offset?: number
+    include_archived?: boolean
   }) => api.get<Page[]>('/pages', { params }),
   get: (id: string) => api.get<Page>(`/pages/${id}`),
   getProfile: (id: string) => api.get<PageProfile>(`/pages/${id}/profile`),
