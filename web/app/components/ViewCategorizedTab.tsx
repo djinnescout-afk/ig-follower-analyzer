@@ -39,20 +39,20 @@ export default function ViewCategorizedTab() {
     enabled: !!selectedCategory,
   })
 
-  // Count pages by category with batch loading
+  // Count pages by category - use smaller limit to avoid overwhelming backend
   const { data: categoryCounts } = useQuery({
     queryKey: ['pages', 'category-counts'],
     queryFn: async () => {
       const counts: Record<string, number> = {}
       
-      // Fetch pages for each category with batch loading
-      await Promise.all(
-        CATEGORIES.map(async (category) => {
-          let total = 0
-          let offset = 0
-          const limit = 5000
+      // Fetch pages for each category sequentially with smaller batches
+      for (const category of CATEGORIES) {
+        let total = 0
+        let offset = 0
+        const limit = 1000 // Smaller batches for counting to avoid backend overload
 
-          while (true) {
+        while (true) {
+          try {
             const response = await pagesApi.list({
               categorized: true,
               category,
@@ -67,11 +67,14 @@ export default function ViewCategorizedTab() {
               break
             }
             offset += limit
+          } catch (error) {
+            console.error(`Error fetching count for ${category}:`, error)
+            break
           }
+        }
 
-          counts[category] = total
-        })
-      )
+        counts[category] = total
+      }
       
       return counts
     },
