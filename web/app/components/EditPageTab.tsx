@@ -228,9 +228,15 @@ export default function EditPageTab() {
               <div className="mb-6">
                 <h2 className="text-2xl font-bold">@{selectedPage.ig_username}</h2>
                 <p className="text-gray-600">{selectedPage.full_name || 'N/A'}</p>
-                <div className="mt-2 text-sm text-gray-500">
-                  {selectedPage.follower_count.toLocaleString()} followers •{' '}
-                  {selectedPage.client_count} client{selectedPage.client_count !== 1 ? 's' : ''}
+                <div className="mt-2 flex gap-4 text-sm">
+                  <span className="font-semibold text-gray-700">
+                    {selectedPage.follower_count ? selectedPage.follower_count.toLocaleString() : '0'} followers
+                  </span>
+                  <span className="text-gray-500">
+                    {selectedPage.client_count} client{selectedPage.client_count !== 1 ? 's' : ''}
+                  </span>
+                  {selectedPage.is_verified && <span className="text-blue-600">✓ Verified</span>}
+                  {selectedPage.is_private && <span className="text-orange-600">🔒 Private</span>}
                 </div>
               </div>
 

@@ -247,9 +247,12 @@ export default function CategorizeTab() {
                 <h2 className="text-2xl font-bold">@{currentPage.ig_username}</h2>
                 <p className="text-gray-600">{currentPage.full_name || 'N/A'}</p>
                 <div className="mt-2 flex gap-4 text-sm text-gray-600">
-                  <span>{currentPage.follower_count.toLocaleString()} followers</span>
+                  <span className="font-semibold">
+                    {currentPage.follower_count ? currentPage.follower_count.toLocaleString() : '0'} followers
+                  </span>
                   <span>{currentPage.client_count} client{currentPage.client_count !== 1 ? 's' : ''}</span>
                   {currentPage.is_verified && <span className="text-blue-600">✓ Verified</span>}
+                  {currentPage.is_private && <span className="text-orange-600">🔒 Private</span>}
                 </div>
                 <a
                   href={`https://instagram.com/${currentPage.ig_username}`}
