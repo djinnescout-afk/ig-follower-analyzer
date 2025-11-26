@@ -9,76 +9,29 @@ import { Users, DollarSign, Phone, Calendar } from 'lucide-react'
 export default function ViewCategorizedTab() {
   const [selectedCategory, setSelectedCategory] = useState<string>('')
 
-  // Fetch categorized pages for selected category with batch loading
+  // Fetch categorized pages for selected category
   const { data: pages, isLoading } = useQuery({
     queryKey: ['pages', 'categorized', selectedCategory],
     queryFn: async () => {
-      const allPages: Page[] = []
-      let offset = 0
-      const limit = 5000
-
-      while (true) {
+      try {
         const response = await pagesApi.list({
           categorized: true,
           category: selectedCategory || undefined,
-          limit: limit,
-          offset: offset,
+          limit: 1000, // Start with smaller limit to avoid backend timeout
+          offset: 0,
         })
-        
-        const batch = response.data || []
-        allPages.push(...batch)
-
-        if (batch.length < limit) {
-          break
-        }
-        offset += limit
+        return response.data || []
+      } catch (error) {
+        console.error('Error fetching categorized pages:', error)
+        return []
       }
-
-      return allPages
     },
     enabled: !!selectedCategory,
   })
 
-  // Count pages by category - use smaller limit to avoid overwhelming backend
-  const { data: categoryCounts } = useQuery({
-    queryKey: ['pages', 'category-counts'],
-    queryFn: async () => {
-      const counts: Record<string, number> = {}
-      
-      // Fetch pages for each category sequentially with smaller batches
-      for (const category of CATEGORIES) {
-        let total = 0
-        let offset = 0
-        const limit = 1000 // Smaller batches for counting to avoid backend overload
-
-        while (true) {
-          try {
-            const response = await pagesApi.list({
-              categorized: true,
-              category,
-              limit: limit,
-              offset: offset,
-            })
-            
-            const batch = response.data || []
-            total += batch.length
-
-            if (batch.length < limit) {
-              break
-            }
-            offset += limit
-          } catch (error) {
-            console.error(`Error fetching count for ${category}:`, error)
-            break
-          }
-        }
-
-        counts[category] = total
-      }
-      
-      return counts
-    },
-  })
+  // Don't pre-count categories - too expensive for backend
+  // Show counts after user selects a category
+  const categoryCounts: Record<string, number> = {}
 
   return (
     <div className="space-y-6">
@@ -87,7 +40,6 @@ export default function ViewCategorizedTab() {
         <h2 className="text-xl font-semibold mb-4">Select Category</h2>
         <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-3">
           {CATEGORIES.map((category) => {
-            const count = categoryCounts?.[category] || 0
             return (
               <button
                 key={category}
@@ -98,8 +50,8 @@ export default function ViewCategorizedTab() {
                     : 'border-gray-200 hover:border-gray-300 bg-white'
                 }`}
               >
-                <div className="font-medium text-sm mb-1">{category}</div>
-                <div className="text-2xl font-bold text-gray-700">{count}</div>
+                <div className="font-medium text-sm">{category}</div>
+                <div className="text-xs text-gray-500 mt-1">Click to view</div>
               </button>
             )
           })}
