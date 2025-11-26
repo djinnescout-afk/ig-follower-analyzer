@@ -92,6 +92,9 @@ export const pagesApi = {
     min_client_count?: number
     categorized?: boolean
     category?: string
+    search?: string
+    sort_by?: string
+    order?: string
     limit?: number
     offset?: number
     include_archived?: boolean
