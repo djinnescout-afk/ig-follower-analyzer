@@ -15,7 +15,7 @@ export default function ViewCategorizedTab() {
     queryFn: async () => {
       const allPages: Page[] = []
       let offset = 0
-      const limit = 1000
+      const limit = 5000 // Larger batch size for faster loading
 
       while (true) {
         const response = await pagesApi.list({
@@ -50,7 +50,7 @@ export default function ViewCategorizedTab() {
         CATEGORIES.map(async (category) => {
           let total = 0
           let offset = 0
-          const limit = 1000
+          const limit = 5000 // Larger batch size for faster loading
 
           while (true) {
             const response = await pagesApi.list({

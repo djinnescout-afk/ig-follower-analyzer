@@ -18,7 +18,7 @@ export default function CategorizeTab() {
       console.log('[CategorizeTab] Fetching all uncategorized pages...')
       const allPages: Page[] = []
       let offset = 0
-      const limit = 1000
+      const limit = 5000 // Larger batch size for faster loading
 
       while (true) {
         const response = await pagesApi.list({

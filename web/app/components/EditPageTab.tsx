@@ -19,7 +19,7 @@ export default function EditPageTab() {
       console.log('[EditPageTab] Fetching all pages in batches...')
       const allPages: Page[] = []
       let offset = 0
-      const limit = 1000
+      const limit = 5000 // Larger batch size for faster loading
 
       while (true) {
         const response = await pagesApi.list({
