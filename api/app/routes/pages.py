@@ -88,9 +88,9 @@ def list_pages(
     # Apply categorization filter
     if categorized is not None:
         if categorized:
-            query = query.is_not("category", "null")
+            query = query.filter("category", "not.is", "null")
         else:
-            query = query.is_("category", "null")
+            query = query.filter("category", "is", "null")
     
     # Apply specific category filter
     if category is not None:
