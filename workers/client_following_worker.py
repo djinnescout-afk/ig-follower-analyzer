@@ -246,51 +246,36 @@ class ClientFollowingWorker:
                 self.supabase.table("pages").insert(batch).execute()
                 logger.info(f"Created pages batch {i//insert_batch_size + 1}: {len(batch)} pages")
         
-        # Update follower counts for pages with 0 or very low followers (likely stale)
-        # Skip updating pages that already have reasonable follower counts to save time
-        logger.info(f"Checking for pages needing follower count updates...")
+        # Update follower counts for ALL pages in the scrape
+        # Note: This does individual UPDATEs because Supabase Python doesn't support bulk UPDATE
+        # It will take ~1-2 seconds per 100 pages, which is acceptable
+        logger.info(f"Updating follower counts for all {len(following_list)} pages...")
         
-        # Get current follower counts for all pages in batch
-        batch_check_size = 100
-        pages_to_update = []
+        timestamp = datetime.utcnow().isoformat()
+        updated_count = 0
+        skipped_count = 0
         
-        for i in range(0, len(following_list), batch_check_size):
-            batch = following_list[i:i + batch_check_size]
-            usernames = [a["username"] for a in batch]
+        for i, account in enumerate(following_list):
+            follower_count = account.get("follower_count", 0) or account.get("followersCount", 0)
             
-            # Check current follower counts
-            existing = self.supabase.table("pages")\
-                .select("ig_username, follower_count")\
-                .in_("ig_username", usernames)\
-                .execute()
-            
-            current_counts = {p["ig_username"]: p.get("follower_count", 0) for p in (existing.data or [])}
-            
-            # Only update pages with 0 or suspiciously low follower counts
-            for account in batch:
-                username = account["username"]
-                new_count = account.get("follower_count", 0) or account.get("followersCount", 0)
-                current_count = current_counts.get(username, 0)
-                
-                # Update if: currently 0, or new count is significantly different (>10% change)
-                if current_count == 0 or (new_count > 0 and abs(new_count - current_count) / max(current_count, 1) > 0.1):
-                    pages_to_update.append((username, new_count))
-        
-        # Batch update pages that need it
-        if pages_to_update:
-            logger.info(f"Updating follower counts for {len(pages_to_update)} pages that need it...")
-            for username, follower_count in pages_to_update:
+            if follower_count > 0:  # Only update if we have valid data
                 try:
                     self.supabase.table("pages").update({
                         "follower_count": follower_count,
-                        "last_scraped": datetime.utcnow().isoformat()
-                    }).eq("ig_username", username).execute()
-                except Exception as e:
-                    logger.warning(f"Failed to update @{username}: {e}")
+                        "last_scraped": timestamp
+                    }).eq("ig_username", account["username"]).execute()
+                    updated_count += 1
+                except Exception:
+                    # Silently skip failures
+                    skipped_count += 1
+            else:
+                skipped_count += 1
             
-            logger.info(f"✓ Updated {len(pages_to_update)} pages with new follower counts")
-        else:
-            logger.info("✓ All pages already have up-to-date follower counts")
+            # Log progress every 50 pages
+            if (i + 1) % 50 == 0:
+                logger.info(f"Progress: {i + 1}/{len(following_list)} pages processed ({updated_count} updated, {skipped_count} skipped)")
+        
+        logger.info(f"✓ Follower count updates complete: {updated_count} updated, {skipped_count} skipped")
         
         # Now insert client_following relationships
         # First delete existing relationships for this client
