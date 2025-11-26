@@ -23,6 +23,19 @@ export default function EditPageTab() {
   // Debounce search query for better performance
   const debouncedSearch = useDebounce(searchQuery, 300)
 
+  // Get total count for browse mode
+  const { data: totalCountData } = useQuery({
+    queryKey: ['pages', 'total-count', showArchived],
+    queryFn: async () => {
+      const response = await pagesApi.getCount({
+        categorized: undefined, // Get all pages
+      })
+      return response.data
+    },
+    enabled: browseMode, // Only fetch when in browse mode
+    staleTime: 60000, // Cache for 1 minute
+  })
+
   // Load VA name from localStorage on mount
   useEffect(() => {
     const savedVaName = localStorage.getItem('vaName')
@@ -366,11 +379,8 @@ export default function EditPageTab() {
             
             <span className="text-sm text-gray-600 font-medium">
               Pages {(browsePage * pageSize + 1).toLocaleString()}-{(browsePage * pageSize + (pages?.length || 0)).toLocaleString()}
-              {pages && pages.length === pageSize && ' (more available)'}
               {' • Total: '}
-              {pages && pages.length < pageSize 
-                ? (browsePage * pageSize + pages.length).toLocaleString() 
-                : `${((browsePage + 1) * pageSize).toLocaleString()}+`}
+              {totalCountData?.count ? totalCountData.count.toLocaleString() : 'Loading...'}
             </span>
             
             <button
