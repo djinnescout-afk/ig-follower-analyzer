@@ -468,7 +468,7 @@ export default function EditPageTab() {
                 {/* Manual Promo Status */}
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Promo Status
+                    Manual Promo Status
                   </label>
                   <select
                     value={formData.manual_promo_status || ''}
