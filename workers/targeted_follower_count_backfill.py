@@ -99,22 +99,30 @@ def main():
         return
     
     # Step 3: Confirm
-    print(f"\n⚠️  This will scrape {len(targeted_pages):,} profiles.")
+    num_batches = (len(targeted_pages) + 2) // 3  # Ceiling division for 3 per batch
+    estimated_time_min = (num_batches * 45) // 60  # 45 seconds per batch
+    
+    print(f"\n⚠️  This will scrape {len(targeted_pages):,} profiles in {num_batches} batches.")
     print(f"   📊 Estimated Apify cost: ~${len(targeted_pages) * 0.003:.2f} (at $0.003/profile)")
-    print(f"   ⏱️  Processing time: ~{(len(targeted_pages) // 5) * 30 // 60} minutes")
-    print(f"   📦 Using small batches (5 profiles) with 30-second delays to avoid blocks")
+    print(f"   ⏱️  Processing time: ~{estimated_time_min} minutes ({num_batches} batches × 45s)")
+    print(f"   📦 Using tiny batches (3 profiles) with 45-second delays")
+    print(f"   ⏸️  Batches timeout after 2 minutes (no infinite loops!)")
     
     response = input("\nContinue? (yes/no): ")
     if response.lower() not in ['yes', 'y']:
         print("Cancelled.")
         return
     
-    # Step 4: Batch scrape with SMALL batches and delays
+    # Step 4: Batch scrape with TINY batches and long delays
     print("\n🚀 Starting scrape...")
-    batch_size = 5  # MUCH smaller batches to avoid Instagram blocks
-    delay_between_batches = 30  # 30 seconds between batches
+    batch_size = 3  # TINY batches to avoid Instagram blocks
+    delay_between_batches = 45  # 45 seconds between batches - Instagram is very aggressive
     total_updated = 0
     total_failed = 0
+    
+    print(f"   ⚙️  Strategy: {batch_size} profiles per batch, {delay_between_batches}s delay")
+    print(f"   ⏱️  Each batch has 2-minute timeout to prevent infinite loops")
+    print(f"   🛡️  Failed profiles are logged and skipped (not retried forever)\n")
     
     for i in range(0, len(targeted_pages), batch_size):
         batch = targeted_pages[i:i + batch_size]
@@ -125,7 +133,7 @@ def main():
         try:
             print(f"\n📦 Batch {batch_num}/{total_batches}: {len(usernames)} profiles")
             
-            # Use lightweight Instagram Profile Scraper
+            # Use lightweight Instagram Profile Scraper with strict retry limits
             run_input = {
                 "usernames": usernames,
                 "resultsLimit": len(usernames),
@@ -133,15 +141,32 @@ def main():
             }
             
             print(f"   ⏳ Scraping...")
-            run = apify.actor("apify/instagram-profile-scraper").call(run_input=run_input)
+            
+            # Call actor with timeout and wait for completion
+            run = apify.actor("apify/instagram-profile-scraper").call(
+                run_input=run_input,
+                timeout_secs=120,  # Max 2 minutes per batch
+                build="latest"
+            )
+            
+            # Check if run succeeded
+            if run.get("status") not in ["SUCCEEDED", "FINISHED"]:
+                print(f"   ⚠️  Apify run status: {run.get('status')} - skipping batch")
+                total_failed += len(usernames)
+                continue
+            
             dataset = apify.dataset(run["defaultDatasetId"])
             
             # Update database
             batch_updated = 0
+            scraped_usernames = set()
+            
             for item in dataset.iterate_items():
                 username = item.get("username")
                 if not username:
                     continue
+                
+                scraped_usernames.add(username.lower())
                 
                 # Extract follower count
                 follower_count = 0
@@ -169,7 +194,10 @@ def main():
             if batch_updated < len(usernames):
                 failed_in_batch = len(usernames) - batch_updated
                 total_failed += failed_in_batch
-                print(f"      ⚠️  {failed_in_batch} profiles couldn't be scraped in this batch")
+                
+                # Show which profiles failed
+                failed_usernames = [u for u in usernames if u.lower() not in scraped_usernames]
+                print(f"      ❌ {failed_in_batch} profiles failed: {', '.join(failed_usernames[:3])}{' ...' if len(failed_usernames) > 3 else ''}")
             
             print(f"   ✅ Updated {batch_updated}/{len(usernames)} pages in this batch")
             print(f"   📊 Total progress: {total_updated}/{len(targeted_pages)} ({100*total_updated//len(targeted_pages) if len(targeted_pages) > 0 else 0}%)")
@@ -189,11 +217,20 @@ def main():
                 time.sleep(delay_between_batches)
             continue
     
-    print(f"\n✅ Backfill complete!")
+    print(f"\n{'='*60}")
+    print(f"✅ Backfill complete!")
     print(f"   • Successfully updated: {total_updated:,} pages")
     print(f"   • Failed: {total_failed:,} pages")
     if (total_updated + total_failed) > 0:
-        print(f"   • Success rate: {100*total_updated//(total_updated+total_failed)}%")
+        success_rate = 100*total_updated//(total_updated+total_failed)
+        print(f"   • Success rate: {success_rate}%")
+        
+        if total_failed > 0:
+            print(f"\n💡 Note: Failed profiles are likely due to:")
+            print(f"   • Instagram rate limiting (temporary)")
+            print(f"   • Private/restricted accounts")
+            print(f"   • Deleted accounts")
+            print(f"\n   They will get updated naturally when clients re-scrape.")
 
 if __name__ == "__main__":
     main()
