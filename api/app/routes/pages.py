@@ -100,46 +100,18 @@ def list_pages(
     desc_order = order.lower() == "desc"
     query = query.order(sort_by, desc=desc_order)
     
-    # Fetch pages in batches (Supabase limit is 1000 per query)
-    all_pages = []
-    batch_size = 1000
-    start = 0
-    iteration = 0
+    # Apply pagination using range (Supabase uses 0-based indexing)
+    end = offset + limit - 1
+    logger.info(f"[PAGES API] Fetching range({offset}, {end}) for category={category}, categorized={categorized}")
     
-    print(f"[PAGES API] Starting batch fetch of pages (min_client_count={min_client_count})...")
-    
-    while True:
-        iteration += 1
-        end = start + batch_size - 1
-        print(f"[PAGES API] Batch {iteration}: Fetching range({start}, {end})")
-        
-        try:
-            batch = query.range(start, end).execute()
-            batch_count = len(batch.data) if batch.data else 0
-            print(f"[PAGES API] Batch {iteration}: Retrieved {batch_count} items")
-            
-            if not batch.data:
-                print(f"[PAGES API] Batch {iteration}: No data, breaking")
-                break
-                
-            all_pages.extend(batch.data)
-            print(f"[PAGES API] Total pages so far: {len(all_pages)}")
-            
-            if len(batch.data) < batch_size:
-                print(f"[PAGES API] Batch {iteration}: Last batch (partial), breaking")
-                break  # Last batch
-                
-            start += batch_size
-        except Exception as e:
-            print(f"[PAGES API] Batch {iteration}: ERROR - {str(e)}")
-            break
-    
-    print(f"[PAGES API] Finished fetching. Total pages: {len(all_pages)}")
-    
-    # Apply pagination
-    result = all_pages[offset:offset+limit]
-    print(f"[PAGES API] Returning slice [offset={offset}:offset+limit={offset+limit}]: {len(result)} pages")
-    return result
+    try:
+        response = query.range(offset, end).execute()
+        result = response.data if response.data else []
+        logger.info(f"[PAGES API] Returning {len(result)} pages")
+        return result
+    except Exception as e:
+        logger.error(f"[PAGES API] Error fetching pages: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail=f"Error fetching pages: {str(e)}")
 
 
 @router.post("/", response_model=PageResponse, status_code=status.HTTP_201_CREATED)
