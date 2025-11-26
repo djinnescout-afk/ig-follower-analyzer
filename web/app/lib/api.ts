@@ -32,6 +32,7 @@ export interface Page {
   category?: string
   manual_promo_status?: string
   known_contact_methods?: string[]
+  attempted_contact_methods?: string[]
   successful_contact_method?: string
   current_main_contact_method?: string
   ig_account_for_dm?: string
@@ -40,6 +41,12 @@ export interface Page {
   va_notes?: string
   last_reviewed_by?: string
   last_reviewed_at?: string
+  // Contact detail fields
+  contact_email?: string
+  contact_phone?: string
+  contact_whatsapp?: string
+  contact_telegram?: string
+  contact_other?: string
 }
 
 export interface ScrapeRun {
