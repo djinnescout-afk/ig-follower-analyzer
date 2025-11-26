@@ -41,6 +41,14 @@ def upsert_row(table: str, data: dict[str, Any], on_conflict: str) -> dict[str, 
     return response.data[0]
 
 
+def update_row(table: str, row_id: str, data: dict[str, Any]) -> dict[str, Any]:
+    """Update an existing row by ID. Only updates fields present in data."""
+    client = get_supabase_client()
+    serialized_data = serialize_datetime(data)
+    response = client.table(table).update(serialized_data).eq("id", row_id).execute()
+    return response.data[0]
+
+
 def fetch_rows(table: str, filters: dict[str, Any] | None = None) -> list[dict[str, Any]]:
     client = get_supabase_client()
     query = client.table(table).select("*")

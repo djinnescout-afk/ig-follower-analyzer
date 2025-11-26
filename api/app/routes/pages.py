@@ -3,7 +3,7 @@ import logging
 
 from fastapi import APIRouter, HTTPException, Query, status
 
-from ..db import fetch_rows, get_supabase_client, insert_row, upsert_row
+from ..db import fetch_rows, get_supabase_client, insert_row, update_row, upsert_row
 from ..schemas.page import PageCreate, PageResponse, PageUpdate
 
 router = APIRouter(prefix="/pages", tags=["pages"])
@@ -198,7 +198,7 @@ def update_page(page_id: str, payload: PageUpdate):
         if not row:
             raise HTTPException(status_code=404, detail="Page not found")
         return row[0]
-    data["id"] = page_id
-    row = upsert_row("pages", data, on_conflict="id")
+    # Use update instead of upsert to only modify specified fields
+    row = update_row("pages", page_id, data)
     return row
 
