@@ -155,6 +155,31 @@ export default function ScrapesTab() {
                     )}
                   </div>
 
+                  {/* Show error immediately if failed */}
+                  {scrape.status === 'failed' && scrape.result?.error && (
+                    <div className="mt-3 p-3 bg-red-50 border border-red-200 rounded-md">
+                      <div className="flex items-start gap-2">
+                        <XCircle size={16} className="text-red-500 mt-0.5 flex-shrink-0" />
+                        <div className="flex-1">
+                          <h5 className="text-sm font-semibold text-red-900 mb-1">Error:</h5>
+                          <p className="text-sm text-red-700 line-clamp-2">
+                            {typeof scrape.result.error === 'string' 
+                              ? scrape.result.error 
+                              : JSON.stringify(scrape.result.error)}
+                          </p>
+                          {!expandedJobs.has(scrape.id) && (
+                            <button
+                              onClick={() => toggleExpanded(scrape.id)}
+                              className="text-xs text-red-600 hover:text-red-800 underline mt-1"
+                            >
+                              Show full error details
+                            </button>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  )}
+
                   {/* Results */}
                   {scrape.result && (
                     <div className="mt-3 p-3 bg-gray-50 rounded-md">
@@ -224,13 +249,19 @@ export default function ScrapesTab() {
                       )}
 
                           {scrape.status === 'failed' && scrape.result.error && (
-                            <div className="bg-red-50 border border-red-200 rounded p-3">
-                              <h5 className="text-sm font-medium text-red-900 mb-2">Error Details:</h5>
-                              <pre className="text-xs text-red-700 whitespace-pre-wrap font-mono overflow-x-auto">
-                                {typeof scrape.result.error === 'string' 
-                                  ? scrape.result.error 
-                                  : JSON.stringify(scrape.result.error, null, 2)}
+                            <div className="bg-red-50 border-2 border-red-300 rounded-md p-4">
+                              <div className="flex items-start gap-2 mb-2">
+                                <XCircle size={20} className="text-red-600 flex-shrink-0 mt-0.5" />
+                                <h5 className="text-base font-semibold text-red-900">Full Error Details</h5>
+                              </div>
+                              <pre className="text-sm text-red-800 whitespace-pre-wrap font-mono overflow-x-auto bg-white p-3 rounded border border-red-200 max-h-96 overflow-y-auto">
+{typeof scrape.result.error === 'string' 
+  ? scrape.result.error 
+  : JSON.stringify(scrape.result.error, null, 2)}
                               </pre>
+                              <p className="text-xs text-red-600 mt-2 italic">
+                                💡 Tip: Look for keywords like "Failed to find", "rollback", "timeout", or specific usernames to identify the issue.
+                              </p>
                             </div>
                           )}
 
