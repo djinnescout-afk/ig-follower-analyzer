@@ -181,9 +181,12 @@ export function getConcentrationTier(
   quartiles: { q25: number; q50: number; q75: number }
 ): 'A' | 'B' | 'C' | 'D' | 'unknown' {
   if (value === null) return 'unknown'
-  if (value >= quartiles.q75) return 'A'
-  if (value >= quartiles.q50) return 'B'
-  if (value >= quartiles.q25) return 'C'
+  // INVERTED: Lower concentration = better (more targeted)
+  // Tier A = Bottom 25% (most concentrated/best)
+  // Tier D = Top 25% (least concentrated/worst)
+  if (value <= quartiles.q25) return 'A'
+  if (value <= quartiles.q50) return 'B'
+  if (value <= quartiles.q75) return 'C'
   return 'D'
 }
 
