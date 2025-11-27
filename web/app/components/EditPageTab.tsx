@@ -205,9 +205,29 @@ export default function EditPageTab() {
     },
   })
 
+  // Archive page mutation
+  const archivePageMutation = useMutation({
+    mutationFn: async (pageId: string) => {
+      await pagesApi.archive(pageId)
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['pages'] })
+      setSelectedPage(null)
+      alert('Page archived successfully!')
+    },
+  })
+
   const handleScrapeProfile = () => {
     if (selectedPage?.id) {
       scrapeProfileMutation.mutate(selectedPage.id)
+    }
+  }
+
+  const handleArchivePage = () => {
+    if (selectedPage?.id) {
+      if (confirm(`Archive @${selectedPage.ig_username}? This page will be hidden but not deleted. You can view archived pages using the "Show archived pages" checkbox.`)) {
+        archivePageMutation.mutate(selectedPage.id)
+      }
     }
   }
 
@@ -856,6 +876,17 @@ export default function EditPageTab() {
                   {updatePageMutation.isPending || updateOutreachMutation.isPending
                     ? 'Saving...'
                     : 'Save Changes'}
+                </button>
+
+                {/* Archive Button */}
+                <button
+                  onClick={handleArchivePage}
+                  disabled={archivePageMutation.isPending}
+                  className="w-full px-6 py-3 bg-red-600 hover:bg-red-700 disabled:opacity-50 disabled:cursor-not-allowed text-white font-semibold rounded-lg flex items-center justify-center gap-2 mt-3"
+                >
+                  {archivePageMutation.isPending
+                    ? 'Archiving...'
+                    : '🗄️ Archive Page'}
                 </button>
               </div>
             </div>

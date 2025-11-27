@@ -1,13 +1,14 @@
 ﻿'use client'
 
 import { useState } from 'react'
-import { useQuery } from '@tanstack/react-query'
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { pagesApi, Page } from '../lib/api'
 import { CATEGORIES, CONTACT_METHODS, PROMO_STATUSES, OUTREACH_STATUSES } from '../lib/categories'
 import { useDebounce } from '../lib/hooks/useDebounce'
 import ClientFollowersModal from './ClientFollowersModal'
 
 export default function ViewCategorizedTab() {
+  const queryClient = useQueryClient()
   const [selectedCategory, setSelectedCategory] = useState<string>('')
   const [page, setPage] = useState(0)
   const [pageSize, setPageSize] = useState(100)
@@ -71,6 +72,23 @@ export default function ViewCategorizedTab() {
     },
     enabled: !!selectedCategory,
   })
+
+  // Archive page mutation
+  const archivePageMutation = useMutation({
+    mutationFn: async (pageId: string) => {
+      await pagesApi.archive(pageId)
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['pages'] })
+      alert('Page archived successfully!')
+    },
+  })
+
+  const handleArchivePage = (page: Page) => {
+    if (confirm(`Archive @${page.ig_username}? This page will be hidden but not deleted.`)) {
+      archivePageMutation.mutate(page.id)
+    }
+  }
 
   // Client-side filtering
   const filteredPages = pages?.filter((page) => {
@@ -615,6 +633,13 @@ export default function ViewCategorizedTab() {
                             className="px-3 py-1 bg-blue-600 text-white text-sm rounded hover:bg-blue-700 whitespace-nowrap"
                           >
                             📝 Edit
+                          </button>
+                          <button
+                            onClick={() => handleArchivePage(page)}
+                            disabled={archivePageMutation.isPending}
+                            className="px-3 py-1 bg-red-600 text-white text-sm rounded hover:bg-red-700 whitespace-nowrap disabled:opacity-50"
+                          >
+                            🗄️ Archive
                           </button>
                         </div>
                       </td>

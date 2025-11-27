@@ -114,6 +114,8 @@ export const pagesApi = {
   get: (id: string) => api.get<Page>(`/pages/${id}`),
   getProfile: (id: string) => api.get<PageProfile>(`/pages/${id}/profile`),
   update: (id: string, data: any) => api.put(`/pages/${id}`, data),
+  archive: (id: string) => api.put(`/pages/${id}`, { archived: true }),
+  getPageFollowers: (id: string) => api.get<any[]>(`/pages/${id}/followers`),
   getCategoryCounts: () => api.get<Record<string, number>>('/pages/category-counts'),
   getCount: (params?: {
     categorized?: boolean

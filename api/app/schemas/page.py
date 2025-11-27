@@ -43,6 +43,7 @@ class PageUpdate(BaseModel):
     contact_whatsapp: Optional[str] = None
     contact_telegram: Optional[str] = None
     contact_other: Optional[str] = None
+    archived: Optional[bool] = None
 
 
 class PageResponse(PageBase):
