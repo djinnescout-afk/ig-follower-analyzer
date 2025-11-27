@@ -284,14 +284,25 @@ class ClientFollowingWorker:
                 # Create username -> id mapping
                 page_id_map = {p["ig_username"]: p["id"] for p in (pages.data or [])}
                 
-                # Insert relationships
+                # Check for missing pages (critical for rollback to work!)
+                missing_pages = [
+                    account["username"] 
+                    for account in batch 
+                    if account["username"] not in page_id_map
+                ]
+                
+                if missing_pages:
+                    error_msg = f"Failed to find {len(missing_pages)} pages in database after creation: {missing_pages[:5]}..."
+                    logger.error(error_msg)
+                    raise Exception(error_msg)
+                
+                # Insert relationships (all pages MUST be present now)
                 relationships = [
                     {
                         "client_id": client_id,
                         "page_id": page_id_map[account["username"]]
                     }
                     for account in batch
-                    if account["username"] in page_id_map
                 ]
                 
                 if relationships:
