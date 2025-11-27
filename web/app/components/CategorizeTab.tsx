@@ -147,7 +147,8 @@ export default function CategorizeTab() {
       await pagesApi.update(currentPage.id, data)
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['pages'] })
+      // Don't invalidate - keep list stable during categorization session
+      // The page will be removed from the list when user refreshes the browser
     },
   })
 
