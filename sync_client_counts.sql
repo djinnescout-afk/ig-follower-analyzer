@@ -31,3 +31,4 @@ WHERE category IS NULL AND archived = false
 GROUP BY client_count
 ORDER BY client_count ASC;
 
+

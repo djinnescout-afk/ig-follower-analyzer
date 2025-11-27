@@ -73,7 +73,7 @@ def list_pages(
     categorized: Optional[bool] = Query(None, description="Filter by categorization status (true=categorized, false=uncategorized)"),
     category: Optional[str] = Query(None, description="Filter by specific category"),
     search: Optional[str] = Query(None, description="Search by username or name"),
-    sort_by: Optional[str] = Query("client_count", description="Field to sort by (client_count, follower_count, last_reviewed_at)"),
+    sort_by: Optional[str] = Query("client_count", description="Field to sort by (client_count, follower_count, last_reviewed_at, concentration, concentration_per_dollar)"),
     order: Optional[str] = Query("desc", description="Sort order (asc or desc)"),
     limit: Optional[int] = Query(10000, description="Max pages to return"),
     offset: Optional[int] = Query(0, description="Pagination offset"),
@@ -82,10 +82,38 @@ def list_pages(
     """List pages with optional filtering, sorting, and pagination.
     
     Uses the client_count column from the database (maintained by triggers).
+    For concentration-based sorting, uses RPC function for calculated fields.
     """
     client = get_supabase_client()
     
-    # Build query with filter applied at database level
+    # Use RPC function for concentration-based sorting
+    if sort_by in ["concentration", "concentration_per_dollar"]:
+        try:
+            logger.info(f"[PAGES API] Using RPC for {sort_by} sorting")
+            response = client.rpc("get_pages_with_concentration", {
+                "p_categorized": categorized,
+                "p_category": category,
+                "p_search": search,
+                "p_include_archived": include_archived,
+                "p_sort_by": sort_by,
+                "p_order_dir": order.lower(),
+                "p_limit": min(limit, 1000),  # RPC handles single batch
+                "p_offset": offset,
+            }).execute()
+            
+            result = response.data if response.data else []
+            
+            # Apply min_client_count filter client-side if needed (RPC doesn't handle this)
+            if min_client_count is not None:
+                result = [page for page in result if page.get("client_count", 0) >= min_client_count]
+            
+            logger.info(f"[PAGES API] RPC returned {len(result)} pages")
+            return result
+        except Exception as e:
+            logger.error(f"[PAGES API] RPC error, falling back to standard query: {e}", exc_info=True)
+            # Fall through to standard query
+    
+    # Standard query for non-concentration sorting
     query = client.table("pages").select("*")
     
     # Apply min_client_count filter

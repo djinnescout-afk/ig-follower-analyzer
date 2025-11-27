@@ -154,3 +154,36 @@ export const outreachApi = {
   }) => api.put<OutreachTracking>(`/outreach/${pageId}`, data),
 }
 
+// Concentration calculation utilities
+export function calculateConcentration(page: Page): number | null {
+  if (!page.client_count || page.client_count === 0) return null
+  return page.follower_count / page.client_count
+}
+
+export function calculateConcentrationPerDollar(page: Page): number | null {
+  if (!page.promo_price || page.promo_price === 0) return null
+  const conc = calculateConcentration(page)
+  if (conc === null) return null
+  return conc / page.promo_price / 1000000
+}
+
+export function calculateQuartiles(values: number[]): { q25: number; q50: number; q75: number } {
+  if (values.length === 0) return { q25: 0, q50: 0, q75: 0 }
+  const sorted = [...values].sort((a, b) => a - b)
+  const q25 = sorted[Math.floor(sorted.length * 0.25)]
+  const q50 = sorted[Math.floor(sorted.length * 0.50)]
+  const q75 = sorted[Math.floor(sorted.length * 0.75)]
+  return { q25, q50, q75 }
+}
+
+export function getConcentrationTier(
+  value: number | null, 
+  quartiles: { q25: number; q50: number; q75: number }
+): 'A' | 'B' | 'C' | 'D' | 'unknown' {
+  if (value === null) return 'unknown'
+  if (value >= quartiles.q75) return 'A'
+  if (value >= quartiles.q50) return 'B'
+  if (value >= quartiles.q25) return 'C'
+  return 'D'
+}
+

@@ -53,3 +53,4 @@ WHERE client_count = 0 AND archived = false
 ORDER BY created_at DESC
 LIMIT 20;
 
+

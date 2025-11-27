@@ -1,8 +1,8 @@
 ﻿'use client'
 
-import { useState } from 'react'
+import { useState, useMemo } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { pagesApi, Page } from '../lib/api'
+import { pagesApi, Page, calculateConcentration, calculateConcentrationPerDollar, calculateQuartiles, getConcentrationTier } from '../lib/api'
 import { CATEGORIES, CONTACT_METHODS, PROMO_STATUSES, OUTREACH_STATUSES } from '../lib/categories'
 import { useDebounce } from '../lib/hooks/useDebounce'
 import ClientFollowersModal from './ClientFollowersModal'
@@ -20,6 +20,14 @@ export default function ViewCategorizedTab() {
   const [contactMethodsFilter, setContactMethodsFilter] = useState<string[]>([])
   const [attemptedMethodsFilter, setAttemptedMethodsFilter] = useState<string[]>([])
   const [successfulMethodsFilter, setSuccessfulMethodsFilter] = useState<string[]>([])
+  
+  // Sorting states
+  const [sortBy, setSortBy] = useState<string>('client_count')
+  const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('desc')
+  
+  // Concentration tier filter states
+  const [concentrationTierFilter, setConcentrationTierFilter] = useState<string[]>([])
+  const [concentrationPerDollarTierFilter, setConcentrationPerDollarTierFilter] = useState<string[]>([])
   
   // Debounce search query to reduce API calls (500ms delay)
   const debouncedSearch = useDebounce(searchQuery, 500)
@@ -55,15 +63,15 @@ export default function ViewCategorizedTab() {
 
   // Fetch paginated pages for selected category
   const { data: pages, isLoading } = useQuery({
-    queryKey: ['pages', 'categorized', selectedCategory, page, pageSize, debouncedSearch],
+    queryKey: ['pages', 'categorized', selectedCategory, page, pageSize, debouncedSearch, sortBy, sortOrder],
     queryFn: async () => {
-      console.log('[ViewCategorized] Fetching pages for category:', selectedCategory, 'page:', page, 'search:', debouncedSearch)
+      console.log('[ViewCategorized] Fetching pages for category:', selectedCategory, 'page:', page, 'search:', debouncedSearch, 'sort:', sortBy, sortOrder)
       const response = await pagesApi.list({
         categorized: true,
         category: selectedCategory || undefined,
         search: debouncedSearch || undefined,
-        sort_by: 'client_count',
-        order: 'desc',
+        sort_by: sortBy,
+        order: sortOrder,
         limit: pageSize,
         offset: page * pageSize,
       })
@@ -90,6 +98,23 @@ export default function ViewCategorizedTab() {
       archivePageMutation.mutate(page.id)
     }
   }
+
+  // Calculate concentration quartiles for tier filtering
+  const concentrationQuartiles = useMemo(() => {
+    if (!pages) return { q25: 0, q50: 0, q75: 0 }
+    const values = pages
+      .map(p => calculateConcentration(p))
+      .filter((v): v is number => v !== null)
+    return calculateQuartiles(values)
+  }, [pages])
+
+  const concentrationPerDollarQuartiles = useMemo(() => {
+    if (!pages) return { q25: 0, q50: 0, q75: 0 }
+    const values = pages
+      .map(p => calculateConcentrationPerDollar(p))
+      .filter((v): v is number => v !== null)
+    return calculateQuartiles(values)
+  }, [pages])
 
   // Client-side filtering
   const filteredPages = pages?.filter((page) => {
@@ -130,6 +155,24 @@ export default function ViewCategorizedTab() {
       }
     }
     
+    // Concentration tier filter
+    if (concentrationTierFilter.length > 0) {
+      const concentration = calculateConcentration(page)
+      const tier = getConcentrationTier(concentration, concentrationQuartiles)
+      if (!concentrationTierFilter.includes(tier)) {
+        return false
+      }
+    }
+    
+    // Concentration per dollar tier filter
+    if (concentrationPerDollarTierFilter.length > 0) {
+      const concPerDollar = calculateConcentrationPerDollar(page)
+      const tier = concPerDollar === null ? 'unknown' : getConcentrationTier(concPerDollar, concentrationPerDollarQuartiles)
+      if (!concentrationPerDollarTierFilter.includes(tier)) {
+        return false
+      }
+    }
+    
     return true
   }) || []
 
@@ -152,6 +195,10 @@ export default function ViewCategorizedTab() {
     setContactMethodsFilter([])
     setAttemptedMethodsFilter([])
     setSuccessfulMethodsFilter([])
+    setConcentrationTierFilter([])
+    setConcentrationPerDollarTierFilter([])
+    setSortBy('client_count')
+    setSortOrder('desc')
   }
 
   return (
@@ -209,18 +256,42 @@ export default function ViewCategorizedTab() {
             {/* Filters Section */}
             <div className="mt-4 p-4 bg-gray-50 rounded-lg border border-gray-200">
               <div className="flex items-center justify-between mb-3">
-                <h3 className="text-sm font-semibold text-gray-700">Filters</h3>
-                {(promoStatusFilter || outreachStatusFilter || contactMethodsFilter.length > 0 || attemptedMethodsFilter.length > 0 || successfulMethodsFilter.length > 0) && (
+                <h3 className="text-sm font-semibold text-gray-700">Sort & Filters</h3>
+                {(promoStatusFilter || outreachStatusFilter || contactMethodsFilter.length > 0 || attemptedMethodsFilter.length > 0 || successfulMethodsFilter.length > 0 || concentrationTierFilter.length > 0 || concentrationPerDollarTierFilter.length > 0 || sortBy !== 'client_count' || sortOrder !== 'desc') && (
                   <button
                     onClick={handleResetFilters}
                     className="text-xs px-3 py-1 bg-gray-200 text-gray-700 rounded hover:bg-gray-300"
                   >
-                    Clear All Filters
+                    Reset All
                   </button>
                 )}
               </div>
               
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
+              {/* Sort Controls */}
+              <div className="mb-4 pb-4 border-b border-gray-200">
+                <label className="block text-xs font-medium text-gray-600 mb-2">Sort By</label>
+                <div className="flex gap-2">
+                  <select
+                    value={sortBy}
+                    onChange={(e) => setSortBy(e.target.value)}
+                    className="flex-1 px-2 py-1.5 text-sm border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  >
+                    <option value="client_count">Client Count</option>
+                    <option value="follower_count">Follower Count</option>
+                    <option value="concentration">Concentration (Followers/Client)</option>
+                    <option value="concentration_per_dollar">Concentration Per Dollar</option>
+                    <option value="last_reviewed_at">Last Reviewed</option>
+                  </select>
+                  <button
+                    onClick={() => setSortOrder(sortOrder === 'asc' ? 'desc' : 'asc')}
+                    className="px-3 py-1.5 text-sm border border-gray-300 rounded hover:bg-gray-100 font-medium"
+                  >
+                    {sortOrder === 'asc' ? '↑ Asc' : '↓ Desc'}
+                  </button>
+                </div>
+              </div>
+              
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-7 gap-4">
                 {/* Promo Status Filter */}
                 <div>
                   <label className="block text-xs font-medium text-gray-600 mb-1">
@@ -336,6 +407,58 @@ export default function ViewCategorizedTab() {
                     ))}
                   </div>
                 </div>
+
+                {/* Concentration Tier Filter */}
+                <div>
+                  <label className="block text-xs font-medium text-gray-600 mb-1">
+                    Concentration Tier
+                  </label>
+                  <div className="space-y-1 max-h-32 overflow-y-auto">
+                    {['A', 'B', 'C', 'D', 'unknown'].map((tier) => (
+                      <label key={tier} className="flex items-center text-xs">
+                        <input
+                          type="checkbox"
+                          checked={concentrationTierFilter.includes(tier)}
+                          onChange={(e) => {
+                            if (e.target.checked) {
+                              setConcentrationTierFilter([...concentrationTierFilter, tier])
+                            } else {
+                              setConcentrationTierFilter(concentrationTierFilter.filter((t) => t !== tier))
+                            }
+                          }}
+                          className="mr-1.5"
+                        />
+                        {tier === 'unknown' ? 'N/A' : `Tier ${tier}`}
+                      </label>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Concentration Per Dollar Tier Filter */}
+                <div>
+                  <label className="block text-xs font-medium text-gray-600 mb-1">
+                    Conc. Per $ Tier
+                  </label>
+                  <div className="space-y-1 max-h-32 overflow-y-auto">
+                    {['A', 'B', 'C', 'D', 'unknown'].map((tier) => (
+                      <label key={tier} className="flex items-center text-xs">
+                        <input
+                          type="checkbox"
+                          checked={concentrationPerDollarTierFilter.includes(tier)}
+                          onChange={(e) => {
+                            if (e.target.checked) {
+                              setConcentrationPerDollarTierFilter([...concentrationPerDollarTierFilter, tier])
+                            } else {
+                              setConcentrationPerDollarTierFilter(concentrationPerDollarTierFilter.filter((t) => t !== tier))
+                            }
+                          }}
+                          className="mr-1.5"
+                        />
+                        {tier === 'unknown' ? 'No Price' : `Tier ${tier}`}
+                      </label>
+                    ))}
+                  </div>
+                </div>
               </div>
               
               {/* Filter Results Summary */}
@@ -374,6 +497,9 @@ export default function ViewCategorizedTab() {
                       Clients
                     </th>
                     <th className="px-6 py-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider" style={{ border: '1px solid #9ca3af' }}>
+                      Concentration
+                    </th>
+                    <th className="px-6 py-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider" style={{ border: '1px solid #9ca3af' }}>
                       Contact Methods
                     </th>
                     <th className="px-6 py-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider" style={{ border: '1px solid #9ca3af' }}>
@@ -387,6 +513,9 @@ export default function ViewCategorizedTab() {
                     </th>
                     <th className="px-6 py-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider" style={{ border: '1px solid #9ca3af' }}>
                       Price
+                    </th>
+                    <th className="px-6 py-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider" style={{ border: '1px solid #9ca3af' }}>
+                      Conc. Per $
                     </th>
                     <th className="px-6 py-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider" style={{ border: '1px solid #9ca3af' }}>
                       Promo Status
@@ -438,6 +567,35 @@ export default function ViewCategorizedTab() {
                             clientCount={page.client_count}
                           />
                         </span>
+                      </td>
+
+                      {/* Concentration */}
+                      <td className="px-6 py-6" style={{ border: '1px solid #9ca3af' }}>
+                        {(() => {
+                          const conc = calculateConcentration(page)
+                          const tier = getConcentrationTier(conc, concentrationQuartiles)
+                          const tierColors = {
+                            'A': 'bg-green-100 text-green-800',
+                            'B': 'bg-blue-100 text-blue-800',
+                            'C': 'bg-yellow-100 text-yellow-800',
+                            'D': 'bg-red-100 text-red-800',
+                            'unknown': 'bg-gray-100 text-gray-600'
+                          }
+                          return (
+                            <div className="text-sm">
+                              {conc !== null ? (
+                                <>
+                                  <div className="font-medium text-gray-900">{conc.toLocaleString(undefined, { maximumFractionDigits: 0 })}</div>
+                                  <span className={`inline-block mt-1 px-2 py-0.5 text-xs rounded ${tierColors[tier]}`}>
+                                    {tier === 'unknown' ? 'N/A' : `Tier ${tier}`}
+                                  </span>
+                                </>
+                              ) : (
+                                <span className="text-gray-400">N/A</span>
+                              )}
+                            </div>
+                          )
+                        })()}
                       </td>
 
                       {/* Contact Methods */}
@@ -590,6 +748,35 @@ export default function ViewCategorizedTab() {
                             <span className="text-gray-400">—</span>
                           )}
                         </div>
+                      </td>
+
+                      {/* Concentration Per Dollar */}
+                      <td className="px-6 py-6" style={{ border: '1px solid #9ca3af' }}>
+                        {(() => {
+                          const concPerDollar = calculateConcentrationPerDollar(page)
+                          const tier = concPerDollar === null ? 'unknown' : getConcentrationTier(concPerDollar, concentrationPerDollarQuartiles)
+                          const tierColors = {
+                            'A': 'bg-green-100 text-green-800',
+                            'B': 'bg-blue-100 text-blue-800',
+                            'C': 'bg-yellow-100 text-yellow-800',
+                            'D': 'bg-red-100 text-red-800',
+                            'unknown': 'bg-gray-100 text-gray-600'
+                          }
+                          return (
+                            <div className="text-sm">
+                              {concPerDollar !== null ? (
+                                <>
+                                  <div className="font-medium text-gray-900">{concPerDollar.toFixed(2)}</div>
+                                  <span className={`inline-block mt-1 px-2 py-0.5 text-xs rounded ${tierColors[tier]}`}>
+                                    {tier === 'unknown' ? 'No Price' : `Tier ${tier}`}
+                                  </span>
+                                </>
+                              ) : (
+                                <span className="text-gray-400">N/A</span>
+                              )}
+                            </div>
+                          )
+                        })()}
                       </td>
 
                       {/* Promo Status */}

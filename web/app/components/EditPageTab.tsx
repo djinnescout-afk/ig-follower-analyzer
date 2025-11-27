@@ -17,6 +17,8 @@ export default function EditPageTab() {
   const [browseMode, setBrowseMode] = useState(false) // Toggle between search and browse
   const [browsePage, setBrowsePage] = useState(0) // Pagination for browse mode
   const [goToPageInput, setGoToPageInput] = useState('') // For direct page navigation
+  const [sortBy, setSortBy] = useState<string>('client_count') // Sort field for browse mode
+  const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('desc') // Sort order for browse mode
   const queryClient = useQueryClient()
   
   const pageSize = 1000 // Pages per browse page
@@ -55,14 +57,14 @@ export default function EditPageTab() {
 
   // Fetch pages with server-side search OR browse mode
   const { data: pages, isLoading: pagesLoading } = useQuery({
-    queryKey: ['pages', 'edit-page', browseMode, browsePage, debouncedSearch, showArchived],
+    queryKey: ['pages', 'edit-page', browseMode, browsePage, debouncedSearch, showArchived, sortBy, sortOrder],
     queryFn: async () => {
       // Browse Mode: Load pages in paginated batches
       if (browseMode) {
         const response = await pagesApi.list({
           include_archived: showArchived,
-          sort_by: 'client_count',
-          order: 'desc',
+          sort_by: sortBy,
+          order: sortOrder,
           limit: pageSize,
           offset: browsePage * pageSize,
         })
@@ -361,7 +363,31 @@ export default function EditPageTab() {
 
         {/* Browse Mode Pagination */}
         {browseMode && (
-          <div className="flex items-center gap-4 mb-3">
+          <div className="mb-3 space-y-2">
+            {/* Sort Controls */}
+            <div className="flex items-center gap-2 pb-2 border-b border-gray-200">
+              <span className="text-sm text-gray-600 font-medium">Sort by:</span>
+              <select
+                value={sortBy}
+                onChange={(e) => setSortBy(e.target.value)}
+                className="px-3 py-1.5 text-sm border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
+              >
+                <option value="client_count">Client Count</option>
+                <option value="follower_count">Follower Count</option>
+                <option value="concentration">Concentration (Followers/Client)</option>
+                <option value="concentration_per_dollar">Concentration Per Dollar</option>
+                <option value="last_reviewed_at">Last Reviewed</option>
+              </select>
+              <button
+                onClick={() => setSortOrder(sortOrder === 'asc' ? 'desc' : 'asc')}
+                className="px-3 py-1.5 text-sm border border-gray-300 rounded hover:bg-gray-100 font-medium"
+              >
+                {sortOrder === 'asc' ? '↑ Ascending' : '↓ Descending'}
+              </button>
+            </div>
+
+            {/* Pagination Controls */}
+            <div className="flex items-center gap-4">
             <button
               onClick={() => setBrowsePage(Math.max(0, browsePage - 1))}
               disabled={browsePage === 0}
@@ -412,6 +438,7 @@ export default function EditPageTab() {
             >
               Next →
             </button>
+          </div>
           </div>
         )}
 

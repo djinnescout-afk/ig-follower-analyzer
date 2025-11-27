@@ -1,0 +1,16 @@
+warning: in the working copy of 'web/app/components/ClientsTab.tsx', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'web/app/components/EditPageTab.tsx', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'web/app/components/PagesTab.tsx', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'web/app/components/ViewCategorizedTab.tsx', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'web/app/lib/categories.ts', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'web/app/page.tsx', LF will be replaced by CRLF the next time Git touches it
+ web/app/components/CategorizeTab.tsx        |  6 [32m+++[m[31m---[m
+ web/app/components/ClientFollowersModal.tsx |  4 [32m++[m[31m--[m
+ web/app/components/ClientsTab.tsx           |  4 [32m++[m[31m--[m
+ web/app/components/EditPageTab.tsx          | 14 [32m+++++++[m[31m-------[m
+ web/app/components/PagesTab.tsx             | 10 [32m+++++[m[31m-----[m
+ web/app/components/ScrapesTab.tsx           |  6 [32m+++[m[31m---[m
+ web/app/components/ViewCategorizedTab.tsx   | 24 [32m++++++++++++[m[31m------------[m
+ web/app/lib/categories.ts                   |  2 [32m+[m[31m-[m
+ web/app/page.tsx                            |  6 [32m+++[m[31m---[m
+ 9 files changed, 38 insertions(+), 38 deletions(-)

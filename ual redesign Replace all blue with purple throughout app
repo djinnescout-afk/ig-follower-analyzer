@@ -1,0 +1,15 @@
+[33m7519413[m[33m ([m[1;36mHEAD[m[33m -> [m[1;32mmain[m[33m, [m[1;31morigin/main[m[33m, [m[1;31morigin/HEAD[m[33m)[m TEST: Very obvious purple header to confirm deployment
+[33me23bd8a[m Fix: Use built-in Tailwind purple colors instead of custom primary colors
+[33m362926a[m Force Tailwind rebuild by updating globals.css
+[33m6e10f29[m Visual upgrade: Part 2 - All remaining tabs
+[33m1f25333[m Visual upgrade: Part 1 - Main layout and CategorizeTab
+[33m4a933e5[m Add Unlikely promo status option
+[33me85acdb[m Fix: Add secondary sort by id to prevent duplicate pages in batch fetching
+[33m7fed097[m Add SQL script for syncing client_count column
+[33mf383a5a[m Add sync_client_counts script to fix out-of-sync client_count column
+[33m25e6644[m Fix: Page count now excludes archived pages by default in EditPageTab
+[33m4c012ae[m Improve error visibility in ScrapesTab - show errors immediately without expanding
+[33m6d3a155[m Fix: Prevent orphaned pages by detecting missing pages before relationship creation
+[33m145712a[m Add all three contact method levels consistently across tabs
+[33mf9052b8[m Change successful_contact_method to successful_contact_methods (multiple choice)
+[33m292545c[m Fix auto-refresh on save in CategorizeTab - remove invalidateQueries call that was causing array shift
