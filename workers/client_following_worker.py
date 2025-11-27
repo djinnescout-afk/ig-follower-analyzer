@@ -210,6 +210,9 @@ class ClientFollowingWorker:
         """Store following results in database"""
         logger.info(f"Storing {len(following_list)} following records...")
         
+        # Track pages created in this transaction for rollback on failure
+        created_page_ids = []
+        
         # First, ensure all pages exist (batch create)
         pages_to_create = []
         batch_check_size = 50  # Smaller batches for .in() query
@@ -238,63 +241,89 @@ class ClientFollowingWorker:
                         "is_private": account.get("is_private", False),
                     })
         
-        # Batch insert new pages
+        # Batch insert new pages and track their IDs for potential rollback
         if pages_to_create:
             logger.info(f"Creating {len(pages_to_create)} new pages...")
             insert_batch_size = 100
             for i in range(0, len(pages_to_create), insert_batch_size):
                 batch = pages_to_create[i:i + insert_batch_size]
-                self.supabase.table("pages").insert(batch).execute()
+                result = self.supabase.table("pages").insert(batch).execute()
+                # Track created page IDs for potential rollback
+                if result.data:
+                    created_page_ids.extend([p["id"] for p in result.data])
                 logger.info(f"Created pages batch {i//insert_batch_size + 1}: {len(batch)} pages")
         
         # Note: The following scraper does NOT return follower counts
         # Follower counts are scraped separately for high-value pages via _scrape_targeted_follower_counts
         logger.info(f"Note: Follower counts will be scraped separately for high-value pages (hotlist, 2+ clients)")
         
-        # Now insert client_following relationships
-        # First delete existing relationships for this client
-        logger.info(f"Deleting existing relationships for client {client_id}...")
-        self.supabase.table("client_following")\
-            .delete()\
-            .eq("client_id", client_id)\
-            .execute()
-        
-        # Batch insert new relationships with smaller batches
-        logger.info(f"Inserting {len(following_list)} relationships...")
-        relationship_batch_size = 50  # Smaller for .in() query
-        total_inserted = 0
-        
-        for i in range(0, len(following_list), relationship_batch_size):
-            batch = following_list[i:i + relationship_batch_size]
-            
-            # Get page IDs for this batch
-            usernames = [a["username"] for a in batch]
-            pages = self.supabase.table("pages")\
-                .select("id, ig_username")\
-                .in_("ig_username", usernames)\
+        # Now insert client_following relationships (with rollback on failure)
+        try:
+            # First delete existing relationships for this client
+            logger.info(f"Deleting existing relationships for client {client_id}...")
+            self.supabase.table("client_following")\
+                .delete()\
+                .eq("client_id", client_id)\
                 .execute()
             
-            # Create username -> id mapping
-            page_id_map = {p["ig_username"]: p["id"] for p in (pages.data or [])}
+            # Batch insert new relationships with smaller batches
+            logger.info(f"Inserting {len(following_list)} relationships...")
+            relationship_batch_size = 50  # Smaller for .in() query
+            total_inserted = 0
             
-            # Insert relationships
-            relationships = [
-                {
-                    "client_id": client_id,
-                    "page_id": page_id_map[account["username"]]
-                }
-                for account in batch
-                if account["username"] in page_id_map
-            ]
-            
-            if relationships:
-                self.supabase.table("client_following")\
-                    .insert(relationships)\
+            for i in range(0, len(following_list), relationship_batch_size):
+                batch = following_list[i:i + relationship_batch_size]
+                
+                # Get page IDs for this batch
+                usernames = [a["username"] for a in batch]
+                pages = self.supabase.table("pages")\
+                    .select("id, ig_username")\
+                    .in_("ig_username", usernames)\
                     .execute()
-                total_inserted += len(relationships)
-                logger.info(f"Inserted relationship batch {i//relationship_batch_size + 1}: {len(relationships)} relationships (total: {total_inserted})")
-        
-        logger.info(f"Γ£à Stored following data for client {client_id}: {total_inserted} relationships created")
+                
+                # Create username -> id mapping
+                page_id_map = {p["ig_username"]: p["id"] for p in (pages.data or [])}
+                
+                # Insert relationships
+                relationships = [
+                    {
+                        "client_id": client_id,
+                        "page_id": page_id_map[account["username"]]
+                    }
+                    for account in batch
+                    if account["username"] in page_id_map
+                ]
+                
+                if relationships:
+                    self.supabase.table("client_following")\
+                        .insert(relationships)\
+                        .execute()
+                    total_inserted += len(relationships)
+                    logger.info(f"Inserted relationship batch {i//relationship_batch_size + 1}: {len(relationships)} relationships (total: {total_inserted})")
+            
+            logger.info(f"Γ£à Stored following data for client {client_id}: {total_inserted} relationships created")
+            
+        except Exception as e:
+            logger.error(f"Failed to create relationships: {e}")
+            
+            # Rollback: Delete pages that were created in this transaction
+            if created_page_ids:
+                logger.warning(f"Rolling back {len(created_page_ids)} pages that were created without relationships...")
+                try:
+                    # Delete in batches
+                    rollback_batch_size = 100
+                    for i in range(0, len(created_page_ids), rollback_batch_size):
+                        batch_ids = created_page_ids[i:i + rollback_batch_size]
+                        self.supabase.table("pages")\
+                            .delete()\
+                            .in_("id", batch_ids)\
+                            .execute()
+                    logger.info(f"✓ Rolled back {len(created_page_ids)} orphaned pages")
+                except Exception as rollback_error:
+                    logger.error(f"Failed to rollback pages: {rollback_error}")
+            
+            # Re-raise the original exception
+            raise
         
         # After storing relationships, scrape follower counts for ALL high-value pages (new AND existing)
         logger.info("Checking which pages need follower counts (hotlist or 2+ clients)...")
