@@ -121,6 +121,7 @@ export const pagesApi = {
     categorized?: boolean
     category?: string
     search?: string
+    include_archived?: boolean
   }) => api.get<{ count: number }>('/pages/count', { params }),
 }
 

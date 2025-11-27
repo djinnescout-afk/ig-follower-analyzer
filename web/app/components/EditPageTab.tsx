@@ -30,6 +30,7 @@ export default function EditPageTab() {
     queryFn: async () => {
       const response = await pagesApi.getCount({
         categorized: undefined, // Get all pages
+        include_archived: showArchived, // Respect the showArchived toggle
       })
       return response.data
     },

@@ -34,11 +34,16 @@ def get_pages_count(
     categorized: Optional[bool] = Query(None),
     category: Optional[str] = Query(None),
     search: Optional[str] = Query(None),
+    include_archived: bool = Query(False),
 ):
     """Get total count of pages matching filters (for pagination)."""
     try:
         client = get_supabase_client()
         query = client.table("pages").select("id", count="exact")
+        
+        # Filter out archived pages by default
+        if not include_archived:
+            query = query.eq("archived", False)
         
         if min_client_count is not None:
             query = query.gte("client_count", min_client_count)
