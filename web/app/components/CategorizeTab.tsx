@@ -78,6 +78,9 @@ export default function CategorizeTab() {
       
       return sorted
     },
+    staleTime: Infinity, // Never auto-refetch - keeps list stable while user works
+    refetchOnMount: false, // Don't refetch when tab remounts
+    refetchOnWindowFocus: false, // Don't refetch when window regains focus
   })
 
   const currentPage = pages?.[currentIndex]
