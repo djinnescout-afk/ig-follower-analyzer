@@ -110,8 +110,11 @@ def list_pages(
             logger.info(f"[PAGES API] RPC returned {len(result)} pages")
             return result
         except Exception as e:
-            logger.error(f"[PAGES API] RPC error, falling back to standard query: {e}", exc_info=True)
-            # Fall through to standard query
+            logger.error(f"[PAGES API] RPC error for {sort_by}: {e}", exc_info=True)
+            raise HTTPException(
+                status_code=500, 
+                detail=f"Concentration sorting requires RPC function. Please run: docs/add_concentration_sorting_rpc.sql in Supabase"
+            )
     
     # Standard query for non-concentration sorting
     query = client.table("pages").select("*")
