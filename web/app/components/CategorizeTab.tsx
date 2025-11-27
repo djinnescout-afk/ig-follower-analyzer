@@ -121,7 +121,7 @@ export default function CategorizeTab() {
         category: currentPage.category || '',
         manual_promo_status: currentPage.manual_promo_status || '',
         known_contact_methods: currentPage.known_contact_methods || [],
-        successful_contact_method: currentPage.successful_contact_method || '',
+        successful_contact_methods: currentPage.successful_contact_methods || [],
         current_main_contact_method: currentPage.current_main_contact_method || '',
         ig_account_for_dm: currentPage.ig_account_for_dm || '',
         promo_price: currentPage.promo_price || '',
@@ -174,7 +174,7 @@ export default function CategorizeTab() {
         category: formData.category || null,
         manual_promo_status: formData.manual_promo_status || null,
         known_contact_methods: formData.known_contact_methods.length > 0 ? formData.known_contact_methods : null,
-        successful_contact_method: formData.successful_contact_method || null,
+        successful_contact_methods: formData.successful_contact_methods.length > 0 ? formData.successful_contact_methods : null,
         current_main_contact_method: formData.current_main_contact_method || null,
         ig_account_for_dm: formData.ig_account_for_dm || null,
         promo_price: formData.promo_price ? parseFloat(formData.promo_price) : null,
@@ -553,25 +553,37 @@ export default function CategorizeTab() {
               </div>
             )}
 
-            {/* Successful Contact Method */}
+            {/* Successful Contact Methods */}
             <div className="mb-4">
               <label className="block text-sm font-medium text-gray-700 mb-2">
-                Successful Contact Method
+                Successful Contact Methods (Which worked?)
               </label>
-              <select
-                value={formData.successful_contact_method || ''}
-                onChange={(e) =>
-                  setFormData({ ...formData, successful_contact_method: e.target.value })
-                }
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-              >
-                <option value="">None yet</option>
+              <div className="space-y-2">
                 {CONTACT_METHODS.map((method) => (
-                  <option key={method} value={method}>
-                    {method}
-                  </option>
+                  <label key={method} className="flex items-center">
+                    <input
+                      type="checkbox"
+                      checked={formData.successful_contact_methods?.includes(method) || false}
+                      onChange={(e) => {
+                        const methods = formData.successful_contact_methods || []
+                        if (e.target.checked) {
+                          setFormData({
+                            ...formData,
+                            successful_contact_methods: [...methods, method],
+                          })
+                        } else {
+                          setFormData({
+                            ...formData,
+                            successful_contact_methods: methods.filter((m: string) => m !== method),
+                          })
+                        }
+                      }}
+                      className="mr-2"
+                    />
+                    <span className="text-sm">{method}</span>
+                  </label>
                 ))}
-              </select>
+              </div>
             </div>
 
             {/* Current Main Contact Method */}

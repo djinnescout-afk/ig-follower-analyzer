@@ -29,7 +29,7 @@ class PageUpdate(BaseModel):
     manual_promo_status: Optional[str] = None
     known_contact_methods: Optional[List[str]] = None
     attempted_contact_methods: Optional[List[str]] = None
-    successful_contact_method: Optional[str] = None
+    successful_contact_methods: Optional[List[str]] = None
     current_main_contact_method: Optional[str] = None
     ig_account_for_dm: Optional[str] = None
     promo_price: Optional[float] = None
@@ -58,7 +58,7 @@ class PageResponse(PageBase):
     manual_promo_status: Optional[str] = None
     known_contact_methods: Optional[List[str]] = None
     attempted_contact_methods: Optional[List[str]] = None
-    successful_contact_method: Optional[str] = None
+    successful_contact_methods: Optional[List[str]] = None
     current_main_contact_method: Optional[str] = None
     ig_account_for_dm: Optional[str] = None
     promo_price: Optional[float] = None

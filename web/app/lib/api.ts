@@ -34,7 +34,7 @@ export interface Page {
   manual_promo_status?: string
   known_contact_methods?: string[]
   attempted_contact_methods?: string[]
-  successful_contact_method?: string
+  successful_contact_methods?: string[]
   current_main_contact_method?: string
   ig_account_for_dm?: string
   promo_price?: number
