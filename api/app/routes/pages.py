@@ -115,9 +115,9 @@ def list_pages(
         except Exception:
             pass  # archived column might not exist yet
     
-    # Apply sorting
+    # Apply sorting with id as secondary sort for deterministic ordering
     desc_order = order.lower() == "desc"
-    query = query.order(sort_by, desc=desc_order)
+    query = query.order(sort_by, desc=desc_order).order("id", desc=False)
     
     # If limit > 1000, we need to batch fetch (Supabase limit is 1000 per query)
     if limit > 1000:
