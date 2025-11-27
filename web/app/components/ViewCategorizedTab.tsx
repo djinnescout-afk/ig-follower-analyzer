@@ -19,6 +19,7 @@ export default function ViewCategorizedTab() {
   const [outreachStatusFilter, setOutreachStatusFilter] = useState<string>('')
   const [contactMethodsFilter, setContactMethodsFilter] = useState<string[]>([])
   const [attemptedMethodsFilter, setAttemptedMethodsFilter] = useState<string[]>([])
+  const [successfulMethodsFilter, setSuccessfulMethodsFilter] = useState<string[]>([])
   
   // Debounce search query to reduce API calls (500ms delay)
   const debouncedSearch = useDebounce(searchQuery, 500)
@@ -120,6 +121,15 @@ export default function ViewCategorizedTab() {
       }
     }
     
+    // Successful methods filter (page must have succeeded with ALL selected methods)
+    if (successfulMethodsFilter.length > 0) {
+      const pageSuccessful = page.successful_contact_methods || []
+      const hasAllSuccessful = successfulMethodsFilter.every(method => pageSuccessful.includes(method))
+      if (!hasAllSuccessful) {
+        return false
+      }
+    }
+    
     return true
   }) || []
 
@@ -141,6 +151,7 @@ export default function ViewCategorizedTab() {
     setOutreachStatusFilter('')
     setContactMethodsFilter([])
     setAttemptedMethodsFilter([])
+    setSuccessfulMethodsFilter([])
   }
 
   return (
@@ -199,7 +210,7 @@ export default function ViewCategorizedTab() {
             <div className="mt-4 p-4 bg-gray-50 rounded-lg border border-gray-200">
               <div className="flex items-center justify-between mb-3">
                 <h3 className="text-sm font-semibold text-gray-700">Filters</h3>
-                {(promoStatusFilter || outreachStatusFilter || contactMethodsFilter.length > 0 || attemptedMethodsFilter.length > 0) && (
+                {(promoStatusFilter || outreachStatusFilter || contactMethodsFilter.length > 0 || attemptedMethodsFilter.length > 0 || successfulMethodsFilter.length > 0) && (
                   <button
                     onClick={handleResetFilters}
                     className="text-xs px-3 py-1 bg-gray-200 text-gray-700 rounded hover:bg-gray-300"
@@ -209,7 +220,7 @@ export default function ViewCategorizedTab() {
                 )}
               </div>
               
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
                 {/* Promo Status Filter */}
                 <div>
                   <label className="block text-xs font-medium text-gray-600 mb-1">
@@ -290,6 +301,32 @@ export default function ViewCategorizedTab() {
                               setAttemptedMethodsFilter([...attemptedMethodsFilter, method])
                             } else {
                               setAttemptedMethodsFilter(attemptedMethodsFilter.filter((m) => m !== method))
+                            }
+                          }}
+                          className="mr-1.5"
+                        />
+                        {method}
+                      </label>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Successful Contact Methods Filter */}
+                <div>
+                  <label className="block text-xs font-medium text-gray-600 mb-1">
+                    Successful Methods
+                  </label>
+                  <div className="space-y-1 max-h-32 overflow-y-auto">
+                    {CONTACT_METHODS.map((method) => (
+                      <label key={method} className="flex items-center text-xs">
+                        <input
+                          type="checkbox"
+                          checked={successfulMethodsFilter.includes(method)}
+                          onChange={(e) => {
+                            if (e.target.checked) {
+                              setSuccessfulMethodsFilter([...successfulMethodsFilter, method])
+                            } else {
+                              setSuccessfulMethodsFilter(successfulMethodsFilter.filter((m) => m !== method))
                             }
                           }}
                           className="mr-1.5"

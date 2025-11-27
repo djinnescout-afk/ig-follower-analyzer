@@ -121,6 +121,7 @@ export default function CategorizeTab() {
         category: currentPage.category || '',
         manual_promo_status: currentPage.manual_promo_status || '',
         known_contact_methods: currentPage.known_contact_methods || [],
+        attempted_contact_methods: currentPage.attempted_contact_methods || [],
         successful_contact_methods: currentPage.successful_contact_methods || [],
         current_main_contact_method: currentPage.current_main_contact_method || '',
         ig_account_for_dm: currentPage.ig_account_for_dm || '',
@@ -174,6 +175,7 @@ export default function CategorizeTab() {
         category: formData.category || null,
         manual_promo_status: formData.manual_promo_status || null,
         known_contact_methods: formData.known_contact_methods.length > 0 ? formData.known_contact_methods : null,
+        attempted_contact_methods: formData.attempted_contact_methods.length > 0 ? formData.attempted_contact_methods : null,
         successful_contact_methods: formData.successful_contact_methods.length > 0 ? formData.successful_contact_methods : null,
         current_main_contact_method: formData.current_main_contact_method || null,
         ig_account_for_dm: formData.ig_account_for_dm || null,
@@ -552,6 +554,39 @@ export default function CategorizeTab() {
                 />
               </div>
             )}
+
+            {/* Attempted Contact Methods */}
+            <div className="mb-4">
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Attempted Contact Methods (Already Tried)
+              </label>
+              <div className="space-y-2">
+                {CONTACT_METHODS.map((method) => (
+                  <label key={method} className="flex items-center">
+                    <input
+                      type="checkbox"
+                      checked={formData.attempted_contact_methods?.includes(method) || false}
+                      onChange={(e) => {
+                        const methods = formData.attempted_contact_methods || []
+                        if (e.target.checked) {
+                          setFormData({
+                            ...formData,
+                            attempted_contact_methods: [...methods, method],
+                          })
+                        } else {
+                          setFormData({
+                            ...formData,
+                            attempted_contact_methods: methods.filter((m: string) => m !== method),
+                          })
+                        }
+                      }}
+                      className="mr-2"
+                    />
+                    <span className="text-sm">{method}</span>
+                  </label>
+                ))}
+              </div>
+            </div>
 
             {/* Successful Contact Methods */}
             <div className="mb-4">
