@@ -4,7 +4,7 @@ import { useState, useEffect } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { pagesApi, outreachApi, Page, PageProfile, OutreachTracking } from '../lib/api'
 import { CATEGORIES, CONTACT_METHODS, OUTREACH_STATUSES, PROMO_STATUSES, getPriorityTier, TIER_LABELS, TIER_COLORS } from '../lib/categories'
-import { ChevronLeft, ChevronRight, Save, SkipForward } from 'lucide-react'
+import { ChevronLeft, ChevronRight, Save, SkipForward, Archive } from 'lucide-react'
 import ClientFollowersModal from './ClientFollowersModal'
 
 export default function CategorizeTab() {
@@ -233,6 +233,38 @@ export default function CategorizeTab() {
     }
   }
 
+  // Archive page mutation
+  const archivePageMutation = useMutation({
+    mutationFn: async () => {
+      if (!currentPage) return
+      await pagesApi.update(currentPage.id, { archived: true })
+    },
+    onSuccess: () => {
+      // Move to next page after archiving
+      if (currentIndex < (pages?.length || 0) - 1) {
+        setCurrentIndex(currentIndex + 1)
+      }
+    },
+  })
+
+  const handleArchive = async () => {
+    if (!currentPage) return
+    
+    const confirmed = window.confirm(
+      `Archive @${currentPage.ig_username}?\n\nThis will hide the page from all lists. You can unarchive it later from the Edit Pages tab.`
+    )
+    
+    if (confirmed) {
+      try {
+        await archivePageMutation.mutateAsync()
+      } catch (error: any) {
+        console.error('Error archiving:', error)
+        const errorMsg = error?.response?.data?.detail || error?.message || 'Unknown error'
+        alert(`Failed to archive: ${errorMsg}`)
+      }
+    }
+  }
+
   if (pagesLoading) {
     return <div className="text-center py-8">Loading uncategorized pages...</div>
   }
@@ -289,6 +321,15 @@ export default function CategorizeTab() {
               className="px-4 py-2 bg-gray-200 hover:bg-gray-300 disabled:opacity-50 disabled:cursor-not-allowed rounded flex items-center gap-2"
             >
               Skip <SkipForward size={16} />
+            </button>
+            <button
+              onClick={handleArchive}
+              disabled={archivePageMutation.isPending}
+              className="px-4 py-2 bg-red-100 hover:bg-red-200 disabled:opacity-50 disabled:cursor-not-allowed text-red-700 rounded flex items-center gap-2"
+              title="Archive this page (hide from all lists)"
+            >
+              <Archive size={16} />
+              {archivePageMutation.isPending ? 'Archiving...' : 'Archive'}
             </button>
           </div>
         </div>
