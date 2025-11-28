@@ -7,7 +7,21 @@ export const api = axios.create({
   headers: {
     'Content-Type': 'application/json',
   },
+  timeout: 60000, // 60 second timeout for Render wake-up
 })
+
+// Add response interceptor to handle Render wake-up errors
+api.interceptors.response.use(
+  (response) => response,
+  async (error) => {
+    // If it's a network error (Render waking up), provide helpful message
+    if (error.code === 'ERR_NETWORK' || error.message === 'Network Error') {
+      console.error('API connection failed. The server may be waking up (Render free tier).')
+      error.message = 'API server is waking up. Please wait 30 seconds and try again.'
+    }
+    return Promise.reject(error)
+  }
+)
 
 // Types
 export interface Client {
