@@ -8,3 +8,4 @@ ADD CONSTRAINT pages_promo_status_check
 CHECK (promo_status IN ('unknown', 'warm', 'unlikely', 'not_open', 'accepted'));
 
 
+

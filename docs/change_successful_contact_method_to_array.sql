@@ -19,3 +19,4 @@ ALTER TABLE pages
 RENAME COLUMN successful_contact_method TO successful_contact_methods;
 
 
+
