@@ -2,6 +2,7 @@ export const CATEGORIES = [
   'Black Theme Page',
   'Mixed Theme Page',
   'White Theme Page',
+  'Ethnic (Other) Theme Page',
   'Text only Theme Page',
   'Black BG White Text Theme Page',
   'Black Personal Brand Entrepreneur',
