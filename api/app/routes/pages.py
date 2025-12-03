@@ -10,6 +10,46 @@ router = APIRouter(prefix="/pages", tags=["pages"])
 logger = logging.getLogger(__name__)
 
 
+def _merge_outreach_data(pages: list[dict]) -> list[dict]:
+    """Merge outreach tracking data into page objects."""
+    if not pages:
+        return pages
+    
+    client = get_supabase_client()
+    page_ids = [p["id"] for p in pages]
+    
+    try:
+        # Fetch outreach data for all pages at once
+        outreach_response = client.table("outreach_tracking").select(
+            "page_id, status, date_contacted, follow_up_date"
+        ).in_("page_id", page_ids).execute()
+        
+        # Create lookup map
+        outreach_map = {ot["page_id"]: ot for ot in (outreach_response.data or [])}
+        
+        # Merge outreach data into pages
+        for page in pages:
+            outreach = outreach_map.get(page["id"])
+            if outreach:
+                page["outreach_status"] = outreach["status"]
+                page["outreach_date_contacted"] = outreach.get("date_contacted")
+                page["outreach_follow_up_date"] = outreach.get("follow_up_date")
+            else:
+                page["outreach_status"] = None
+                page["outreach_date_contacted"] = None
+                page["outreach_follow_up_date"] = None
+        
+    except Exception as e:
+        logger.warning(f"[PAGES API] Error fetching outreach data: {e}", exc_info=True)
+        # If outreach fetch fails, set all to None
+        for page in pages:
+            page["outreach_status"] = None
+            page["outreach_date_contacted"] = None
+            page["outreach_follow_up_date"] = None
+    
+    return pages
+
+
 @router.get("/category-counts")
 def get_category_counts():
     """Get count of pages per category using efficient SQL aggregation."""
@@ -34,16 +74,11 @@ def get_pages_count(
     categorized: Optional[bool] = Query(None),
     category: Optional[str] = Query(None),
     search: Optional[str] = Query(None),
-    include_archived: bool = Query(False),
 ):
     """Get total count of pages matching filters (for pagination)."""
     try:
         client = get_supabase_client()
         query = client.table("pages").select("id", count="exact")
-        
-        # Filter out archived pages by default
-        if not include_archived:
-            query = query.eq("archived", False)
         
         if min_client_count is not None:
             query = query.gte("client_count", min_client_count)
@@ -73,7 +108,7 @@ def list_pages(
     categorized: Optional[bool] = Query(None, description="Filter by categorization status (true=categorized, false=uncategorized)"),
     category: Optional[str] = Query(None, description="Filter by specific category"),
     search: Optional[str] = Query(None, description="Search by username or name"),
-    sort_by: Optional[str] = Query("client_count", description="Field to sort by (client_count, follower_count, last_reviewed_at, concentration, concentration_per_dollar)"),
+    sort_by: Optional[str] = Query("client_count", description="Field to sort by (client_count, follower_count, last_reviewed_at)"),
     order: Optional[str] = Query("desc", description="Sort order (asc or desc)"),
     limit: Optional[int] = Query(10000, description="Max pages to return"),
     offset: Optional[int] = Query(0, description="Pagination offset"),
@@ -82,41 +117,10 @@ def list_pages(
     """List pages with optional filtering, sorting, and pagination.
     
     Uses the client_count column from the database (maintained by triggers).
-    For concentration-based sorting, uses RPC function for calculated fields.
     """
     client = get_supabase_client()
     
-    # Use RPC function for concentration-based sorting
-    if sort_by in ["concentration", "concentration_per_dollar"]:
-        try:
-            logger.info(f"[PAGES API] Using RPC for {sort_by} sorting")
-            response = client.rpc("get_pages_with_concentration", {
-                "p_categorized": categorized,
-                "p_category": category,
-                "p_search": search,
-                "p_include_archived": include_archived,
-                "p_sort_by": sort_by,
-                "p_order_dir": order.lower(),
-                "p_limit": min(limit, 1000),  # RPC handles single batch
-                "p_offset": offset,
-            }).execute()
-            
-            result = response.data if response.data else []
-            
-            # Apply min_client_count filter client-side if needed (RPC doesn't handle this)
-            if min_client_count is not None:
-                result = [page for page in result if page.get("client_count", 0) >= min_client_count]
-            
-            logger.info(f"[PAGES API] RPC returned {len(result)} pages")
-            return result
-        except Exception as e:
-            logger.error(f"[PAGES API] RPC error for {sort_by}: {e}", exc_info=True)
-            raise HTTPException(
-                status_code=500, 
-                detail=f"Concentration sorting requires RPC function. Please run: docs/add_concentration_sorting_rpc.sql in Supabase"
-            )
-    
-    # Standard query for non-concentration sorting
+    # Build query with filter applied at database level
     query = client.table("pages").select("*")
     
     # Apply min_client_count filter
@@ -146,9 +150,9 @@ def list_pages(
         except Exception:
             pass  # archived column might not exist yet
     
-    # Apply sorting with id as secondary sort for deterministic ordering
+    # Apply sorting
     desc_order = order.lower() == "desc"
-    query = query.order(sort_by, desc=desc_order).order("id", desc=False)
+    query = query.order(sort_by, desc=desc_order)
     
     # If limit > 1000, we need to batch fetch (Supabase limit is 1000 per query)
     if limit > 1000:
@@ -178,6 +182,8 @@ def list_pages(
                 break
         
         logger.info(f"[PAGES API] Returning {len(all_pages)} pages (batched)")
+        # Merge outreach tracking data
+        all_pages = _merge_outreach_data(all_pages)
         return all_pages
     else:
         # Single request for small limits
@@ -188,6 +194,8 @@ def list_pages(
             response = query.range(offset, end).execute()
             result = response.data if response.data else []
             logger.info(f"[PAGES API] Returning {len(result)} pages")
+            # Merge outreach tracking data
+            result = _merge_outreach_data(result)
             return result
         except Exception as e:
             logger.error(f"[PAGES API] Error fetching pages: {e}", exc_info=True)
