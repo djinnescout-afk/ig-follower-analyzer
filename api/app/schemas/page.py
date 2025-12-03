@@ -29,7 +29,7 @@ class PageUpdate(BaseModel):
     manual_promo_status: Optional[str] = None
     known_contact_methods: Optional[List[str]] = None
     attempted_contact_methods: Optional[List[str]] = None
-    successful_contact_methods: Optional[List[str]] = None
+    successful_contact_method: Optional[str] = None
     current_main_contact_method: Optional[str] = None
     ig_account_for_dm: Optional[str] = None
     promo_price: Optional[float] = None
@@ -43,7 +43,6 @@ class PageUpdate(BaseModel):
     contact_whatsapp: Optional[str] = None
     contact_telegram: Optional[str] = None
     contact_other: Optional[str] = None
-    archived: Optional[bool] = None
 
 
 class PageResponse(PageBase):
@@ -58,7 +57,7 @@ class PageResponse(PageBase):
     manual_promo_status: Optional[str] = None
     known_contact_methods: Optional[List[str]] = None
     attempted_contact_methods: Optional[List[str]] = None
-    successful_contact_methods: Optional[List[str]] = None
+    successful_contact_method: Optional[str] = None
     current_main_contact_method: Optional[str] = None
     ig_account_for_dm: Optional[str] = None
     promo_price: Optional[float] = None
@@ -72,6 +71,10 @@ class PageResponse(PageBase):
     contact_whatsapp: Optional[str] = None
     contact_telegram: Optional[str] = None
     contact_other: Optional[str] = None
+    # Outreach tracking fields (merged from outreach_tracking table)
+    outreach_status: Optional[str] = None
+    outreach_date_contacted: Optional[datetime] = None
+    outreach_follow_up_date: Optional[datetime] = None
 
     model_config = ConfigDict(from_attributes=True)
 
