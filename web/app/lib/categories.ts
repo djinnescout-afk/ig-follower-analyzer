@@ -46,6 +46,7 @@ export function matchesHotlist(username: string, fullName: string | null | undef
 // Tier 2: Hotlist + 1 client + 10k+ followers
 // Tier 3: Non-hotlist + 2+ clients
 // Tier 4 (Lowest): Non-hotlist + 1 client OR hotlist with <10k followers
+// Note: This is the correct version before 50k changes
 export function getPriorityTier(username: string, fullName: string | null | undefined, clientCount: number, followerCount?: number): number {
   const isHotlist = matchesHotlist(username, fullName)
   const hasEnoughFollowers = !followerCount || followerCount >= 10000 // Null/0 treated as "unknown" - allow through
