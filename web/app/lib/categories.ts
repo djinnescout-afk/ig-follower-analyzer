@@ -42,17 +42,16 @@ export function matchesHotlist(username: string, fullName: string | null | undef
 }
 
 // Calculate priority tier for a page
-// Tier 1 (Highest): Hotlist + 2+ clients + 10k+ followers
-// Tier 2: Hotlist + 1 client + 10k+ followers
+// Tier 1 (Highest): Hotlist + 2+ clients + 50k+ followers
+// Tier 2: Hotlist + 1 client + 50k+ followers
 // Tier 3: Non-hotlist + 2+ clients
-// Tier 4 (Lowest): Non-hotlist + 1 client OR hotlist with <10k followers
-// IMPORTANT: This uses 10k threshold, NOT 50k. Vercel was deploying wrong commit.
+// Tier 4 (Lowest): Non-hotlist + 1 client OR hotlist with <50k followers
 export function getPriorityTier(username: string, fullName: string | null | undefined, clientCount: number, followerCount?: number): number {
   const isHotlist = matchesHotlist(username, fullName)
-  const hasEnoughFollowers = !followerCount || followerCount >= 10000 // Null/0 treated as "unknown" - allow through
+  const hasEnoughFollowers = !followerCount || followerCount >= 50000 // Null/0 treated as "unknown" - allow through
   
-  // Hotlist pages with <10k followers get demoted to Tier 4
-  if (isHotlist && followerCount && followerCount < 10000) return 4
+  // Hotlist pages with <50k followers get demoted to Tier 4
+  if (isHotlist && followerCount && followerCount < 50000) return 4
   
   if (isHotlist && hasEnoughFollowers && clientCount >= 2) return 1
   if (isHotlist && hasEnoughFollowers && clientCount === 1) return 2
