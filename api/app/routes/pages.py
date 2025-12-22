@@ -184,7 +184,8 @@ def list_pages(
         logger.info(f"[PAGES API] Returning {len(all_pages)} pages (batched)")
         # Merge outreach tracking data
         all_pages = _merge_outreach_data(all_pages)
-        return all_pages
+        # Convert to PageResponse objects to ensure all fields are included
+        return [PageResponse(**page) for page in all_pages]
     else:
         # Single request for small limits
         end = offset + limit - 1
@@ -196,7 +197,8 @@ def list_pages(
             logger.info(f"[PAGES API] Returning {len(result)} pages")
             # Merge outreach tracking data
             result = _merge_outreach_data(result)
-            return result
+            # Convert to PageResponse objects to ensure all fields are included
+            return [PageResponse(**page) for page in result]
         except Exception as e:
             logger.error(f"[PAGES API] Error fetching pages: {e}", exc_info=True)
             raise HTTPException(status_code=500, detail=f"Error fetching pages: {str(e)}")
