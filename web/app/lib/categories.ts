@@ -60,8 +60,8 @@ export function getPriorityTier(username: string, fullName: string | null | unde
 }
 
 export const TIER_LABELS = {
-  1: '🔥 TIER 1: Hotlist + 2+ Clients (HIGHEST PRIORITY)',
-  2: '⭐ TIER 2: Hotlist + 1 Client',
+  1: '🔥 TIER 1: Hotlist + 2+ Clients + 50k+ Followers (HIGHEST PRIORITY)',
+  2: '⭐ TIER 2: Hotlist + 1 Client + 50k+ Followers',
   3: '📊 TIER 3: Non-Hotlist + 2+ Clients',
   4: '📄 TIER 4: Non-Hotlist + 1 Client',
 }
