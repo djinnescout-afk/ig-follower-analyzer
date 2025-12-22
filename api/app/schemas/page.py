@@ -77,5 +77,5 @@ class PageResponse(PageBase):
     outreach_date_contacted: Optional[datetime] = None
     outreach_follow_up_date: Optional[datetime] = None
 
-    model_config = ConfigDict(from_attributes=True)
+    model_config = ConfigDict(from_attributes=True, extra='allow')
 
