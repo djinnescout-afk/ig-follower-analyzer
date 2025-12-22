@@ -124,8 +124,18 @@ export default function ViewCategorizedTab() {
     }
     
     // Outreach status filter
-    if (outreachStatusFilter && page.outreach_status !== outreachStatusFilter) {
-      return false
+    if (outreachStatusFilter) {
+      // Handle null/undefined - if filter is "not_contacted", match pages with null/undefined status
+      if (outreachStatusFilter === 'not_contacted') {
+        if (page.outreach_status !== null && page.outreach_status !== undefined && page.outreach_status !== 'not_contacted') {
+          return false
+        }
+      } else {
+        // For other statuses, must match exactly (null/undefined means not_contacted, so filter them out)
+        if (page.outreach_status !== outreachStatusFilter) {
+          return false
+        }
+      }
     }
     
     // Contact methods filter (page must have ALL selected methods)
