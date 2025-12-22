@@ -72,6 +72,10 @@ class PageResponse(PageBase):
     contact_whatsapp: Optional[str] = None
     contact_telegram: Optional[str] = None
     contact_other: Optional[str] = None
+    # Outreach tracking fields (merged from outreach_tracking table)
+    outreach_status: Optional[str] = None
+    outreach_date_contacted: Optional[datetime] = None
+    outreach_follow_up_date: Optional[datetime] = None
 
     model_config = ConfigDict(from_attributes=True)
 
