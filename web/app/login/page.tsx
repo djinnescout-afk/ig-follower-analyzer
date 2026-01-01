@@ -17,16 +17,18 @@ export default function LoginPage() {
     setError(null)
     setLoading(true)
 
-    const { error } = await signIn(email, password)
+    const { error, data } = await signIn(email, password)
+    console.log('[Login] Sign in result:', error ? 'error' : 'success', data)
 
     if (error) {
       setError(error.message)
       setLoading(false)
     } else {
-      // Wait a moment for session to be set, then redirect
+      // Wait for session to be saved, then redirect
       setTimeout(() => {
+        console.log('[Login] Redirecting to dashboard')
         window.location.href = '/'
-      }, 100)
+      }, 500)
     }
   }
 

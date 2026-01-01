@@ -13,7 +13,9 @@ export function AuthGuard({ children }: { children: React.ReactNode }) {
     // Wait a bit for session to load from storage
     if (!loading) {
       setHasChecked(true)
+      console.log('[AuthGuard] Loading complete, user:', user ? 'exists' : 'null')
       if (!user) {
+        console.log('[AuthGuard] No user, redirecting to login')
         router.push('/login')
       }
     }
