@@ -5,12 +5,14 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { pagesApi, outreachApi, Page, PageProfile, OutreachTracking } from '../lib/api'
 import { CATEGORIES, CONTACT_METHODS, OUTREACH_STATUSES, PROMO_STATUSES, getPriorityTier, TIER_LABELS, TIER_COLORS } from '../lib/categories'
 import { ChevronLeft, ChevronRight, Save, SkipForward, Archive } from 'lucide-react'
+import { DateRangePicker, DateRange } from './DateRangePicker'
 import ClientFollowersModal from './ClientFollowersModal'
 
 export default function CategorizeTab() {
   const [currentIndex, setCurrentIndex] = useState(0)
   const [formData, setFormData] = useState<any>({})
   const [vaName, setVaName] = useState('')
+  const [dateRange, setDateRange] = useState<DateRange>({ from: null, to: null, preset: 'all_time' })
   const queryClient = useQueryClient()
   
   // Batch loading progress state
@@ -43,7 +45,7 @@ export default function CategorizeTab() {
 
   // Fetch uncategorized pages with batch loading
   const { data: pages, isLoading: pagesLoading, isError, error: queryError } = useQuery({
-    queryKey: ['pages', 'uncategorized'],
+    queryKey: ['pages', 'uncategorized', dateRange.from, dateRange.to],
     queryFn: async () => {
       console.log('[CategorizeTab] Fetching all uncategorized pages...')
       setBatchProgress({ currentBatch: 0, totalPages: 0, isFetching: true, error: null })
@@ -64,6 +66,8 @@ export default function CategorizeTab() {
               min_client_count: 1,
               limit: limit,
               offset: offset,
+              client_date_from: dateRange.from || undefined,
+              client_date_to: dateRange.to || undefined,
             })
             
             const batch = response.data || []
@@ -391,6 +395,12 @@ export default function CategorizeTab() {
 
   return (
     <div className="space-y-6">
+      {/* Date Range Filter */}
+      <div className="bg-white rounded-lg shadow p-6">
+        <h2 className="text-lg font-semibold mb-4">Filter by Client Date Closed</h2>
+        <DateRangePicker value={dateRange} onChange={setDateRange} />
+      </div>
+
       {/* VA Name Input */}
       <div className="bg-white rounded-lg shadow p-4">
         <label className="block text-sm font-medium text-gray-700 mb-2">
