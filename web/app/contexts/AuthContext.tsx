@@ -21,6 +21,15 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   useEffect(() => {
     let hasReceivedInitialSession = false
+    let timeoutId: NodeJS.Timeout | null = null
+
+    // Set a maximum timeout to prevent infinite loading (10 seconds)
+    const maxTimeout = setTimeout(() => {
+      if (loading) {
+        console.warn('[AuthContext] Max timeout reached, stopping loading')
+        setLoading(false)
+      }
+    }, 10000)
 
     // Listen for auth changes - this is the reliable way to get the session
     const {
@@ -35,14 +44,19 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       if (event === 'INITIAL_SESSION') {
         hasReceivedInitialSession = true
         console.log('[AuthContext] INITIAL_SESSION received, session:', session ? 'exists' : 'null', 'user:', session?.user?.id)
+        // Clear any existing timeout
+        if (timeoutId) clearTimeout(timeoutId)
         // Wait a tiny bit to ensure state is set before marking as loaded
-        setTimeout(() => {
+        timeoutId = setTimeout(() => {
           setLoading(false)
+          clearTimeout(maxTimeout)
           console.log('[AuthContext] Loading complete, final state - session:', session ? 'exists' : 'null', 'user:', session?.user?.id)
         }, 100)
       } else if (event === 'SIGNED_IN' || event === 'SIGNED_OUT') {
         // For sign in/out, also stop loading
+        if (timeoutId) clearTimeout(timeoutId)
         setLoading(false)
+        clearTimeout(maxTimeout)
       } else if (!hasReceivedInitialSession) {
         // If we haven't received INITIAL_SESSION yet, keep loading
         // This prevents premature checks
