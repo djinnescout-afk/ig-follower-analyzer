@@ -20,22 +20,27 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
-    // Get initial session
-    supabase.auth.getSession().then(({ data: { session }, error }) => {
-      console.log('[AuthContext] Initial session:', session ? 'found' : 'not found', error)
-      setSession(session)
-      setUser(session?.user ?? null)
-      setLoading(false)
-    })
-
-    // Listen for auth changes
+    // Listen for auth changes - this is more reliable than getSession()
     const {
       data: { subscription },
     } = supabase.auth.onAuthStateChange((event, session) => {
       console.log('[AuthContext] Auth state changed:', event, session ? 'has session' : 'no session')
       setSession(session)
       setUser(session?.user ?? null)
-      setLoading(false)
+      
+      // Only stop loading after INITIAL_SESSION event (session restored from storage)
+      if (event === 'INITIAL_SESSION' || event === 'SIGNED_IN' || event === 'SIGNED_OUT') {
+        setLoading(false)
+      }
+    })
+
+    // Also get initial session as fallback
+    supabase.auth.getSession().then(({ data: { session }, error }) => {
+      console.log('[AuthContext] Initial session check:', session ? 'found' : 'not found', error)
+      if (session) {
+        setSession(session)
+        setUser(session.user)
+      }
     })
 
     return () => subscription.unsubscribe()
