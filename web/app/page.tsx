@@ -2,7 +2,7 @@
 
 import { useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
-import { clientsApi, pagesApi, scrapesApi } from './lib/api'
+import { clientsApi, pagesApi, scrapesApi, adminApi } from './lib/api'
 import { useAuth } from './contexts/AuthContext'
 import { AuthGuard } from './components/AuthGuard'
 import ClientsTab from './components/ClientsTab'
@@ -16,6 +16,18 @@ import AdminTab from './components/AdminTab'
 function DashboardContent() {
   const [activeTab, setActiveTab] = useState<'clients' | 'categorize' | 'edit' | 'view-categorized' | 'pages' | 'scrapes' | 'admin'>('clients')
   const { user, signOut } = useAuth()
+
+  // Check if user is admin
+  const { data: adminTestData } = useQuery({
+    queryKey: ['admin', 'test'],
+    queryFn: async () => {
+      const response = await adminApi.testAdminAccess()
+      return response.data
+    },
+    retry: false,
+  })
+
+  const isAdmin = adminTestData?.is_admin ?? false
 
   const handleSignOut = async () => {
     await signOut()
@@ -126,16 +138,19 @@ function DashboardContent() {
               Scrape Jobs
             </button>
             <button
-              onClick={() => setActiveTab('admin')}
+              onClick={() => isAdmin && setActiveTab('admin')}
+              disabled={!isAdmin}
               className={`
                 py-4 px-1 border-b-2 font-medium text-sm
-                ${activeTab === 'admin'
+                ${!isAdmin 
+                  ? 'border-transparent text-gray-300 cursor-not-allowed opacity-50'
+                  : activeTab === 'admin'
                   ? 'border-blue-500 text-blue-600'
                   : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
                 }
               `}
             >
-              Admin
+              -
             </button>
           </nav>
         </div>
