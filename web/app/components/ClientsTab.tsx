@@ -146,10 +146,11 @@ export default function ClientsTab() {
                 setIsAddingClient(false)
                 setIsBulkAdding(!isBulkAdding)
               }}
-              className="flex items-center gap-2 px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700"
+              className="flex items-center gap-2 px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 font-medium"
+              title="Add multiple clients at once"
             >
               <UserPlus size={16} />
-              Bulk Add
+              Bulk Add Clients
             </button>
           </div>
         </div>
