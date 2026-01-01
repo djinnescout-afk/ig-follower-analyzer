@@ -3,49 +3,36 @@
 import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { useAuth } from '../contexts/AuthContext'
-import { supabase } from '../lib/supabase'
 
 export function AuthGuard({ children }: { children: React.ReactNode }) {
   const { user, loading, session } = useAuth()
   const router = useRouter()
-  const [isReady, setIsReady] = useState(false)
+  const [hasChecked, setHasChecked] = useState(false)
 
   useEffect(() => {
-    const checkAuth = async () => {
-      // Wait for loading to complete
-      if (loading) return
-
-      // Wait for INITIAL_SESSION to fire (session restored from storage)
-      // Check multiple times to catch the session when it's ready
-      let attempts = 0
-      const maxAttempts = 10
-      
-      const checkInterval = setInterval(async () => {
-        attempts++
-        const { data: { session: currentSession } } = await supabase.auth.getSession()
-        
-        console.log(`[AuthGuard] Attempt ${attempts}: session`, currentSession ? 'found' : 'not found', 'user:', user ? 'exists' : 'null')
-        
-        if (currentSession || user || session) {
-          console.log('[AuthGuard] Session found, allowing access')
-          setIsReady(true)
-          clearInterval(checkInterval)
-        } else if (attempts >= maxAttempts) {
-          console.log('[AuthGuard] Max attempts reached, no session found, redirecting')
-          setIsReady(true)
-          clearInterval(checkInterval)
-          router.push('/login')
-        }
-      }, 200) // Check every 200ms
-
-      return () => clearInterval(checkInterval)
+    // Wait for loading to complete (INITIAL_SESSION has fired)
+    if (loading) {
+      setHasChecked(false)
+      return
     }
 
-    checkAuth()
+    // After loading completes, wait a moment for state to update
+    const timer = setTimeout(() => {
+      setHasChecked(true)
+      console.log('[AuthGuard] Check complete - user:', user ? 'exists' : 'null', 'session:', session ? 'exists' : 'null')
+      
+      // Only redirect if we're absolutely sure there's no session
+      if (!user && !session) {
+        console.log('[AuthGuard] No user or session, redirecting to login')
+        router.push('/login')
+      }
+    }, 300) // Small delay to let React state update
+
+    return () => clearTimeout(timer)
   }, [loading, user, session, router])
 
   // Show loading while checking auth
-  if (loading || !isReady) {
+  if (loading || !hasChecked) {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
         <div className="text-center">
