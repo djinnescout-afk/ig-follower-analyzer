@@ -265,8 +265,42 @@ export default function CategorizeTab() {
     }
   }
 
-  if (pagesLoading) {
-    return <div className="text-center py-8">Loading uncategorized pages...</div>
+  if (pagesLoading || batchProgress.isFetching) {
+    return (
+      <div className="text-center py-12">
+        <div className="max-w-md mx-auto">
+          <div className="mb-4">
+            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto"></div>
+          </div>
+          <h3 className="text-lg font-semibold text-gray-900 mb-2">
+            Loading uncategorized pages...
+          </h3>
+          {batchProgress.currentBatch > 0 && (
+            <div className="space-y-2">
+              <p className="text-sm text-gray-600">
+                Batch {batchProgress.currentBatch} • {batchProgress.totalPages.toLocaleString()} pages loaded
+              </p>
+              <div className="w-full bg-gray-200 rounded-full h-2">
+                <div 
+                  className="bg-blue-600 h-2 rounded-full transition-all duration-300"
+                  style={{ 
+                    width: batchProgress.totalPages > 0 
+                      ? `${Math.min(90, (batchProgress.currentBatch * 10))}%` 
+                      : '10%' 
+                  }}
+                ></div>
+              </div>
+            </div>
+          )}
+          {batchProgress.error && (
+            <p className="text-sm text-yellow-600 mt-2">{batchProgress.error}</p>
+          )}
+          <p className="text-xs text-gray-500 mt-4">
+            This may take a moment if the server is waking up...
+          </p>
+        </div>
+      </div>
+    )
   }
 
   if (!pages || pages.length === 0) {
