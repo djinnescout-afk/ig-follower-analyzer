@@ -66,21 +66,33 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     // Don't call getSession() - it's unreliable. Wait for INITIAL_SESSION event instead.
     // Set a timeout as fallback in case INITIAL_SESSION never fires
     const fallbackTimer = setTimeout(() => {
-      if (!hasReceivedInitialSession) {
+      if (!hasReceivedInitialSession && loading) {
         console.log('[AuthContext] Fallback: INITIAL_SESSION never fired, checking session directly')
         supabase.auth.getSession().then(({ data: { session } }) => {
           setSession(session)
           setUser(session?.user ?? null)
           setLoading(false)
+        }).catch((error) => {
+          console.error('[AuthContext] Error getting session in fallback:', error)
+          setLoading(false) // Stop loading even on error
         })
       }
     }, 3000) // 3 second fallback
+    
+    // Maximum timeout to prevent infinite loading (10 seconds)
+    const maxTimeout = setTimeout(() => {
+      if (loading) {
+        console.warn('[AuthContext] Max timeout (10s) reached, forcing loading to false')
+        setLoading(false)
+      }
+    }, 10000)
 
     return () => {
       subscription.unsubscribe()
       clearTimeout(fallbackTimer)
+      clearTimeout(maxTimeout)
     }
-  }, [])
+  }, [loading])
 
   const signIn = async (email: string, password: string) => {
     const { error } = await supabase.auth.signInWithPassword({
