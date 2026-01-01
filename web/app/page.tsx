@@ -18,15 +18,18 @@ function DashboardContent() {
   const { user, signOut } = useAuth()
 
   // Check if user is admin
-  const { data: adminTestData } = useQuery({
+  const { data: adminTestData, error: adminError } = useQuery({
     queryKey: ['admin', 'test'],
     queryFn: async () => {
       const response = await adminApi.testAdminAccess()
       return response.data
     },
     retry: false,
+    // Don't throw on 403 - just treat as non-admin
+    throwOnError: false,
   })
 
+  // Default to false if query fails or user is not admin
   const isAdmin = adminTestData?.is_admin ?? false
 
   const handleSignOut = async () => {
@@ -143,7 +146,7 @@ function DashboardContent() {
               className={`
                 py-4 px-1 border-b-2 font-medium text-sm
                 ${!isAdmin 
-                  ? 'border-transparent text-gray-300 cursor-not-allowed opacity-50'
+                  ? 'border-transparent text-gray-500 cursor-not-allowed'
                   : activeTab === 'admin'
                   ? 'border-blue-500 text-blue-600'
                   : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
