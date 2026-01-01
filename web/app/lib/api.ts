@@ -31,15 +31,36 @@ api.interceptors.response.use(
   async (error) => {
     // If it's a network error (Render waking up), provide helpful message
     if (error.code === 'ERR_NETWORK' || error.message === 'Network Error') {
-      console.error('API connection failed. The server may be waking up (Render free tier).')
+      console.error('[API] Connection failed. The server may be waking up (Render free tier).')
       error.message = 'API server is waking up. Please wait 30 seconds and try again.'
     }
     
-    // If unauthorized, redirect to login
+    // If unauthorized, check if we actually have a session before redirecting
     if (error.response?.status === 401) {
-      // Only redirect if we're not already on the login page
-      if (typeof window !== 'undefined' && !window.location.pathname.includes('/login')) {
-        window.location.href = '/login'
+      console.error('[API] 401 Unauthorized error:', {
+        url: error.config?.url,
+        method: error.config?.method,
+        hasAuthHeader: !!error.config?.headers?.Authorization,
+      })
+      
+      // Check if we have a valid session before redirecting
+      const { data: { session } } = await supabase.auth.getSession()
+      
+      if (!session) {
+        console.log('[API] No session found, redirecting to login')
+        // Only redirect if we're not already on the login page
+        if (typeof window !== 'undefined' && !window.location.pathname.includes('/login')) {
+          window.location.href = '/login'
+        }
+      } else {
+        console.warn('[API] 401 error but session exists - this might be a backend JWT verification issue')
+        console.warn('[API] Session details:', {
+          user_id: session.user?.id,
+          expires_at: session.expires_at,
+          token_length: session.access_token?.length,
+        })
+        // Don't redirect if we have a session - might be a backend issue
+        // Just log the error and let the component handle it
       }
     }
     
