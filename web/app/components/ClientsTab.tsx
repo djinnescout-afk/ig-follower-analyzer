@@ -39,7 +39,8 @@ export default function ClientsTab() {
     mutationFn: clientsApi.bulkCreate,
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['clients'] })
-      setBulkClients({ text: '', date_closed: '' })
+      setBulkClients({ text: '' })
+      setCsvFile(null)
       setIsBulkAdding(false)
       alert('Clients added successfully!')
     },
