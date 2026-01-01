@@ -7,29 +7,36 @@ import { useAuth } from '../contexts/AuthContext'
 export function AuthGuard({ children }: { children: React.ReactNode }) {
   const { user, loading, session } = useAuth()
   const router = useRouter()
-  const [hasChecked, setHasChecked] = useState(false)
+  const [hasStabilized, setHasStabilized] = useState(false)
 
   useEffect(() => {
-    // Wait for auth to finish loading
-    if (loading) return
+    // Wait for loading to complete
+    if (loading) {
+      setHasStabilized(false)
+      return
+    }
 
-    // Give it a moment for session to be restored
+    // Wait a bit for auth state to stabilize after loading completes
     const timer = setTimeout(() => {
-      setHasChecked(true)
-      console.log('[AuthGuard] Check complete - user:', user ? 'exists' : 'null', 'session:', session ? 'exists' : 'null')
-      
-      // Only redirect if we're sure there's no session
-      if (!user && !session) {
-        console.log('[AuthGuard] No user or session, redirecting to login')
-        router.push('/login')
-      }
-    }, 500) // Wait 500ms for session to restore
+      setHasStabilized(true)
+      console.log('[AuthGuard] Auth stabilized - user:', user ? 'exists' : 'null', 'session:', session ? 'exists' : 'null')
+    }, 1000) // Wait 1 second after loading completes
 
     return () => clearTimeout(timer)
-  }, [user, session, loading, router])
+  }, [loading, user, session])
+
+  useEffect(() => {
+    // Only redirect after auth has stabilized
+    if (!hasStabilized || loading) return
+
+    if (!user && !session) {
+      console.log('[AuthGuard] No user or session after stabilization, redirecting to login')
+      router.push('/login')
+    }
+  }, [hasStabilized, user, session, loading, router])
 
   // Show loading while checking auth
-  if (loading || !hasChecked) {
+  if (loading || !hasStabilized) {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
         <div className="text-center">
@@ -40,7 +47,7 @@ export function AuthGuard({ children }: { children: React.ReactNode }) {
     )
   }
 
-  // If no user after loading, don't render (redirect will happen)
+  // If no user after stabilization, don't render (redirect will happen)
   if (!user && !session) {
     return null
   }
