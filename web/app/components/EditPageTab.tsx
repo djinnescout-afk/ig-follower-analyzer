@@ -6,6 +6,7 @@ import { pagesApi, outreachApi, scrapesApi, Page } from '../lib/api'
 import { CATEGORIES, CONTACT_METHODS, OUTREACH_STATUSES } from '../lib/categories'
 import { Search, Save, RefreshCw } from 'lucide-react'
 import { useDebounce } from '../lib/hooks/useDebounce'
+import { DateRangePicker, DateRange } from './DateRangePicker'
 import ClientFollowersModal from './ClientFollowersModal'
 
 export default function EditPageTab() {
@@ -19,6 +20,7 @@ export default function EditPageTab() {
   const [goToPageInput, setGoToPageInput] = useState('') // For direct page navigation
   const [sortBy, setSortBy] = useState<string>('client_count') // Sort field for browse mode
   const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('desc') // Sort order for browse mode
+  const [dateRange, setDateRange] = useState<DateRange>({ from: null, to: null, preset: 'all_time' })
   const queryClient = useQueryClient()
   
   const pageSize = 1000 // Pages per browse page
@@ -28,11 +30,13 @@ export default function EditPageTab() {
 
   // Get total count for browse mode
   const { data: totalCountData } = useQuery({
-    queryKey: ['pages', 'total-count', showArchived],
+    queryKey: ['pages', 'total-count', showArchived, dateRange.from, dateRange.to],
     queryFn: async () => {
       const response = await pagesApi.getCount({
         categorized: undefined, // Get all pages
         include_archived: showArchived, // Respect the showArchived toggle
+        client_date_from: dateRange.from || undefined,
+        client_date_to: dateRange.to || undefined,
       })
       return response.data
     },
@@ -57,7 +61,7 @@ export default function EditPageTab() {
 
   // Fetch pages with server-side search OR browse mode
   const { data: pages, isLoading: pagesLoading } = useQuery({
-    queryKey: ['pages', 'edit-page', browseMode, browsePage, debouncedSearch, showArchived, sortBy, sortOrder],
+    queryKey: ['pages', 'edit-page', browseMode, browsePage, debouncedSearch, showArchived, sortBy, sortOrder, dateRange.from, dateRange.to],
     queryFn: async () => {
       // Browse Mode: Load pages in paginated batches
       if (browseMode) {
@@ -67,6 +71,8 @@ export default function EditPageTab() {
           order: sortOrder,
           limit: pageSize,
           offset: browsePage * pageSize,
+          client_date_from: dateRange.from || undefined,
+          client_date_to: dateRange.to || undefined,
         })
         return response.data
       }
@@ -81,6 +87,8 @@ export default function EditPageTab() {
         search: debouncedSearch,
         include_archived: showArchived,
         limit: 1000,
+        client_date_from: dateRange.from || undefined,
+        client_date_to: dateRange.to || undefined,
       })
       return response.data
     },
@@ -311,6 +319,12 @@ export default function EditPageTab() {
         </p>
       </div>
 
+      {/* Date Range Filter */}
+      <div className="bg-white rounded-lg shadow p-6">
+        <h2 className="text-lg font-semibold mb-4">Filter by Client Date Closed</h2>
+        <DateRangePicker value={dateRange} onChange={setDateRange} />
+      </div>
+
       {/* Mode Toggle & Search/Browse Controls */}
       <div className="bg-white rounded-lg shadow p-6">
         {/* Mode Toggle */}
@@ -374,6 +388,7 @@ export default function EditPageTab() {
               >
                 <option value="client_count">Client Count</option>
                 <option value="follower_count">Follower Count</option>
+                <option value="followers_per_client">Followers Per Client</option>
                 <option value="concentration">Concentration (Followers/Client)</option>
                 <option value="concentration_per_dollar">Concentration Per Dollar</option>
                 <option value="last_reviewed_at">Last Reviewed</option>
@@ -486,13 +501,25 @@ export default function EditPageTab() {
                       {page.full_name && (
                         <div className="text-sm text-gray-600">{page.full_name}</div>
                       )}
-                      <div className="text-xs text-gray-500 mt-1 flex items-center gap-2">
+                      <div className="text-xs text-gray-500 mt-1 flex items-center gap-2 flex-wrap">
                         <ClientFollowersModal 
                           pageId={page.id}
                           pageUsername={page.ig_username}
                           clientCount={page.client_count}
                         />
                         <span>•</span>
+                        {page.follower_count > 0 && (
+                          <>
+                            <span>{page.follower_count.toLocaleString()} followers</span>
+                            <span>•</span>
+                          </>
+                        )}
+                        {page.followers_per_client && (
+                          <>
+                            <span className="font-medium">{page.followers_per_client.toLocaleString()} followers/client</span>
+                            <span>•</span>
+                          </>
+                        )}
                         <span>{page.category || 'Uncategorized'}</span>
                       </div>
                     </div>

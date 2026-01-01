@@ -5,6 +5,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { pagesApi, Page, calculateConcentration, calculateConcentrationPerDollar, calculateQuartiles, getConcentrationTier } from '../lib/api'
 import { CATEGORIES, CONTACT_METHODS, PROMO_STATUSES, OUTREACH_STATUSES } from '../lib/categories'
 import { useDebounce } from '../lib/hooks/useDebounce'
+import { DateRangePicker, DateRange } from './DateRangePicker'
 import ClientFollowersModal from './ClientFollowersModal'
 
 export default function ViewCategorizedTab() {
@@ -29,15 +30,21 @@ export default function ViewCategorizedTab() {
   const [concentrationTierFilter, setConcentrationTierFilter] = useState<string[]>([])
   const [concentrationPerDollarTierFilter, setConcentrationPerDollarTierFilter] = useState<string[]>([])
   
+  // Date range filter
+  const [dateRange, setDateRange] = useState<DateRange>({ from: null, to: null, preset: 'all_time' })
+  
   // Debounce search query to reduce API calls (500ms delay)
   const debouncedSearch = useDebounce(searchQuery, 500)
 
   // Efficient category counts using SQL aggregation
   const { data: categoryCounts } = useQuery({
-    queryKey: ['pages', 'category-counts'],
+    queryKey: ['pages', 'category-counts', dateRange.from, dateRange.to],
     queryFn: async () => {
       console.log('[ViewCategorized] Fetching category counts (efficient)...')
-      const response = await pagesApi.getCategoryCounts()
+      const response = await pagesApi.getCategoryCounts({
+        client_date_from: dateRange.from || undefined,
+        client_date_to: dateRange.to || undefined,
+      })
       console.log('[ViewCategorized] Category counts:', response.data)
       return response.data
     },
@@ -47,12 +54,14 @@ export default function ViewCategorizedTab() {
 
   // Get total count for selected category
   const { data: totalCountData } = useQuery({
-    queryKey: ['pages', 'count', selectedCategory, debouncedSearch],
+    queryKey: ['pages', 'count', selectedCategory, debouncedSearch, dateRange.from, dateRange.to],
     queryFn: async () => {
       const response = await pagesApi.getCount({
         categorized: true,
         category: selectedCategory || undefined,
         search: debouncedSearch || undefined,
+        client_date_from: dateRange.from || undefined,
+        client_date_to: dateRange.to || undefined,
       })
       return response.data
     },
@@ -63,7 +72,7 @@ export default function ViewCategorizedTab() {
 
   // Fetch paginated pages for selected category
   const { data: pages, isLoading } = useQuery({
-    queryKey: ['pages', 'categorized', selectedCategory, page, pageSize, debouncedSearch, sortBy, sortOrder],
+    queryKey: ['pages', 'categorized', selectedCategory, page, pageSize, debouncedSearch, sortBy, sortOrder, dateRange.from, dateRange.to],
     queryFn: async () => {
       console.log('[ViewCategorized] Fetching pages for category:', selectedCategory, 'page:', page, 'search:', debouncedSearch, 'sort:', sortBy, sortOrder)
       const response = await pagesApi.list({
@@ -74,6 +83,8 @@ export default function ViewCategorizedTab() {
         order: sortOrder,
         limit: pageSize,
         offset: page * pageSize,
+        client_date_from: dateRange.from || undefined,
+        client_date_to: dateRange.to || undefined,
       })
       console.log('[ViewCategorized] Response data:', response.data)
       console.log('[ViewCategorized] Found', response.data.length, 'pages')
@@ -213,6 +224,12 @@ export default function ViewCategorizedTab() {
 
   return (
     <div className="space-y-6">
+      {/* Date Range Filter */}
+      <div className="bg-white rounded-lg shadow p-6">
+        <h2 className="text-lg font-semibold mb-4">Filter by Client Date Closed</h2>
+        <DateRangePicker value={dateRange} onChange={setDateRange} />
+      </div>
+
       {/* Category Selector */}
       <div className="bg-white rounded-lg shadow p-6">
         <h2 className="text-xl font-semibold mb-4">Select Category</h2>
