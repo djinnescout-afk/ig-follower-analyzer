@@ -95,9 +95,9 @@ def get_pages_count(
         
         if categorized is not None:
             if categorized:
-                query = query.filter("category", "not.is", "null")
+                query = query.not_.is_("category", "null")
             else:
-                query = query.filter("category", "is", "null")
+                query = query.is_("category", "null")
         
         if category is not None:
             query = query.eq("category", category)
@@ -142,9 +142,9 @@ def list_pages(
     # Apply categorization filter
     if categorized is not None:
         if categorized:
-            query = query.filter("category", "not.is", "null")
+            query = query.not_.is_("category", "null")
         else:
-            query = query.filter("category", "is", "null")
+            query = query.is_("category", "null")
     
     # Apply specific category filter
     if category is not None:
