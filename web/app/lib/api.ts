@@ -234,6 +234,7 @@ export interface AdminUser {
 }
 
 export const adminApi = {
+  testAdminAccess: () => api.get<{ user_id: string; user_email: string | null; admin_emails_from_env: string[]; is_admin: boolean; env_var_raw: string }>('/admin/test-admin'),
   listUsers: () => api.get<{ users: AdminUser[] }>('/admin/users'),
   generateMagicLink: (targetUserId: string, redirectTo?: string) =>
     api.post<{ magic_link: string; user_email: string; user_id: string }>('/admin/generate-magic-link', {

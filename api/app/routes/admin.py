@@ -66,6 +66,35 @@ def get_supabase_admin_client() -> Client:
     return create_client(settings.supabase_url, settings.supabase_service_key)
 
 
+@router.get("/test-admin")
+def test_admin_access(user_id: str = Depends(get_current_user_id)):
+    """Test endpoint to debug admin access (returns debug info)"""
+    try:
+        settings = get_settings()
+        admin_client = create_client(settings.supabase_url, settings.supabase_service_key)
+        
+        # Get user email
+        response = admin_client.auth.admin.get_user_by_id(user_id)
+        user_email = response.user.email if response and response.user else None
+        
+        admin_emails = get_admin_emails()
+        is_admin = check_is_admin(user_id)
+        
+        return {
+            "user_id": user_id,
+            "user_email": user_email,
+            "admin_emails_from_env": admin_emails,
+            "is_admin": is_admin,
+            "env_var_raw": os.getenv("ADMIN_EMAILS", "NOT_SET")
+        }
+    except Exception as e:
+        logger.error(f"[ADMIN] Error in test endpoint: {e}", exc_info=True)
+        return {
+            "error": str(e),
+            "user_id": user_id
+        }
+
+
 @router.get("/users")
 def list_users(user_id: str = Depends(get_current_user_id)):
     """List all users (admin only)"""

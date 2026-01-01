@@ -9,6 +9,16 @@ import { Mail, ExternalLink, RefreshCw } from 'lucide-react'
 export default function AdminTab() {
   const [selectedUserId, setSelectedUserId] = useState<string | null>(null)
 
+  // Test admin access first
+  const { data: testData } = useQuery({
+    queryKey: ['admin', 'test'],
+    queryFn: async () => {
+      const response = await adminApi.testAdminAccess()
+      return response.data
+    },
+    retry: false,
+  })
+
   // Fetch all users
   const { data: usersData, isLoading, refetch } = useQuery({
     queryKey: ['admin', 'users'],
@@ -45,10 +55,23 @@ export default function AdminTab() {
     return <div className="text-center py-8">Loading users...</div>
   }
 
+  // Show debug info if test data is available
+  if (testData) {
+    console.log('[AdminTab] Admin test data:', testData)
+  }
+
   if (!usersData) {
     return (
       <div className="text-center py-8">
         <p className="text-red-600 mb-4">Unable to load users. You may not have admin access.</p>
+        {testData && (
+          <div className="mb-4 p-4 bg-gray-100 rounded-md text-left max-w-2xl mx-auto">
+            <h3 className="font-semibold mb-2">Debug Info:</h3>
+            <pre className="text-xs overflow-auto">
+              {JSON.stringify(testData, null, 2)}
+            </pre>
+          </div>
+        )}
         <button
           onClick={() => refetch()}
           className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700"
