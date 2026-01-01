@@ -1,38 +1,33 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { useAuth } from '../contexts/AuthContext'
 
 export function AuthGuard({ children }: { children: React.ReactNode }) {
   const { user, loading, session } = useAuth()
   const router = useRouter()
-  const [hasChecked, setHasChecked] = useState(false)
 
   useEffect(() => {
-    // Wait for loading to complete (INITIAL_SESSION has fired)
-    if (loading) {
-      setHasChecked(false)
-      return
-    }
+    // Only check after loading completes
+    if (loading) return
 
-    // After loading completes, wait a moment for state to update
+    // Wait a moment for React state to update after loading completes
     const timer = setTimeout(() => {
-      setHasChecked(true)
-      console.log('[AuthGuard] Check complete - user:', user ? 'exists' : 'null', 'session:', session ? 'exists' : 'null')
+      console.log('[AuthGuard] Final check - user:', user ? 'exists' : 'null', 'session:', session ? 'exists' : 'null')
       
       // Only redirect if we're absolutely sure there's no session
       if (!user && !session) {
-        console.log('[AuthGuard] No user or session, redirecting to login')
+        console.log('[AuthGuard] No user or session after loading, redirecting to login')
         router.push('/login')
       }
-    }, 300) // Small delay to let React state update
+    }, 500) // Wait 500ms after loading completes for state to update
 
     return () => clearTimeout(timer)
   }, [loading, user, session, router])
 
   // Show loading while checking auth
-  if (loading || !hasChecked) {
+  if (loading) {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
         <div className="text-center">
@@ -43,11 +38,12 @@ export function AuthGuard({ children }: { children: React.ReactNode }) {
     )
   }
 
-  // If no user after checking, don't render (redirect will happen)
-  if (!user && !session) {
-    return null
+  // If we have a user or session, show content
+  if (user || session) {
+    return <>{children}</>
   }
 
-  return <>{children}</>
+  // If no user after loading, don't render (redirect will happen)
+  return null
 }
 
