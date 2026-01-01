@@ -180,16 +180,18 @@ def get_pages_count(
     categorized: Optional[bool] = Query(None),
     category: Optional[str] = Query(None),
     search: Optional[str] = Query(None),
+    include_archived: Optional[bool] = Query(False),
+    client_date_from: Optional[str] = Query(None, description="Filter by client date_closed from (ISO format)"),
+    client_date_to: Optional[str] = Query(None, description="Filter by client date_closed to (ISO format)"),
     user_id: str = Depends(get_current_user_id),
 ):
-    """Get total count of pages matching filters (for pagination)."""
+    """Get total count of pages matching filters.
+    If date range is provided, counts pages with clients that closed within the range."""
     try:
         client = get_supabase_client()
-        query = client.table("pages").select("id", count="exact").eq("user_id", user_id)
+        query = client.table("pages").select("id").eq("user_id", user_id)
         
-        if min_client_count is not None:
-            query = query.gte("client_count", min_client_count)
-        
+        # Apply basic filters first
         if categorized is not None:
             if categorized:
                 query = query.not_.is_("category", "null")
@@ -202,8 +204,32 @@ def get_pages_count(
         if search is not None and search.strip():
             query = query.or_(f"ig_username.ilike.%{search}%,full_name.ilike.%{search}%")
         
+        # Get all matching pages
         response = query.execute()
-        return {"count": response.count}
+        pages = response.data if response.data else []
+        
+        # If date range is provided, filter by client_count calculated with date range
+        if client_date_from or client_date_to:
+            page_ids = [p["id"] for p in pages]
+            client_counts = _calculate_client_count_with_date_range(page_ids, user_id, client_date_from, client_date_to)
+            
+            # Filter pages by min_client_count and date range
+            filtered_count = 0
+            for page in pages:
+                page_id = page["id"]
+                page_client_count = client_counts.get(page_id, 0)
+                
+                if min_client_count is None or page_client_count >= min_client_count:
+                    filtered_count += 1
+            
+            return {"count": filtered_count}
+        else:
+            # No date range - use stored client_count
+            if min_client_count is not None:
+                query = query.gte("client_count", min_client_count)
+            
+            response = query.execute()
+            return {"count": response.count if hasattr(response, 'count') else len(response.data or [])}
     except Exception as e:
         logger.error(f"Error in get_pages_count: {e}", exc_info=True)
         raise HTTPException(status_code=500, detail=str(e))
