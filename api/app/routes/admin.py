@@ -16,9 +16,13 @@ router = APIRouter(prefix="/admin", tags=["admin"])
 def get_admin_emails() -> List[str]:
     """Get list of admin emails from environment variable"""
     admin_emails_str = os.getenv("ADMIN_EMAILS", "")
+    logger.info(f"[ADMIN] ADMIN_EMAILS env var value: '{admin_emails_str}'")
     if not admin_emails_str:
+        logger.warning("[ADMIN] ADMIN_EMAILS environment variable is not set!")
         return []
-    return [email.strip().lower() for email in admin_emails_str.split(",")]
+    emails = [email.strip().lower() for email in admin_emails_str.split(",") if email.strip()]
+    logger.info(f"[ADMIN] Parsed admin emails: {emails}")
+    return emails
 
 
 def check_is_admin(user_id: str) -> bool:
@@ -31,16 +35,28 @@ def check_is_admin(user_id: str) -> bool:
         # Get user email from auth.users
         response = admin_client.auth.admin.get_user_by_id(user_id)
         if not response or not response.user:
+            logger.warning(f"[ADMIN] User not found: {user_id}")
             return False
         
         user_email = response.user.email
         if not user_email:
+            logger.warning(f"[ADMIN] User has no email: {user_id}")
             return False
         
         admin_emails = get_admin_emails()
-        return user_email.lower() in admin_emails
+        user_email_lower = user_email.lower().strip()
+        
+        logger.info(f"[ADMIN] Checking admin access for: {user_email_lower}")
+        logger.info(f"[ADMIN] Admin emails list: {admin_emails}")
+        
+        is_admin = user_email_lower in admin_emails
+        logger.info(f"[ADMIN] Is admin: {is_admin}")
+        
+        return is_admin
     except Exception as e:
         logger.error(f"[ADMIN] Error checking admin status: {e}", exc_info=True)
+        import traceback
+        logger.error(traceback.format_exc())
         return False
 
 
