@@ -224,6 +224,24 @@ export const outreachApi = {
   }) => api.put<OutreachTracking>(`/outreach/${pageId}`, data),
 }
 
+// Admin API
+export interface AdminUser {
+  id: string
+  email: string
+  created_at: string
+  last_sign_in_at: string | null
+  email_confirmed_at: string | null
+}
+
+export const adminApi = {
+  listUsers: () => api.get<{ users: AdminUser[] }>('/admin/users'),
+  generateMagicLink: (targetUserId: string, redirectTo?: string) =>
+    api.post<{ magic_link: string; user_email: string; user_id: string }>('/admin/generate-magic-link', {
+      target_user_id: targetUserId,
+      redirect_to: redirectTo
+    }),
+}
+
 // Concentration calculation utilities
 export function calculateConcentration(page: Page): number | null {
   if (!page.client_count || page.client_count === 0) return null
