@@ -23,7 +23,10 @@ export default function LoginPage() {
       setError(error.message)
       setLoading(false)
     } else {
-      router.push('/')
+      // Wait a moment for session to be set, then redirect
+      setTimeout(() => {
+        window.location.href = '/'
+      }, 100)
     }
   }
 

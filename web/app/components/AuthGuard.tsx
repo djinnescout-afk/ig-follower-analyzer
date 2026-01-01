@@ -1,20 +1,26 @@
 'use client'
 
-import { useEffect } from 'react'
+import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { useAuth } from '../contexts/AuthContext'
 
 export function AuthGuard({ children }: { children: React.ReactNode }) {
   const { user, loading } = useAuth()
   const router = useRouter()
+  const [hasChecked, setHasChecked] = useState(false)
 
   useEffect(() => {
-    if (!loading && !user) {
-      router.push('/login')
+    // Wait a bit for session to load from storage
+    if (!loading) {
+      setHasChecked(true)
+      if (!user) {
+        router.push('/login')
+      }
     }
   }, [user, loading, router])
 
-  if (loading) {
+  // Show loading while checking auth
+  if (loading || !hasChecked) {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
         <div className="text-center">
@@ -25,6 +31,7 @@ export function AuthGuard({ children }: { children: React.ReactNode }) {
     )
   }
 
+  // If no user after loading, don't render (redirect will happen)
   if (!user) {
     return null
   }
