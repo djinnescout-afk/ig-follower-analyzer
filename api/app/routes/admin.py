@@ -109,8 +109,11 @@ def list_users(user_id: str = Depends(get_current_user_id)):
         # List all users using admin API
         response = admin_client.auth.admin.list_users()
         
+        # The response might be a list directly or have a users attribute
+        user_list = response.users if hasattr(response, 'users') else response
+        
         users = []
-        for user in response.users:
+        for user in user_list:
             users.append({
                 "id": user.id,
                 "email": user.email,
