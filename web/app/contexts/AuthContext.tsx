@@ -26,7 +26,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     // Set a maximum timeout to prevent infinite loading (10 seconds)
     const maxTimeout = setTimeout(() => {
       if (loading) {
-        console.warn('[AuthContext] Max timeout reached, stopping loading')
+        console.warn('[AuthContext] Max timeout (10s) reached, forcing loading to false')
         setLoading(false)
       }
     }, 10000)
@@ -78,21 +78,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         })
       }
     }, 3000) // 3 second fallback
-    
-    // Maximum timeout to prevent infinite loading (10 seconds)
-    const maxTimeout = setTimeout(() => {
-      if (loading) {
-        console.warn('[AuthContext] Max timeout (10s) reached, forcing loading to false')
-        setLoading(false)
-      }
-    }, 10000)
 
     return () => {
       subscription.unsubscribe()
       clearTimeout(fallbackTimer)
       clearTimeout(maxTimeout)
+      if (timeoutId) clearTimeout(timeoutId)
     }
-  }, [loading])
+  }, [])
 
   const signIn = async (email: string, password: string) => {
     const { error } = await supabase.auth.signInWithPassword({
