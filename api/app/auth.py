@@ -30,10 +30,18 @@ def verify_jwt_token(token: str) -> Optional[str]:
         jwt_secret = os.getenv("SUPABASE_JWT_SECRET", "")
         
         if not jwt_secret:
+            # Check if we're in production
+            is_production = os.getenv("ENVIRONMENT", "development").lower() == "production"
+            
+            if is_production:
+                # In production, fail hard - don't allow unverified tokens
+                error_msg = "[AUTH] CRITICAL: SUPABASE_JWT_SECRET not set in production!"
+                logger.error(error_msg)
+                print(error_msg)
+                return None
+            
+            # Development fallback: decode without verification (INSECURE)
             logger.warning("[AUTH] SUPABASE_JWT_SECRET not set, decoding without verification (INSECURE - dev only)")
-            # Fallback: Try to decode without verification (NOT SECURE - for development only)
-            # In production, you MUST set SUPABASE_JWT_SECRET
-            # Print to stdout so it shows in Render logs
             print("[AUTH] WARNING: SUPABASE_JWT_SECRET not set, decoding without verification")
             payload = jwt.decode(token, options={"verify_signature": False})
             user_id = payload.get("sub")

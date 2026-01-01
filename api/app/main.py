@@ -9,11 +9,11 @@ def create_app() -> FastAPI:
     settings = get_settings()
     app = FastAPI(title="IG Follower Analyzer API", version="0.1.0")
 
-    # CORS configuration - allow all origins for now
+    # CORS configuration - uses CORS_ORIGINS env var, defaults to ["*"] for development
     app.add_middleware(
         CORSMiddleware,
-        allow_origins=["*"],  # In production, specify exact origins
-        allow_credentials=False,  # Set to False when using allow_origins=["*"]
+        allow_origins=settings.cors_origins,
+        allow_credentials=settings.cors_origins != ["*"],  # Only allow credentials if not wildcard
         allow_methods=["GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH"],
         allow_headers=["*"],
         expose_headers=["*"],
