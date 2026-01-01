@@ -179,9 +179,20 @@ def generate_magic_link(
                 detail="User has no email"
             )
         
-        # Default redirect to the app URL
+        # Default redirect to the app URL (use production URL, not localhost)
+        # Get production URL from environment or use the one passed from frontend
         if not redirect_to:
-            redirect_to = os.getenv("FRONTEND_URL", "http://localhost:3000")
+            redirect_to = os.getenv("FRONTEND_URL", "")
+            if not redirect_to:
+                # If still no URL, try to construct from SUPABASE_URL or use a sensible default
+                # But NEVER use localhost in production
+                settings = get_settings()
+                # Extract domain from supabase_url if available (e.g., https://xxx.supabase.co)
+                # For now, log a warning and use a placeholder that will need to be set
+                logger.warning("[ADMIN] No FRONTEND_URL set and no redirect_to provided. Magic link may not work correctly.")
+                redirect_to = "https://ig-follower-analyzer.vercel.app"  # Hardcode production URL as fallback
+        
+        logger.info(f"[ADMIN] Generating magic link for {user_email} with redirect_to: {redirect_to}")
         
         # Generate magic link using admin API
         # Supabase Python client generate_link takes a single dict parameter

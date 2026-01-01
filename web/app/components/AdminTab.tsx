@@ -35,7 +35,9 @@ export default function AdminTab() {
   const generateLinkMutation = useMutation({
     mutationFn: async (userId: string) => {
       setSelectedUserId(userId)
+      // Always use the current production URL, never localhost
       const redirectTo = window.location.origin
+      console.log('[AdminTab] Generating magic link with redirectTo:', redirectTo)
       const response = await adminApi.generateMagicLink(userId, redirectTo)
       return response.data
     },
