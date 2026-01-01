@@ -11,9 +11,10 @@ import EditPageTab from './components/EditPageTab'
 import ViewCategorizedTab from './components/ViewCategorizedTab'
 import PagesTab from './components/PagesTab'
 import ScrapesTab from './components/ScrapesTab'
+import AdminTab from './components/AdminTab'
 
 function DashboardContent() {
-  const [activeTab, setActiveTab] = useState<'clients' | 'categorize' | 'edit' | 'view-categorized' | 'pages' | 'scrapes'>('clients')
+  const [activeTab, setActiveTab] = useState<'clients' | 'categorize' | 'edit' | 'view-categorized' | 'pages' | 'scrapes' | 'admin'>('clients')
   const { user, signOut } = useAuth()
 
   const handleSignOut = async () => {
@@ -124,6 +125,18 @@ function DashboardContent() {
             >
               Scrape Jobs
             </button>
+            <button
+              onClick={() => setActiveTab('admin')}
+              className={`
+                py-4 px-1 border-b-2 font-medium text-sm
+                ${activeTab === 'admin'
+                  ? 'border-blue-500 text-blue-600'
+                  : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                }
+              `}
+            >
+              Admin
+            </button>
           </nav>
         </div>
 
@@ -135,6 +148,7 @@ function DashboardContent() {
           {activeTab === 'view-categorized' && <ViewCategorizedTab />}
           {activeTab === 'pages' && <PagesTab />}
           {activeTab === 'scrapes' && <ScrapesTab />}
+          {activeTab === 'admin' && <AdminTab />}
         </div>
       </div>
     </div>
