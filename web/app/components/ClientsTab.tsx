@@ -11,7 +11,8 @@ export default function ClientsTab() {
   const [isAddingClient, setIsAddingClient] = useState(false)
   const [isBulkAdding, setIsBulkAdding] = useState(false)
   const [newClient, setNewClient] = useState({ name: '', ig_username: '', date_closed: '' })
-  const [bulkClients, setBulkClients] = useState({ text: '', date_closed: '' })
+  const [bulkClients, setBulkClients] = useState({ text: '' })
+  const [csvFile, setCsvFile] = useState<File | null>(null)
   const [selectedClients, setSelectedClients] = useState<string[]>([])
 
   // Fetch clients
@@ -79,31 +80,53 @@ export default function ClientsTab() {
     }
   }
 
-  const handleBulkAdd = (e: React.FormEvent) => {
-    e.preventDefault()
-    if (!bulkClients.text.trim()) {
-      alert('Please enter client data')
-      return
-    }
-
-    // Parse bulk text: one client per line, format: "Name,username"
-    const lines = bulkClients.text.trim().split('\n').filter(line => line.trim())
-    const clients = lines.map(line => {
+  const parseClientData = (text: string): Array<{ name: string; ig_username: string; date_closed?: string }> => {
+    const lines = text.trim().split('\n').filter(line => line.trim())
+    return lines.map((line, index) => {
       const parts = line.split(',').map(p => p.trim())
       if (parts.length < 2) {
-        throw new Error(`Invalid format: "${line}". Expected "Name,username"`)
+        throw new Error(`Invalid format on line ${index + 1}: "${line}". Expected "Name,username,date_closed" (date_closed is optional)`)
       }
       const payload: any = {
         name: parts[0],
         ig_username: parts[1],
       }
-      if (bulkClients.date_closed) {
-        payload.date_closed = bulkClients.date_closed
+      // If 3rd column exists, use it as date_closed
+      if (parts.length >= 3 && parts[2]) {
+        payload.date_closed = parts[2]
       }
       return payload
     })
+  }
 
-    bulkAddMutation.mutate(clients)
+  const handleCsvUpload = async (file: File) => {
+    const text = await file.text()
+    try {
+      const clients = parseClientData(text)
+      bulkAddMutation.mutate(clients)
+      setCsvFile(null)
+    } catch (error: any) {
+      alert(`Error parsing CSV: ${error.message}`)
+    }
+  }
+
+  const handleBulkAdd = (e: React.FormEvent) => {
+    e.preventDefault()
+    if (!bulkClients.text.trim() && !csvFile) {
+      alert('Please enter client data or upload a CSV file')
+      return
+    }
+
+    try {
+      if (csvFile) {
+        handleCsvUpload(csvFile)
+      } else {
+        const clients = parseClientData(bulkClients.text)
+        bulkAddMutation.mutate(clients)
+      }
+    } catch (error: any) {
+      alert(`Error: ${error.message}`)
+    }
   }
 
   const handleScrapeSelected = () => {
@@ -219,48 +242,70 @@ export default function ClientsTab() {
         {isBulkAdding && (
           <form onSubmit={handleBulkAdd} className="mb-6 p-4 bg-gray-50 rounded-md">
             <div className="space-y-4">
+              {/* CSV Upload Option */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Upload CSV File (optional)
+                </label>
+                <input
+                  type="file"
+                  accept=".csv"
+                  onChange={(e) => {
+                    const file = e.target.files?.[0]
+                    if (file) {
+                      setCsvFile(file)
+                      setBulkClients({ text: '' }) // Clear textarea when file is selected
+                    }
+                  }}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm"
+                />
+                <p className="text-xs text-gray-500 mt-1">
+                  CSV format: Name,Username,Date Closed (one per line, date_closed is optional)
+                </p>
+                {csvFile && (
+                  <p className="text-xs text-green-600 mt-1">
+                    ✓ Selected: {csvFile.name}
+                  </p>
+                )}
+              </div>
+
+              <div className="text-center text-gray-500 text-sm">OR</div>
+
+              {/* Text Input Option */}
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Clients (one per line: Name,username)
+                  Paste Client Data (one per line: Name,Username,Date Closed)
                 </label>
                 <textarea
                   value={bulkClients.text}
-                  onChange={(e) => setBulkClients({ ...bulkClients, text: e.target.value })}
+                  onChange={(e) => {
+                    setBulkClients({ text: e.target.value })
+                    setCsvFile(null) // Clear file when text is entered
+                  }}
                   className="w-full px-3 py-2 border border-gray-300 rounded-md font-mono text-sm"
                   rows={8}
-                  placeholder="John Smith,johnsmith123&#10;Jane Doe,janedoe456&#10;Bob Johnson,bobjohnson789"
-                  required
+                  placeholder="John Smith,johnsmith123,2024-01-15&#10;Jane Doe,janedoe456,2024-02-20&#10;Bob Johnson,bobjohnson789"
                 />
                 <p className="text-xs text-gray-500 mt-1">
-                  Format: Client Name,Instagram Username (one per line)
-                </p>
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Date Closed (optional - applies to all clients)
-                </label>
-                <input
-                  type="date"
-                  value={bulkClients.date_closed}
-                  onChange={(e) => setBulkClients({ ...bulkClients, date_closed: e.target.value })}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md"
-                />
-                <p className="text-xs text-gray-500 mt-1">
-                  If set, all clients will have this date_closed. Otherwise defaults to today.
+                  Format: Name,Username,Date Closed (date_closed is optional - defaults to today if not provided)
                 </p>
               </div>
             </div>
             <div className="mt-4 flex gap-2">
               <button
                 type="submit"
-                disabled={bulkAddMutation.isPending}
-                className="px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 disabled:opacity-50"
+                disabled={bulkAddMutation.isPending || (!bulkClients.text.trim() && !csvFile)}
+                className="px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 {bulkAddMutation.isPending ? 'Adding...' : 'Add All Clients'}
               </button>
               <button
                 type="button"
-                onClick={() => setIsBulkAdding(false)}
+                onClick={() => {
+                  setIsBulkAdding(false)
+                  setBulkClients({ text: '' })
+                  setCsvFile(null)
+                }}
                 className="px-4 py-2 bg-gray-300 text-gray-700 rounded-md hover:bg-gray-400"
               >
                 Cancel
