@@ -13,6 +13,19 @@ export default function CategorizeTab() {
   const [vaName, setVaName] = useState('')
   const queryClient = useQueryClient()
   
+  // Batch loading progress state
+  const [batchProgress, setBatchProgress] = useState<{
+    currentBatch: number
+    totalPages: number
+    isFetching: boolean
+    error: string | null
+  }>({
+    currentBatch: 0,
+    totalPages: 0,
+    isFetching: false,
+    error: null,
+  })
+  
   // Load VA name from localStorage on mount
   useEffect(() => {
     const savedVaName = localStorage.getItem('vaName')
@@ -33,29 +46,56 @@ export default function CategorizeTab() {
     queryKey: ['pages', 'uncategorized'],
     queryFn: async () => {
       console.log('[CategorizeTab] Fetching all uncategorized pages...')
+      setBatchProgress({ currentBatch: 0, totalPages: 0, isFetching: true, error: null })
+      
       const allPages: Page[] = []
       let offset = 0
       const limit = 5000 // Larger batch size for faster loading
+      let batchNumber = 0
 
       while (true) {
-        const response = await pagesApi.list({
-          categorized: false,
-          min_client_count: 1,
-          limit: limit,
-          offset: offset,
-        })
-        
-        const batch = response.data || []
-        console.log(`[CategorizeTab] Fetched batch at offset ${offset}: ${batch.length} pages`)
-        allPages.push(...batch)
+        try {
+          batchNumber++
+          setBatchProgress(prev => ({ ...prev, currentBatch: batchNumber }))
+          
+          const response = await pagesApi.list({
+            categorized: false,
+            min_client_count: 1,
+            limit: limit,
+            offset: offset,
+          })
+          
+          const batch = response.data || []
+          console.log(`[CategorizeTab] Fetched batch at offset ${offset}: ${batch.length} pages`)
+          allPages.push(...batch)
+          
+          setBatchProgress(prev => ({ 
+            ...prev, 
+            totalPages: allPages.length,
+            currentBatch: batchNumber 
+          }))
 
-        if (batch.length < limit) {
-          break
+          if (batch.length < limit) {
+            break
+          }
+          offset += limit
+        } catch (error: any) {
+          // Handle Render wake-up errors with retry
+          if (error.code === 'ERR_NETWORK' || error.message?.includes('waking up')) {
+            console.warn(`[CategorizeTab] Network error at batch ${batchNumber}, retrying in 2 seconds...`)
+            setBatchProgress(prev => ({ 
+              ...prev, 
+              error: `Server waking up... Retrying batch ${batchNumber}...` 
+            }))
+            await new Promise(resolve => setTimeout(resolve, 2000))
+            continue // Retry the same batch
+          }
+          throw error // Re-throw other errors
         }
-        offset += limit
       }
 
       console.log(`[CategorizeTab] Total uncategorized pages: ${allPages.length}`)
+      setBatchProgress(prev => ({ ...prev, isFetching: false, error: null }))
       
       // Deduplicate by id (in case same page appears in multiple batches)
       const uniquePages = Array.from(
