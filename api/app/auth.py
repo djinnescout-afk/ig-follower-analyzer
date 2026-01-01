@@ -42,10 +42,16 @@ def verify_jwt_token(token: str) -> Optional[str]:
             return user_id
         
         # Verify and decode the token
+        # Supabase JWTs require audience="authenticated" for authenticated users
         secret_length = len(jwt_secret)
         logger.debug(f"[AUTH] Attempting to verify token with secret (length: {secret_length})")
         print(f"[AUTH] Attempting to verify token with secret (length: {secret_length})")  # Print for Render logs
-        payload = jwt.decode(token, jwt_secret, algorithms=["HS256"])
+        payload = jwt.decode(
+            token, 
+            jwt_secret, 
+            algorithms=["HS256"],
+            audience="authenticated"  # Supabase JWTs require this audience
+        )
         user_id = payload.get("sub")
         success_msg = f"[AUTH] Token verified successfully: user_id={user_id}"
         logger.info(success_msg)
