@@ -75,6 +75,7 @@ export interface Client {
   ig_username: string
   following_count: number
   last_scraped?: string
+  date_closed?: string
   created_at: string
 }
 
@@ -86,6 +87,7 @@ export interface Page {
   is_verified: boolean
   is_private: boolean
   client_count: number
+  followers_per_client?: number
   last_scraped?: string
   last_scrape_status?: string
   // VA Categorization fields
@@ -152,8 +154,10 @@ export interface OutreachTracking {
 export const clientsApi = {
   list: () => api.get<Client[]>('/clients'),
   get: (id: string) => api.get<Client>(`/clients/${id}`),
-  create: (data: { name: string; ig_username: string }) => 
+  create: (data: { name: string; ig_username: string; date_closed?: string }) => 
     api.post<Client>('/clients', data),
+  bulkCreate: (clients: Array<{ name: string; ig_username: string; date_closed?: string }>) =>
+    api.post<Client[]>('/clients/bulk', clients),
   delete: (id: string) => api.delete(`/clients/${id}`),
 }
 
@@ -169,18 +173,25 @@ export const pagesApi = {
     limit?: number
     offset?: number
     include_archived?: boolean
+    client_date_from?: string
+    client_date_to?: string
   }) => api.get<Page[]>('/pages', { params }),
   get: (id: string) => api.get<Page>(`/pages/${id}`),
   getProfile: (id: string) => api.get<PageProfile>(`/pages/${id}/profile`),
   update: (id: string, data: any) => api.put(`/pages/${id}`, data),
   archive: (id: string) => api.put(`/pages/${id}`, { archived: true }),
   getPageFollowers: (id: string) => api.get<any[]>(`/pages/${id}/followers`),
-  getCategoryCounts: () => api.get<Record<string, number>>('/pages/category-counts'),
+  getCategoryCounts: (params?: {
+    client_date_from?: string
+    client_date_to?: string
+  }) => api.get<Record<string, number>>('/pages/category-counts', { params }),
   getCount: (params?: {
     categorized?: boolean
     category?: string
     search?: string
     include_archived?: boolean
+    client_date_from?: string
+    client_date_to?: string
   }) => api.get<{ count: number }>('/pages/count', { params }),
 }
 

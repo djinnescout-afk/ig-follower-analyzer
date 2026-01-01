@@ -7,6 +7,7 @@ from pydantic import BaseModel, Field, ConfigDict
 class ClientBase(BaseModel):
     name: str = Field(..., description="Client name")
     ig_username: str = Field(..., description="Instagram handle in lowercase")
+    date_closed: Optional[datetime] = Field(None, description="Date client closed (defaults to created_at if not set)")
 
 
 class ClientCreate(ClientBase):
@@ -18,12 +19,14 @@ class ClientUpdate(BaseModel):
     ig_username: Optional[str] = None
     following_count: Optional[int] = None
     last_scraped: Optional[datetime] = None
+    date_closed: Optional[datetime] = None
 
 
 class ClientResponse(ClientBase):
     id: str
     following_count: int = 0
     last_scraped: Optional[datetime] = None
+    date_closed: Optional[datetime] = None
     created_at: datetime
     updated_at: datetime
 

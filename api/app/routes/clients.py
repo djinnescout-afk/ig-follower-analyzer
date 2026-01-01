@@ -1,6 +1,7 @@
 from fastapi import APIRouter, HTTPException, status, Depends
+from typing import List
 
-from ..db import fetch_rows, insert_row, upsert_row, update_row
+from ..db import fetch_rows, insert_row, upsert_row, update_row, get_supabase_client
 from ..schemas.client import ClientCreate, ClientResponse, ClientUpdate
 from ..auth import get_current_user_id
 
@@ -45,4 +46,45 @@ def update_client(client_id: str, payload: ClientUpdate, user_id: str = Depends(
     # Use update_row which ensures user_id matches
     row = update_row("clients", client_id, data, user_id=user_id)
     return row
+
+
+@router.post("/bulk", response_model=List[ClientResponse], status_code=status.HTTP_201_CREATED)
+def bulk_create_clients(
+    clients: List[ClientCreate], 
+    user_id: str = Depends(get_current_user_id)
+):
+    """Create multiple clients at once. All clients will have the same date_closed if provided."""
+    if not clients:
+        raise HTTPException(status_code=400, detail="No clients provided")
+    
+    client = get_supabase_client()
+    created_clients = []
+    errors = []
+    
+    # Validate all clients first
+    for idx, client_data in enumerate(clients):
+        data = client_data.model_dump()
+        data["ig_username"] = data["ig_username"].lower()
+        
+        # Check if client already exists for this user
+        existing = fetch_rows("clients", {"ig_username": data["ig_username"]}, user_id=user_id)
+        if existing:
+            errors.append(f"Client {idx + 1} (@{data['ig_username']}) already exists")
+            continue
+    
+    if errors:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail={"errors": errors, "message": "Some clients already exist"}
+        )
+    
+    # Insert all clients
+    for client_data in clients:
+        data = client_data.model_dump()
+        data["ig_username"] = data["ig_username"].lower()
+        # date_closed will be set by trigger if not provided
+        row = insert_row("clients", data, user_id=user_id)
+        created_clients.append(row)
+    
+    return created_clients
 

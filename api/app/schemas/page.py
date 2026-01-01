@@ -49,6 +49,7 @@ class PageUpdate(BaseModel):
 class PageResponse(PageBase):
     id: str
     client_count: int = 0
+    followers_per_client: Optional[float] = None
     last_scraped: Optional[datetime] = None
     last_scrape_status: Optional[str] = None
     created_at: datetime

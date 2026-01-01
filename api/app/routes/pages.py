@@ -51,25 +51,122 @@ def _merge_outreach_data(pages: list[dict], user_id: str) -> list[dict]:
     return pages
 
 
+def _calculate_client_count_with_date_range(page_ids: list[str], user_id: str, date_from: Optional[str] = None, date_to: Optional[str] = None) -> dict[str, int]:
+    """
+    Calculate client_count for pages based on date range filter.
+    Returns a dict mapping page_id to client_count.
+    """
+    if not page_ids:
+        return {}
+    
+    client = get_supabase_client()
+    
+    try:
+        # Build query to count clients per page with date range filter
+        query = client.table("client_following").select("page_id, client_id")
+        query = query.in_("page_id", page_ids)
+        
+        # Join with clients table to filter by date_closed
+        # We need to use a raw SQL approach or fetch and filter
+        # For now, fetch all client_following records and filter client-side
+        
+        # Get all client_following records for these pages
+        cf_response = query.execute()
+        if not cf_response.data:
+            return {page_id: 0 for page_id in page_ids}
+        
+        # Get all unique client_ids
+        client_ids = list(set([cf["client_id"] for cf in cf_response.data]))
+        
+        # Fetch clients with date_closed filter
+        clients_query = client.table("clients").select("id").eq("user_id", user_id)
+        if date_from:
+            clients_query = clients_query.gte("date_closed", date_from)
+        if date_to:
+            clients_query = clients_query.lte("date_closed", date_to)
+        
+        clients_response = clients_query.execute()
+        valid_client_ids = set([c["id"] for c in (clients_response.data or [])])
+        
+        # Count clients per page (only counting valid clients within date range)
+        page_client_counts = {}
+        for page_id in page_ids:
+            page_client_counts[page_id] = 0
+        
+        for cf in cf_response.data:
+            if cf["client_id"] in valid_client_ids:
+                page_id = cf["page_id"]
+                page_client_counts[page_id] = page_client_counts.get(page_id, 0) + 1
+        
+        return page_client_counts
+        
+    except Exception as e:
+        logger.error(f"[PAGES API] Error calculating client_count with date range: {e}", exc_info=True)
+        # Fallback: return empty dict (will use stored client_count)
+        return {}
+
+
+def _calculate_followers_per_client(pages: list[dict]) -> list[dict]:
+    """Calculate followers_per_client for each page."""
+    for page in pages:
+        client_count = page.get("client_count", 0)
+        follower_count = page.get("follower_count", 0)
+        
+        if client_count > 0 and follower_count > 0:
+            page["followers_per_client"] = round(follower_count / client_count, 2)
+        else:
+            page["followers_per_client"] = None
+    
+    return pages
+
+
 @router.get("/category-counts")
-def get_category_counts(user_id: str = Depends(get_current_user_id)):
-    """Get count of pages per category using efficient SQL aggregation (for current user)."""
+def get_category_counts(
+    client_date_from: Optional[str] = Query(None, description="Filter by client date_closed from (ISO format)"),
+    client_date_to: Optional[str] = Query(None, description="Filter by client date_closed to (ISO format)"),
+    user_id: str = Depends(get_current_user_id)
+):
+    """Get count of pages per category using efficient SQL aggregation (for current user).
+    If date range is provided, only counts pages with clients that closed within the range."""
     try:
         client = get_supabase_client()
-        # Note: RPC function would need to be updated to accept user_id parameter
-        # For now, we'll filter client-side or create a new RPC function
-        # Temporary solution: Get all pages and count by category
-        response = client.table("pages").select("category").eq("user_id", user_id).execute()
         
-        if not response.data:
-            return {}
-        
-        # Count by category
-        counts = {}
-        for page in response.data:
-            category = page.get("category")
-            if category:
-                counts[category] = counts.get(category, 0) + 1
+        # If date range is provided, we need to calculate client_count dynamically
+        if client_date_from or client_date_to:
+            # Get all pages with their categories
+            pages_response = client.table("pages").select("id, category").eq("user_id", user_id).execute()
+            
+            if not pages_response.data:
+                return {}
+            
+            # Calculate client_count for each page with date range
+            page_ids = [p["id"] for p in pages_response.data]
+            client_counts = _calculate_client_count_with_date_range(page_ids, user_id, client_date_from, client_date_to)
+            
+            # Count by category (only pages with client_count > 0)
+            counts = {}
+            for page in pages_response.data:
+                category = page.get("category")
+                page_id = page["id"]
+                page_client_count = client_counts.get(page_id, 0)
+                
+                if category and page_client_count > 0:
+                    counts[category] = counts.get(category, 0) + 1
+        else:
+            # No date range - use stored client_count
+            response = client.table("pages").select("category, client_count").eq("user_id", user_id).execute()
+            
+            if not response.data:
+                return {}
+            
+            # Count by category (only pages with client_count > 0)
+            counts = {}
+            for page in response.data:
+                category = page.get("category")
+                client_count = page.get("client_count", 0)
+                
+                if category and client_count > 0:
+                    counts[category] = counts.get(category, 0) + 1
         
         return counts
     except Exception as e:
@@ -118,16 +215,20 @@ def list_pages(
     categorized: Optional[bool] = Query(None, description="Filter by categorization status (true=categorized, false=uncategorized)"),
     category: Optional[str] = Query(None, description="Filter by specific category"),
     search: Optional[str] = Query(None, description="Search by username or name"),
-    sort_by: Optional[str] = Query("client_count", description="Field to sort by (client_count, follower_count, last_reviewed_at)"),
+    sort_by: Optional[str] = Query("client_count", description="Field to sort by (client_count, follower_count, last_reviewed_at, followers_per_client)"),
     order: Optional[str] = Query("desc", description="Sort order (asc or desc)"),
     limit: Optional[int] = Query(10000, description="Max pages to return"),
     offset: Optional[int] = Query(0, description="Pagination offset"),
     include_archived: Optional[bool] = Query(False, description="Include archived pages"),
+    client_date_from: Optional[str] = Query(None, description="Filter by client date_closed from (ISO format)"),
+    client_date_to: Optional[str] = Query(None, description="Filter by client date_closed to (ISO format)"),
     user_id: str = Depends(get_current_user_id),
 ):
     """List pages with optional filtering, sorting, and pagination.
     
-    Uses the client_count column from the database (maintained by triggers).
+    If client_date_from/client_date_to are provided, client_count is calculated dynamically
+    based on clients that closed within the date range.
+    Otherwise, uses the stored client_count column from the database.
     Only returns pages belonging to the current user.
     """
     client = get_supabase_client()
@@ -135,9 +236,7 @@ def list_pages(
     # Build query with filter applied at database level
     query = client.table("pages").select("*").eq("user_id", user_id)
     
-    # Apply min_client_count filter
-    if min_client_count is not None:
-        query = query.gte("client_count", min_client_count)
+    # Note: min_client_count filter will be applied after date range calculation if date range is provided
     
     # Apply categorization filter
     if categorized is not None:
