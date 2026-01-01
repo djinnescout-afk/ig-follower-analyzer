@@ -184,14 +184,20 @@ def generate_magic_link(
             redirect_to = os.getenv("FRONTEND_URL", "http://localhost:3000")
         
         # Generate magic link using admin API
-        # The generate_link method signature: generate_link(type, email, options={})
-        link_response = admin_client.auth.admin.generate_link(
-            type="magiclink",
-            email=user_email,
-            options={
-                "redirect_to": redirect_to
-            }
-        )
+        # Supabase Python client generate_link signature: generate_link(type, email, options={})
+        # type should be a positional argument, not a keyword argument
+        try:
+            link_response = admin_client.auth.admin.generate_link(
+                "magiclink",  # type as positional argument
+                user_email,   # email as positional argument
+                {"redirect_to": redirect_to}  # options as dict
+            )
+        except Exception as e:
+            logger.error(f"[ADMIN] Error generating magic link: {e}", exc_info=True)
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail=f"Error generating magic link: {str(e)}"
+            )
         
         # Extract the magic link from the response
         # The response structure may vary, so we'll handle it safely
