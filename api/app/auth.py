@@ -33,26 +33,41 @@ def verify_jwt_token(token: str) -> Optional[str]:
             logger.warning("[AUTH] SUPABASE_JWT_SECRET not set, decoding without verification (INSECURE - dev only)")
             # Fallback: Try to decode without verification (NOT SECURE - for development only)
             # In production, you MUST set SUPABASE_JWT_SECRET
+            # Print to stdout so it shows in Render logs
+            print("[AUTH] WARNING: SUPABASE_JWT_SECRET not set, decoding without verification")
             payload = jwt.decode(token, options={"verify_signature": False})
             user_id = payload.get("sub")
             logger.info(f"[AUTH] Token decoded (no verification): user_id={user_id}")
+            print(f"[AUTH] Token decoded (no verification): user_id={user_id}")
             return user_id
         
         # Verify and decode the token
-        logger.debug(f"[AUTH] Attempting to verify token with secret (length: {len(jwt_secret)})")
+        secret_length = len(jwt_secret)
+        logger.debug(f"[AUTH] Attempting to verify token with secret (length: {secret_length})")
+        print(f"[AUTH] Attempting to verify token with secret (length: {secret_length})")  # Print for Render logs
         payload = jwt.decode(token, jwt_secret, algorithms=["HS256"])
         user_id = payload.get("sub")
-        logger.info(f"[AUTH] Token verified successfully: user_id={user_id}")
+        success_msg = f"[AUTH] Token verified successfully: user_id={user_id}"
+        logger.info(success_msg)
+        print(success_msg)  # Print for Render logs
         return user_id  # 'sub' is the user ID in Supabase JWTs
         
     except jwt.ExpiredSignatureError as e:
-        logger.warning(f"[AUTH] Token expired: {e}")
+        error_msg = f"[AUTH] Token expired: {e}"
+        logger.warning(error_msg)
+        print(error_msg)  # Print to stdout for Render logs
         return None
     except jwt.InvalidTokenError as e:
-        logger.warning(f"[AUTH] Invalid token: {e}")
+        error_msg = f"[AUTH] Invalid token: {e}"
+        logger.warning(error_msg)
+        print(error_msg)  # Print to stdout for Render logs
         return None
     except Exception as e:
-        logger.error(f"[AUTH] Unexpected error verifying token: {type(e).__name__}: {e}", exc_info=True)
+        error_msg = f"[AUTH] Unexpected error verifying token: {type(e).__name__}: {e}"
+        logger.error(error_msg, exc_info=True)
+        print(error_msg)  # Print to stdout for Render logs
+        import traceback
+        print(traceback.format_exc())  # Print full traceback
         return None
 
 
@@ -70,12 +85,16 @@ def get_user_id_from_token(credentials: HTTPAuthorizationCredentials = Depends(s
         )
     
     token = credentials.credentials
-    logger.debug(f"[AUTH] Received token (length: {len(token) if token else 0})")
+    token_length = len(token) if token else 0
+    logger.debug(f"[AUTH] Received token (length: {token_length})")
+    print(f"[AUTH] Received token (length: {token_length})")  # Print for Render logs
     
     user_id = verify_jwt_token(token)
     
     if not user_id:
-        logger.error("[AUTH] Token verification failed, returning 401")
+        error_msg = "[AUTH] Token verification failed, returning 401"
+        logger.error(error_msg)
+        print(error_msg)  # Print for Render logs
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Invalid or expired token",
