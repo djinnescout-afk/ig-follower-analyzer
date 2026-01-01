@@ -42,85 +42,96 @@ export default function CategorizeTab() {
   }, [vaName])
 
   // Fetch uncategorized pages with batch loading
-  const { data: pages, isLoading: pagesLoading } = useQuery({
+  const { data: pages, isLoading: pagesLoading, isError, error: queryError } = useQuery({
     queryKey: ['pages', 'uncategorized'],
     queryFn: async () => {
       console.log('[CategorizeTab] Fetching all uncategorized pages...')
       setBatchProgress({ currentBatch: 0, totalPages: 0, isFetching: true, error: null })
       
-      const allPages: Page[] = []
-      let offset = 0
-      const limit = 5000 // Larger batch size for faster loading
-      let batchNumber = 0
+      try {
+        const allPages: Page[] = []
+        let offset = 0
+        const limit = 5000 // Larger batch size for faster loading
+        let batchNumber = 0
 
-      while (true) {
-        try {
-          batchNumber++
-          setBatchProgress(prev => ({ ...prev, currentBatch: batchNumber }))
-          
-          const response = await pagesApi.list({
-            categorized: false,
-            min_client_count: 1,
-            limit: limit,
-            offset: offset,
-          })
-          
-          const batch = response.data || []
-          console.log(`[CategorizeTab] Fetched batch at offset ${offset}: ${batch.length} pages`)
-          allPages.push(...batch)
-          
-          setBatchProgress(prev => ({ 
-            ...prev, 
-            totalPages: allPages.length,
-            currentBatch: batchNumber 
-          }))
-
-          if (batch.length < limit) {
-            break
-          }
-          offset += limit
-        } catch (error: any) {
-          // Handle Render wake-up errors with retry
-          if (error.code === 'ERR_NETWORK' || error.message?.includes('waking up')) {
-            console.warn(`[CategorizeTab] Network error at batch ${batchNumber}, retrying in 2 seconds...`)
+        while (true) {
+          try {
+            batchNumber++
+            setBatchProgress(prev => ({ ...prev, currentBatch: batchNumber }))
+            
+            const response = await pagesApi.list({
+              categorized: false,
+              min_client_count: 1,
+              limit: limit,
+              offset: offset,
+            })
+            
+            const batch = response.data || []
+            console.log(`[CategorizeTab] Fetched batch at offset ${offset}: ${batch.length} pages`)
+            allPages.push(...batch)
+            
             setBatchProgress(prev => ({ 
               ...prev, 
-              error: `Server waking up... Retrying batch ${batchNumber}...` 
+              totalPages: allPages.length,
+              currentBatch: batchNumber 
             }))
-            await new Promise(resolve => setTimeout(resolve, 2000))
-            continue // Retry the same batch
-          }
-          throw error // Re-throw other errors
-        }
-      }
 
-      console.log(`[CategorizeTab] Total uncategorized pages: ${allPages.length}`)
-      setBatchProgress(prev => ({ ...prev, isFetching: false, error: null }))
-      
-      // Deduplicate by id (in case same page appears in multiple batches)
-      const uniquePages = Array.from(
-        new Map(allPages.map(page => [page.id, page])).values()
-      )
-      
-      if (uniquePages.length < allPages.length) {
-        console.warn(`[CategorizeTab] Removed ${allPages.length - uniquePages.length} duplicate pages`)
-      }
-      
-      // Sort by priority tier, then by client_count, then by follower_count
-      const sorted = uniquePages.sort((a, b) => {
-        const tierA = getPriorityTier(a.ig_username, a.full_name, a.client_count, a.follower_count)
-        const tierB = getPriorityTier(b.ig_username, b.full_name, b.client_count, b.follower_count)
+            if (batch.length < limit) {
+              break
+            }
+            offset += limit
+          } catch (error: any) {
+            // Handle Render wake-up errors with retry
+            if (error.code === 'ERR_NETWORK' || error.message?.includes('waking up')) {
+              console.warn(`[CategorizeTab] Network error at batch ${batchNumber}, retrying in 2 seconds...`)
+              setBatchProgress(prev => ({ 
+                ...prev, 
+                error: `Server waking up... Retrying batch ${batchNumber}...` 
+              }))
+              await new Promise(resolve => setTimeout(resolve, 2000))
+              continue // Retry the same batch
+            }
+            throw error // Re-throw other errors
+          }
+        }
+
+        console.log(`[CategorizeTab] Total uncategorized pages: ${allPages.length}`)
         
-        if (tierA !== tierB) return tierA - tierB // Lower tier number = higher priority
-        if (a.client_count !== b.client_count) return b.client_count - a.client_count
-        return b.follower_count - a.follower_count
-      })
-      
-      return sorted
+        // Deduplicate by id (in case same page appears in multiple batches)
+        const uniquePages = Array.from(
+          new Map(allPages.map(page => [page.id, page])).values()
+        )
+        
+        if (uniquePages.length < allPages.length) {
+          console.warn(`[CategorizeTab] Removed ${allPages.length - uniquePages.length} duplicate pages`)
+        }
+        
+        // Sort by priority tier, then by client_count, then by follower_count
+        const sorted = uniquePages.sort((a, b) => {
+          const tierA = getPriorityTier(a.ig_username, a.full_name, a.client_count, a.follower_count)
+          const tierB = getPriorityTier(b.ig_username, b.full_name, b.client_count, b.follower_count)
+          
+          if (tierA !== tierB) return tierA - tierB // Lower tier number = higher priority
+          if (a.client_count !== b.client_count) return b.client_count - a.client_count
+          return b.follower_count - a.follower_count
+        })
+        
+        return sorted
+      } finally {
+        // Always reset fetching state, even on error
+        setBatchProgress(prev => ({ ...prev, isFetching: false }))
+      }
     },
     staleTime: Infinity, // Never auto-refetch - keep list stable during categorization session
     refetchOnMount: false, // Don't refetch when switching back to this tab
   })
+
+  // Reset batch progress when query is not loading
+  useEffect(() => {
+    if (!pagesLoading && !batchProgress.isFetching) {
+      setBatchProgress({ currentBatch: 0, totalPages: 0, isFetching: false, error: null })
+    }
+  }, [pagesLoading])
 
   const currentPage = pages?.[currentIndex]
 
@@ -303,6 +314,28 @@ export default function CategorizeTab() {
         alert(`Failed to archive: ${errorMsg}`)
       }
     }
+  }
+
+  // Show error state if query failed
+  if (isError) {
+    return (
+      <div className="text-center py-12">
+        <div className="max-w-md mx-auto">
+          <h3 className="text-lg font-semibold text-red-900 mb-2">
+            Error loading pages
+          </h3>
+          <p className="text-sm text-red-600 mb-4">
+            {queryError?.message || 'Failed to load uncategorized pages. Please try again.'}
+          </p>
+          <button
+            onClick={() => queryClient.invalidateQueries({ queryKey: ['pages', 'uncategorized'] })}
+            className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700"
+          >
+            Retry
+          </button>
+        </div>
+      </div>
+    )
   }
 
   if (pagesLoading || batchProgress.isFetching) {
