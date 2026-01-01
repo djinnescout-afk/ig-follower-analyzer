@@ -3,26 +3,35 @@
 import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { useAuth } from '../contexts/AuthContext'
+import { supabase } from '../lib/supabase'
 
 export function AuthGuard({ children }: { children: React.ReactNode }) {
   const { user, loading } = useAuth()
   const router = useRouter()
-  const [hasChecked, setHasChecked] = useState(false)
+  const [checking, setChecking] = useState(true)
 
   useEffect(() => {
-    // Wait a bit for session to load from storage
-    if (!loading) {
-      setHasChecked(true)
-      console.log('[AuthGuard] Loading complete, user:', user ? 'exists' : 'null')
-      if (!user) {
-        console.log('[AuthGuard] No user, redirecting to login')
+    const checkAuth = async () => {
+      // Wait for initial load
+      if (loading) return
+
+      // Double-check session directly from Supabase
+      const { data: { session } } = await supabase.auth.getSession()
+      console.log('[AuthGuard] Direct session check:', session ? 'found' : 'not found')
+      
+      setChecking(false)
+      
+      if (!session && !user) {
+        console.log('[AuthGuard] No session or user, redirecting to login')
         router.push('/login')
       }
     }
+
+    checkAuth()
   }, [user, loading, router])
 
   // Show loading while checking auth
-  if (loading || !hasChecked) {
+  if (loading || checking) {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
         <div className="text-center">
