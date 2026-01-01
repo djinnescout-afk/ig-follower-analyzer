@@ -22,6 +22,7 @@ export default function AdminTab() {
   // Generate magic link mutation
   const generateLinkMutation = useMutation({
     mutationFn: async (userId: string) => {
+      setSelectedUserId(userId)
       const redirectTo = window.location.origin
       const response = await adminApi.generateMagicLink(userId, redirectTo)
       return response.data
