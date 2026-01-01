@@ -17,8 +17,8 @@ export default function LoginPage() {
     setError(null)
     setLoading(true)
 
-    const { error, data } = await signIn(email, password)
-    console.log('[Login] Sign in result:', error ? 'error' : 'success', data)
+    const { error } = await signIn(email, password)
+    console.log('[Login] Sign in result:', error ? 'error' : 'success')
 
     if (error) {
       setError(error.message)
