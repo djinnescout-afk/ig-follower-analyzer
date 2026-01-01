@@ -1,27 +1,32 @@
 'use client'
 
-import { useEffect } from 'react'
+import { useEffect, useRef } from 'react'
 import { useRouter } from 'next/navigation'
 import { useAuth } from '../contexts/AuthContext'
 
 export function AuthGuard({ children }: { children: React.ReactNode }) {
   const { user, loading, session } = useAuth()
   const router = useRouter()
+  const hasRedirected = useRef(false)
 
   useEffect(() => {
     // Only check after loading completes
-    if (loading) return
+    if (loading) {
+      hasRedirected.current = false
+      return
+    }
 
     // Wait a moment for React state to update after loading completes
     const timer = setTimeout(() => {
       console.log('[AuthGuard] Final check - user:', user ? 'exists' : 'null', 'session:', session ? 'exists' : 'null')
       
-      // Only redirect if we're absolutely sure there's no session
-      if (!user && !session) {
+      // Only redirect if we're absolutely sure there's no session AND we haven't redirected yet
+      if (!user && !session && !hasRedirected.current) {
         console.log('[AuthGuard] No user or session after loading, redirecting to login')
+        hasRedirected.current = true
         router.push('/login')
       }
-    }, 500) // Wait 500ms after loading completes for state to update
+    }, 800) // Wait 800ms after loading completes for state to update
 
     return () => clearTimeout(timer)
   }, [loading, user, session, router])
@@ -38,12 +43,14 @@ export function AuthGuard({ children }: { children: React.ReactNode }) {
     )
   }
 
-  // If we have a user or session, show content
+  // If we have a user or session, show content (this is the key check)
   if (user || session) {
+    console.log('[AuthGuard] Render: User or session exists, showing content')
     return <>{children}</>
   }
 
-  // If no user after loading, don't render (redirect will happen)
+  // If no user after loading, show nothing (redirect will happen via useEffect)
+  console.log('[AuthGuard] Render: No user or session, waiting for redirect')
   return null
 }
 
