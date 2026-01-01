@@ -8,6 +8,8 @@ import { Mail, ExternalLink, RefreshCw } from 'lucide-react'
 
 export default function AdminTab() {
   const [selectedUserId, setSelectedUserId] = useState<string | null>(null)
+  const [generatedLink, setGeneratedLink] = useState<string | null>(null)
+  const [generatedLinkEmail, setGeneratedLinkEmail] = useState<string | null>(null)
 
   // Test admin access first
   const { data: testData } = useQuery({
@@ -38,9 +40,9 @@ export default function AdminTab() {
       return response.data
     },
     onSuccess: (data) => {
-      // Open magic link in new tab
-      window.open(data.magic_link, '_blank')
-      alert(`Magic link generated for ${data.user_email}. Opening in new tab...`)
+      // Store the link for copying instead of auto-opening
+      setGeneratedLink(data.magic_link)
+      setGeneratedLinkEmail(data.user_email)
     },
     onError: (error: any) => {
       if (error.response?.status === 403) {
@@ -50,6 +52,22 @@ export default function AdminTab() {
       }
     },
   })
+
+  const copyToClipboard = async (text: string) => {
+    try {
+      await navigator.clipboard.writeText(text)
+      alert('Magic link copied to clipboard!')
+    } catch (err) {
+      // Fallback for older browsers
+      const textArea = document.createElement('textarea')
+      textArea.value = text
+      document.body.appendChild(textArea)
+      textArea.select()
+      document.execCommand('copy')
+      document.body.removeChild(textArea)
+      alert('Magic link copied to clipboard!')
+    }
+  }
 
   if (isLoading) {
     return <div className="text-center py-8">Loading users...</div>
@@ -87,6 +105,49 @@ export default function AdminTab() {
 
   return (
     <div className="space-y-6">
+      {/* Generated Link Display */}
+      {generatedLink && (
+        <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+          <div className="flex items-start justify-between mb-3">
+            <div>
+              <h3 className="text-sm font-semibold text-blue-900 mb-1">
+                Magic Link Generated
+              </h3>
+              <p className="text-xs text-blue-700">
+                For: {generatedLinkEmail}
+              </p>
+            </div>
+            <button
+              onClick={() => {
+                setGeneratedLink(null)
+                setGeneratedLinkEmail(null)
+              }}
+              className="text-blue-600 hover:text-blue-800 text-sm"
+            >
+              ✕
+            </button>
+          </div>
+          <div className="flex gap-2">
+            <input
+              type="text"
+              readOnly
+              value={generatedLink}
+              className="flex-1 px-3 py-2 bg-white border border-blue-300 rounded-md text-sm font-mono text-gray-700"
+              onClick={(e) => (e.target as HTMLInputElement).select()}
+            />
+            <button
+              onClick={() => copyToClipboard(generatedLink)}
+              className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 text-sm font-medium"
+            >
+              Copy Link
+            </button>
+          </div>
+          <p className="text-xs text-blue-600 mt-2">
+            Copy this link and open it in an incognito/private window to sign in as this user.
+          </p>
+        </div>
+      )}
+
       <div className="bg-white rounded-lg shadow p-6">
         <div className="flex items-center justify-between mb-4">
           <h2 className="text-xl font-semibold text-gray-900">User Management</h2>
