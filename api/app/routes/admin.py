@@ -107,21 +107,32 @@ def list_users(user_id: str = Depends(get_current_user_id)):
     try:
         admin_client = get_supabase_admin_client()
         # List all users using admin API
+        # Supabase admin.list_users() returns a response object with .users attribute
         response = admin_client.auth.admin.list_users()
         
-        # The response might be a list directly or have a users attribute
-        user_list = response.users if hasattr(response, 'users') else response
+        # The response is a list directly, not an object with .users
+        # Based on the error, response is already a list
+        if isinstance(response, list):
+            user_list = response
+        elif hasattr(response, 'users'):
+            user_list = response.users
+        else:
+            # Try to access as attribute or get from data
+            user_list = getattr(response, 'users', getattr(response, 'data', []))
         
         users = []
         for user in user_list:
-            users.append({
-                "id": user.id,
-                "email": user.email,
-                "created_at": user.created_at,
-                "last_sign_in_at": user.last_sign_in_at,
-                "email_confirmed_at": user.email_confirmed_at,
-            })
+            # Handle user object attributes safely
+            user_dict = {
+                "id": getattr(user, 'id', None),
+                "email": getattr(user, 'email', None),
+                "created_at": getattr(user, 'created_at', None),
+                "last_sign_in_at": getattr(user, 'last_sign_in_at', None),
+                "email_confirmed_at": getattr(user, 'email_confirmed_at', None),
+            }
+            users.append(user_dict)
         
+        logger.info(f"[ADMIN] Listed {len(users)} users")
         return {"users": users}
     except Exception as e:
         logger.error(f"[ADMIN] Error listing users: {e}", exc_info=True)
