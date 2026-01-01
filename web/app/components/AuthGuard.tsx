@@ -3,35 +3,33 @@
 import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { useAuth } from '../contexts/AuthContext'
-import { supabase } from '../lib/supabase'
 
 export function AuthGuard({ children }: { children: React.ReactNode }) {
-  const { user, loading } = useAuth()
+  const { user, loading, session } = useAuth()
   const router = useRouter()
-  const [checking, setChecking] = useState(true)
+  const [hasChecked, setHasChecked] = useState(false)
 
   useEffect(() => {
-    const checkAuth = async () => {
-      // Wait for initial load
-      if (loading) return
+    // Wait for auth to finish loading
+    if (loading) return
 
-      // Double-check session directly from Supabase
-      const { data: { session } } = await supabase.auth.getSession()
-      console.log('[AuthGuard] Direct session check:', session ? 'found' : 'not found')
+    // Give it a moment for session to be restored
+    const timer = setTimeout(() => {
+      setHasChecked(true)
+      console.log('[AuthGuard] Check complete - user:', user ? 'exists' : 'null', 'session:', session ? 'exists' : 'null')
       
-      setChecking(false)
-      
-      if (!session && !user) {
-        console.log('[AuthGuard] No session or user, redirecting to login')
+      // Only redirect if we're sure there's no session
+      if (!user && !session) {
+        console.log('[AuthGuard] No user or session, redirecting to login')
         router.push('/login')
       }
-    }
+    }, 500) // Wait 500ms for session to restore
 
-    checkAuth()
-  }, [user, loading, router])
+    return () => clearTimeout(timer)
+  }, [user, session, loading, router])
 
   // Show loading while checking auth
-  if (loading || checking) {
+  if (loading || !hasChecked) {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
         <div className="text-center">
@@ -43,7 +41,7 @@ export function AuthGuard({ children }: { children: React.ReactNode }) {
   }
 
   // If no user after loading, don't render (redirect will happen)
-  if (!user) {
+  if (!user && !session) {
     return null
   }
 
