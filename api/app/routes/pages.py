@@ -1,16 +1,17 @@
 from typing import Optional
 import logging
 
-from fastapi import APIRouter, HTTPException, Query, status
+from fastapi import APIRouter, HTTPException, Query, status, Depends
 
 from ..db import fetch_rows, get_supabase_client, insert_row, update_row, upsert_row
 from ..schemas.page import PageCreate, PageResponse, PageUpdate
+from ..auth import get_current_user_id
 
 router = APIRouter(prefix="/pages", tags=["pages"])
 logger = logging.getLogger(__name__)
 
 
-def _merge_outreach_data(pages: list[dict]) -> list[dict]:
+def _merge_outreach_data(pages: list[dict], user_id: str) -> list[dict]:
     """Merge outreach tracking data into page objects."""
     if not pages:
         return pages
@@ -19,10 +20,10 @@ def _merge_outreach_data(pages: list[dict]) -> list[dict]:
     page_ids = [p["id"] for p in pages]
     
     try:
-        # Fetch outreach data for all pages at once
+        # Fetch outreach data for all pages at once (filtered by user_id)
         outreach_response = client.table("outreach_tracking").select(
             "page_id, status, date_contacted, follow_up_date"
-        ).in_("page_id", page_ids).execute()
+        ).in_("page_id", page_ids).eq("user_id", user_id).execute()
         
         # Create lookup map
         outreach_map = {ot["page_id"]: ot for ot in (outreach_response.data or [])}
@@ -51,17 +52,25 @@ def _merge_outreach_data(pages: list[dict]) -> list[dict]:
 
 
 @router.get("/category-counts")
-def get_category_counts():
-    """Get count of pages per category using efficient SQL aggregation."""
+def get_category_counts(user_id: str = Depends(get_current_user_id)):
+    """Get count of pages per category using efficient SQL aggregation (for current user)."""
     try:
         client = get_supabase_client()
-        response = client.rpc("get_category_counts").execute()
+        # Note: RPC function would need to be updated to accept user_id parameter
+        # For now, we'll filter client-side or create a new RPC function
+        # Temporary solution: Get all pages and count by category
+        response = client.table("pages").select("category").eq("user_id", user_id).execute()
         
         if not response.data:
             return {}
         
-        # Convert list of {category, count} to dict
-        counts = {item["category"]: item["count"] for item in response.data}
+        # Count by category
+        counts = {}
+        for page in response.data:
+            category = page.get("category")
+            if category:
+                counts[category] = counts.get(category, 0) + 1
+        
         return counts
     except Exception as e:
         logger.error(f"Error in get_category_counts: {e}", exc_info=True)
@@ -74,11 +83,12 @@ def get_pages_count(
     categorized: Optional[bool] = Query(None),
     category: Optional[str] = Query(None),
     search: Optional[str] = Query(None),
+    user_id: str = Depends(get_current_user_id),
 ):
     """Get total count of pages matching filters (for pagination)."""
     try:
         client = get_supabase_client()
-        query = client.table("pages").select("id", count="exact")
+        query = client.table("pages").select("id", count="exact").eq("user_id", user_id)
         
         if min_client_count is not None:
             query = query.gte("client_count", min_client_count)
@@ -113,15 +123,17 @@ def list_pages(
     limit: Optional[int] = Query(10000, description="Max pages to return"),
     offset: Optional[int] = Query(0, description="Pagination offset"),
     include_archived: Optional[bool] = Query(False, description="Include archived pages"),
+    user_id: str = Depends(get_current_user_id),
 ):
     """List pages with optional filtering, sorting, and pagination.
     
     Uses the client_count column from the database (maintained by triggers).
+    Only returns pages belonging to the current user.
     """
     client = get_supabase_client()
     
     # Build query with filter applied at database level
-    query = client.table("pages").select("*")
+    query = client.table("pages").select("*").eq("user_id", user_id)
     
     # Apply min_client_count filter
     if min_client_count is not None:
@@ -184,7 +196,7 @@ def list_pages(
         
         logger.info(f"[PAGES API] Returning {len(all_pages)} pages (batched)")
         # Merge outreach tracking data
-        all_pages = _merge_outreach_data(all_pages)
+        all_pages = _merge_outreach_data(all_pages, user_id)
         # Convert to PageResponse objects to ensure all fields are included
         return [PageResponse(**page) for page in all_pages]
     else:
@@ -197,7 +209,7 @@ def list_pages(
             result = response.data if response.data else []
             logger.info(f"[PAGES API] Returning {len(result)} pages")
             # Merge outreach tracking data
-            result = _merge_outreach_data(result)
+            result = _merge_outreach_data(result, user_id)
             # Convert to PageResponse objects to ensure all fields are included
             return [PageResponse(**page) for page in result]
         except Exception as e:
@@ -206,26 +218,33 @@ def list_pages(
 
 
 @router.post("/", response_model=PageResponse, status_code=status.HTTP_201_CREATED)
-def create_page(payload: PageCreate):
+def create_page(payload: PageCreate, user_id: str = Depends(get_current_user_id)):
     data = payload.model_dump()
     data["ig_username"] = data["ig_username"].lower()
-    existing = fetch_rows("pages", {"ig_username": data["ig_username"]})
+    # Check if page exists for this user
+    existing = fetch_rows("pages", {"ig_username": data["ig_username"]}, user_id=user_id)
     if existing:
         raise HTTPException(status_code=409, detail="Page already exists")
-    row = insert_row("pages", data)
+    row = insert_row("pages", data, user_id=user_id)
     return row
 
 
 @router.get("/{page_id}/profile")
-def get_page_profile(page_id: str):
-    """Get the most recent profile data for a page."""
+def get_page_profile(page_id: str, user_id: str = Depends(get_current_user_id)):
+    """Get the most recent profile data for a page (only if page belongs to user)."""
     client = get_supabase_client()
+    
+    # First verify the page belongs to the user
+    page = fetch_rows("pages", {"id": page_id}, user_id=user_id)
+    if not page:
+        raise HTTPException(status_code=404, detail="Page not found")
     
     # Get the most recent profile scrape for this page
     response = (
         client.table("page_profiles")
         .select("*")
         .eq("page_id", page_id)
+        .eq("user_id", user_id)
         .order("scraped_at", desc=True)
         .limit(1)
         .execute()
@@ -238,35 +257,42 @@ def get_page_profile(page_id: str):
 
 
 @router.put("/{page_id}", response_model=PageResponse)
-def update_page(page_id: str, payload: PageUpdate):
+def update_page(page_id: str, payload: PageUpdate, user_id: str = Depends(get_current_user_id)):
+    """Update a page. Only updates if the page belongs to the current user."""
     data = payload.model_dump(exclude_unset=True)
     if not data:
-        row = fetch_rows("pages", {"id": page_id})
+        row = fetch_rows("pages", {"id": page_id}, user_id=user_id)
         if not row:
             raise HTTPException(status_code=404, detail="Page not found")
         return row[0]
     # Use update instead of upsert to only modify specified fields
-    row = update_row("pages", page_id, data)
+    # update_row ensures user_id matches
+    row = update_row("pages", page_id, data, user_id=user_id)
     return row
 
 
 @router.get("/{page_id}/followers")
-def get_page_followers(page_id: str):
-    """Get list of clients that follow this page."""
+def get_page_followers(page_id: str, user_id: str = Depends(get_current_user_id)):
+    """Get list of clients that follow this page (only if page belongs to user)."""
     try:
         client = get_supabase_client()
         
-        # Get client_following records for this page
-        cf_response = client.table("client_following").select("client_id").eq("page_id", page_id).execute()
+        # First verify the page belongs to the user
+        page = fetch_rows("pages", {"id": page_id}, user_id=user_id)
+        if not page:
+            raise HTTPException(status_code=404, detail="Page not found")
+        
+        # Get client_following records for this page (filtered by user_id)
+        cf_response = client.table("client_following").select("client_id").eq("page_id", page_id).eq("user_id", user_id).execute()
         
         if not cf_response.data:
             return []
         
-        # Get client details for each client_id
+        # Get client details for each client_id (filtered by user_id)
         clients = []
         for cf in cf_response.data:
             client_id = cf["client_id"]
-            client_response = client.table("clients").select("id, ig_username").eq("id", client_id).execute()
+            client_response = client.table("clients").select("id, ig_username").eq("id", client_id).eq("user_id", user_id).execute()
             
             if client_response.data:
                 clients.append(client_response.data[0])

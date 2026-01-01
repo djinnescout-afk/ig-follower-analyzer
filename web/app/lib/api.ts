@@ -1,4 +1,5 @@
 import axios from 'axios'
+import { supabase } from './supabase'
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'
 
@@ -10,7 +11,21 @@ export const api = axios.create({
   timeout: 60000, // 60 second timeout for Render wake-up
 })
 
-// Add response interceptor to handle Render wake-up errors
+// Add request interceptor to include JWT token
+api.interceptors.request.use(
+  async (config) => {
+    const { data: { session } } = await supabase.auth.getSession()
+    if (session?.access_token) {
+      config.headers.Authorization = `Bearer ${session.access_token}`
+    }
+    return config
+  },
+  (error) => {
+    return Promise.reject(error)
+  }
+)
+
+// Add response interceptor to handle Render wake-up errors and auth errors
 api.interceptors.response.use(
   (response) => response,
   async (error) => {
@@ -19,6 +34,15 @@ api.interceptors.response.use(
       console.error('API connection failed. The server may be waking up (Render free tier).')
       error.message = 'API server is waking up. Please wait 30 seconds and try again.'
     }
+    
+    // If unauthorized, redirect to login
+    if (error.response?.status === 401) {
+      // Only redirect if we're not already on the login page
+      if (typeof window !== 'undefined' && !window.location.pathname.includes('/login')) {
+        window.location.href = '/login'
+      }
+    }
+    
     return Promise.reject(error)
   }
 )

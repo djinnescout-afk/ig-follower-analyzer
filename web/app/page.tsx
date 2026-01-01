@@ -3,6 +3,8 @@
 import { useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { clientsApi, pagesApi, scrapesApi } from './lib/api'
+import { useAuth } from './contexts/AuthContext'
+import { AuthGuard } from './components/AuthGuard'
 import ClientsTab from './components/ClientsTab'
 import CategorizeTab from './components/CategorizeTab'
 import EditPageTab from './components/EditPageTab'
@@ -10,20 +12,39 @@ import ViewCategorizedTab from './components/ViewCategorizedTab'
 import PagesTab from './components/PagesTab'
 import ScrapesTab from './components/ScrapesTab'
 
-export default function Dashboard() {
+function DashboardContent() {
   const [activeTab, setActiveTab] = useState<'clients' | 'categorize' | 'edit' | 'view-categorized' | 'pages' | 'scrapes'>('clients')
+  const { user, signOut } = useAuth()
+
+  const handleSignOut = async () => {
+    await signOut()
+    window.location.href = '/login'
+  }
 
   return (
     <div className="min-h-screen bg-gray-50">
       {/* Header */}
       <header className="bg-white shadow-sm border-b">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
-          <h1 className="text-2xl font-bold text-gray-900">
-            IG Follower Analyzer
-          </h1>
-          <p className="text-sm text-gray-600 mt-1">
-            VA Dashboard - Add clients, scrape profiles, categorize pages, and track outreach
-          </p>
+          <div className="flex justify-between items-center">
+            <div>
+              <h1 className="text-2xl font-bold text-gray-900">
+                IG Follower Analyzer
+              </h1>
+              <p className="text-sm text-gray-600 mt-1">
+                VA Dashboard - Add clients, scrape profiles, categorize pages, and track outreach
+              </p>
+            </div>
+            <div className="flex items-center gap-4">
+              <span className="text-sm text-gray-600">{user?.email}</span>
+              <button
+                onClick={handleSignOut}
+                className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50"
+              >
+                Sign Out
+              </button>
+            </div>
+          </div>
         </div>
       </header>
 
@@ -117,6 +138,14 @@ export default function Dashboard() {
         </div>
       </div>
     </div>
+  )
+}
+
+export default function Dashboard() {
+  return (
+    <AuthGuard>
+      <DashboardContent />
+    </AuthGuard>
   )
 }
 
