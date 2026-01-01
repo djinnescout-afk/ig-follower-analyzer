@@ -26,15 +26,20 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     const {
       data: { subscription },
     } = supabase.auth.onAuthStateChange((event, session) => {
-      console.log('[AuthContext] Auth state changed:', event, session ? 'has session' : 'no session')
+      console.log('[AuthContext] Auth state changed:', event, session ? 'has session' : 'no session', 'user:', session?.user?.id)
+      // Always update state immediately
       setSession(session)
       setUser(session?.user ?? null)
       
       // INITIAL_SESSION is the key event - session restored from storage
       if (event === 'INITIAL_SESSION') {
         hasReceivedInitialSession = true
-        setLoading(false)
-        console.log('[AuthContext] INITIAL_SESSION received, loading complete')
+        console.log('[AuthContext] INITIAL_SESSION received, session:', session ? 'exists' : 'null', 'user:', session?.user?.id)
+        // Wait a tiny bit to ensure state is set before marking as loaded
+        setTimeout(() => {
+          setLoading(false)
+          console.log('[AuthContext] Loading complete, final state - session:', session ? 'exists' : 'null', 'user:', session?.user?.id)
+        }, 100)
       } else if (event === 'SIGNED_IN' || event === 'SIGNED_OUT') {
         // For sign in/out, also stop loading
         setLoading(false)
