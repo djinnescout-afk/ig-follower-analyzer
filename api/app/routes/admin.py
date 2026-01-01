@@ -1,6 +1,7 @@
 """Admin routes for user management and debugging"""
-from fastapi import APIRouter, HTTPException, status, Depends
+from fastapi import APIRouter, HTTPException, status, Depends, Body
 from typing import List, Optional
+from pydantic import BaseModel
 import os
 import logging
 from supabase import create_client, Client
@@ -82,13 +83,19 @@ def list_users(user_id: str = Depends(get_current_user_id)):
         )
 
 
+class GenerateMagicLinkRequest(BaseModel):
+    target_user_id: str
+    redirect_to: Optional[str] = None
+
+
 @router.post("/generate-magic-link")
 def generate_magic_link(
-    target_user_id: str,
-    redirect_to: Optional[str] = None,
+    request: GenerateMagicLinkRequest,
     user_id: str = Depends(get_current_user_id)
 ):
     """Generate a magic link for a user (admin only)"""
+    target_user_id = request.target_user_id
+    redirect_to = request.redirect_to
     if not check_is_admin(user_id):
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
