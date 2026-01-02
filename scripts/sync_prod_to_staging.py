@@ -268,7 +268,7 @@ def sync_table(
             
             synced_count += len(batch)
             if verbose:
-                print(f"   ✅ Synced batch {i//batch_size + 1} ({synced_count}/{len(filtered_rows)} rows)")
+                print(f"   ✅ Synced batch {i//batch_size + 1} ({synced_count}/{len(prod_rows)} rows)")
         except Exception as e:
             print(f"   ❌ Error syncing batch: {e}")
             # Try individual inserts for this batch
