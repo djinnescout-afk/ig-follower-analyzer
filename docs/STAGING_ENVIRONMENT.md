@@ -124,10 +124,16 @@ Staging:
    - **Name**: `ig-analyzer-api-staging`
    - **Region**: Same as production
    - **Branch**: `staging`
-   - **Root Directory**: `api`
+   - **Root Directory**: `api` ← **IMPORTANT: Set this to `api`**
    - **Runtime**: Python 3
-   - **Build Command**: `pip install -r requirements.txt`
-   - **Start Command**: `uvicorn app.main:app --host 0.0.0.0 --port $PORT`
+   - **Build Command**: `pip install -r api/requirements.txt` ← **CRITICAL: Must use explicit path**
+   - **Start Command**: `python -m uvicorn app.main:app --host 0.0.0.0 --port $PORT`
+   
+   **Important**: 
+   - **Build Command MUST use `api/requirements.txt`** - Render's build runs from repo root, not Root Directory
+   - Without the explicit path, it installs from root `requirements.txt` (wrong packages: streamlit, flask, etc.)
+   - With explicit path, it installs correct packages (fastapi, uvicorn, supabase, etc.)
+   - Use `python -m uvicorn` instead of just `uvicorn` - this ensures uvicorn is found even if not in PATH
 
 ### Set Environment Variables
 
