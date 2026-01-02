@@ -90,11 +90,13 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql;
 
+DROP TRIGGER IF EXISTS update_clients_updated_at ON clients;
 CREATE TRIGGER update_clients_updated_at
     BEFORE UPDATE ON clients
     FOR EACH ROW
     EXECUTE FUNCTION update_updated_at_column();
 
+DROP TRIGGER IF EXISTS update_pages_updated_at ON pages;
 CREATE TRIGGER update_pages_updated_at
     BEFORE UPDATE ON pages
     FOR EACH ROW
@@ -135,6 +137,7 @@ CREATE INDEX IF NOT EXISTS idx_outreach_page ON outreach_tracking(page_id);
 CREATE INDEX IF NOT EXISTS idx_outreach_status ON outreach_tracking(status);
 CREATE INDEX IF NOT EXISTS idx_outreach_follow_up ON outreach_tracking(follow_up_date);
 
+DROP TRIGGER IF EXISTS update_outreach_updated_at ON outreach_tracking;
 CREATE TRIGGER update_outreach_updated_at
     BEFORE UPDATE ON outreach_tracking
     FOR EACH ROW
