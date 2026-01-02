@@ -65,7 +65,7 @@ def verify_jwt_token(token: str) -> Optional[str]:
                     logger.debug(f"[AUTH] Trying JWKS URL: {jwks_url}")
                     print(f"[AUTH] Trying JWKS URL: {jwks_url}")
                     # Use PyJWKClient to fetch and cache keys from JWKS endpoint
-                    jwks_client = PyJWKClient(jwks_url, cache_ttl=3600)  # Cache for 1 hour
+                    jwks_client = PyJWKClient(jwks_url)
                     signing_key = jwks_client.get_signing_key_from_jwt(token)
                     
                     # Verify token with the key from JWKS
