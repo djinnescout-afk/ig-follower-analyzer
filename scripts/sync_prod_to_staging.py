@@ -156,49 +156,74 @@ def check_schema_compatibility(
                 # We have data, can get columns from it
                 staging_columns = set(staging_response.data[0].keys())
             else:
-                # Table is empty - try a test insert with production columns to detect missing ones
+                # Table is empty - iteratively test insert to find ALL missing columns
                 if verbose:
-                    print(f"   🔍 {table}: Empty table, testing schema with sample row...")
+                    print(f"   🔍 {table}: Empty table, testing schema...")
                 
-                try:
-                    # Get first production row as test data
-                    test_row = dict(prod_response.data[0])
-                    # Remove the primary key to avoid conflicts, or use a dummy ID
-                    if 'id' in test_row:
-                        test_row['id'] = 'ffffffff-ffff-ffff-ffff-ffffffffffff'
-                    if table == 'client_following' and 'client_id' in test_row:
+                # Start with all production columns
+                test_row = dict(prod_response.data[0])
+                # Use dummy IDs to avoid conflicts
+                if 'id' in test_row:
+                    test_row['id'] = 'ffffffff-ffff-ffff-ffff-ffffffffffff'
+                if table == 'client_following':
+                    if 'client_id' in test_row:
                         test_row['client_id'] = 'ffffffff-ffff-ffff-ffff-ffffffffffff'
+                    if 'page_id' in test_row:
                         test_row['page_id'] = 'ffffffff-ffff-ffff-ffff-ffffffffffff'
-                    
-                    # Try to insert - this will fail if columns are missing
-                    staging_client.table(table).insert(test_row).execute()
-                    # If successful, delete the test row
-                    if table == 'client_following':
-                        staging_client.table(table).delete().eq('client_id', 'ffffffff-ffff-ffff-ffff-ffffffffffff').eq('page_id', 'ffffffff-ffff-ffff-ffff-ffffffffffff').execute()
-                    else:
-                        staging_client.table(table).delete().eq('id', 'ffffffff-ffff-ffff-ffff-ffffffffffff').execute()
-                    
-                    # If we got here, all columns exist!
-                    staging_columns = prod_columns
+                
+                missing_from_test = set()
+                max_iterations = 20  # Prevent infinite loops
+                iteration = 0
+                
+                while iteration < max_iterations:
+                    iteration += 1
+                    try:
+                        # Try to insert with current columns
+                        staging_client.table(table).insert(test_row).execute()
+                        # Success! All remaining columns exist
+                        # Clean up test row
+                        try:
+                            if table == 'client_following':
+                                staging_client.table(table).delete().eq('client_id', 'ffffffff-ffff-ffff-ffff-ffffffffffff').eq('page_id', 'ffffffff-ffff-ffff-ffff-ffffffffffff').execute()
+                            else:
+                                staging_client.table(table).delete().eq('id', 'ffffffff-ffff-ffff-ffff-ffffffffffff').execute()
+                        except:
+                            pass
+                        # All columns that remain in test_row exist
+                        staging_columns = set(test_row.keys())
+                        if verbose:
+                            print(f"   ✅ {table}: Schema verified ({len(staging_columns)} columns)")
+                        break
+                    except Exception as e:
+                        error_str = str(e)
+                        # Parse error to find missing column
+                        # Error format: "Could not find the 'column_name' column"
+                        import re
+                        match = re.search(r"Could not find the '([^']+)' column", error_str)
+                        if match:
+                            missing_col = match.group(1)
+                            missing_from_test.add(missing_col)
+                            # Remove this column from test row and try again
+                            test_row.pop(missing_col, None)
+                            if verbose:
+                                print(f"      Missing: {missing_col}")
+                        else:
+                            # Can't parse error - might be foreign key or other issue
+                            # Assume remaining columns exist
+                            staging_columns = set(test_row.keys())
+                            if verbose:
+                                print(f"   ⚠️  {table}: Test insert error (may be FK constraint), assuming {len(staging_columns)} columns exist")
+                            break
+                
+                if missing_from_test:
+                    mismatches[table] = sorted(missing_from_test)
                     if verbose:
-                        print(f"   ✅ {table}: Schema verified via test insert")
-                except Exception as e:
-                    # Parse error to find missing columns
-                    error_msg = str(e)
-                    if 'column' in error_msg.lower() and 'does not exist' in error_msg.lower():
-                        # Extract column name from error
-                        # Error format varies, but usually mentions the column
-                        if verbose:
-                            print(f"   ⚠️  {table}: Test insert failed, will check during sync")
-                        # Can't easily parse which columns are missing from this error
-                        # Let sync_table catch it and report
-                        continue
-                    else:
-                        # Other error (foreign key, etc.) - columns might all exist
-                        # Try to get columns from the error or assume they exist
-                        if verbose:
-                            print(f"   ⚠️  {table}: Test insert failed ({type(e).__name__}), assuming schema matches")
-                        staging_columns = prod_columns  # Assume match for now
+                        print(f"   ❌ {table}: Missing {len(missing_from_test)} columns")
+                elif not staging_columns:
+                    # Couldn't determine - will be caught during sync
+                    if verbose:
+                        print(f"   ⚠️  {table}: Could not verify, will check during sync")
+                    continue
             
             # Find missing columns
             missing = prod_columns - staging_columns
