@@ -3,6 +3,12 @@ import { supabase } from './supabase'
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'
 
+// Debug: Log API URL in development (will be stripped in production build)
+if (typeof window !== 'undefined' && process.env.NODE_ENV === 'development') {
+  console.log('[API] Using API_URL:', API_URL)
+  console.log('[API] Full baseURL:', `${API_URL}/api`)
+}
+
 export const api = axios.create({
   baseURL: `${API_URL}/api`,
   headers: {
