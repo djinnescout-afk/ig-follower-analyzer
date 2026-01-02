@@ -82,6 +82,59 @@ def fetch_all_rows(client: Client, table: str, batch_size: int = 1000) -> List[D
     return all_rows
 
 
+def check_schema_compatibility(
+    prod_client: Client,
+    staging_client: Client,
+    tables: List[str],
+    verbose: bool = True
+) -> dict:
+    """
+    Check all tables for schema mismatches before syncing.
+    Returns dict of {table_name: [missing_columns]}
+    """
+    if verbose:
+        print("\n🔍 Checking schema compatibility...")
+    
+    mismatches = {}
+    
+    for table in tables:
+        try:
+            # Get production columns by fetching one row
+            prod_response = prod_client.table(table).select('*').limit(1).execute()
+            if not prod_response.data:
+                if verbose:
+                    print(f"   ⚠️  {table}: No data in production, skipping schema check")
+                continue
+            
+            prod_columns = set(prod_response.data[0].keys())
+            
+            # Get staging columns
+            staging_response = staging_client.table(table).select('*').limit(1).execute()
+            if not staging_response.data:
+                if verbose:
+                    print(f"   ⚠️  {table}: No data in staging, cannot verify schema")
+                # Can't check, but we'll try to sync and fail if needed
+                continue
+            
+            staging_columns = set(staging_response.data[0].keys())
+            
+            # Find missing columns
+            missing = prod_columns - staging_columns
+            if missing:
+                mismatches[table] = sorted(missing)
+                if verbose:
+                    print(f"   ❌ {table}: Missing {len(missing)} columns")
+            else:
+                if verbose:
+                    print(f"   ✅ {table}: Schema matches")
+        
+        except Exception as e:
+            if verbose:
+                print(f"   ⚠️  {table}: Error checking schema: {e}")
+    
+    return mismatches
+
+
 def get_user_id_mapping(prod_client: Client, staging_client: Client, verbose: bool = True) -> dict:
     """
     Create a mapping from production user_id to staging user_id based on email.
