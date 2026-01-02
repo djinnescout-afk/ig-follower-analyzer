@@ -416,6 +416,76 @@ def main():
         print(f"   ❌ Connection test failed: {e}")
         sys.exit(1)
     
+    # Check schema compatibility for all tables first
+    mismatches = check_schema_compatibility(prod_client, staging_client, tables_to_sync, verbose=args.verbose)
+    
+    if mismatches:
+        print("\n" + "=" * 60)
+        print("❌ SCHEMA MISMATCHES DETECTED!")
+        print("=" * 60)
+        print("\nThe following tables have missing columns in staging:\n")
+        
+        all_sql = []
+        for table, missing_cols in mismatches.items():
+            print(f"📋 Table: {table}")
+            print(f"   Missing columns: {', '.join(missing_cols)}")
+            
+            # Get column counts
+            try:
+                prod_sample = prod_client.table(table).select('*').limit(1).execute()
+                if prod_sample.data:
+                    prod_col_count = len(prod_sample.data[0].keys())
+                    staging_sample = staging_client.table(table).select('*').limit(1).execute()
+                    staging_col_count = len(staging_sample.data[0].keys()) if staging_sample.data else 0
+                    print(f"   Production columns: {prod_col_count}, Staging columns: {staging_col_count}")
+            except:
+                pass
+            print()
+            
+            # Generate SQL for this table
+            try:
+                # Get sample data to infer types
+                sample_response = prod_client.table(table).select('*').limit(10).execute()
+                sample_rows = sample_response.data or []
+                
+                table_sql = []
+                table_sql.append(f"-- Add missing columns to {table}:")
+                for col in missing_cols:
+                    # Try to infer column type from production data
+                    sample_value = next((row.get(col) for row in sample_rows if col in row and row[col] is not None), None)
+                    if sample_value is not None:
+                        if isinstance(sample_value, bool):
+                            col_type = "BOOLEAN"
+                        elif isinstance(sample_value, int):
+                            col_type = "INTEGER"
+                        elif isinstance(sample_value, float):
+                            col_type = "DECIMAL"
+                        elif isinstance(sample_value, list):
+                            col_type = "TEXT[]"
+                        elif isinstance(sample_value, dict):
+                            col_type = "JSONB"
+                        else:
+                            col_type = "TEXT"
+                        table_sql.append(f"ALTER TABLE {table} ADD COLUMN IF NOT EXISTS {col} {col_type};")
+                    else:
+                        table_sql.append(f"ALTER TABLE {table} ADD COLUMN IF NOT EXISTS {col} TEXT;")
+                
+                all_sql.extend(table_sql)
+                all_sql.append("")
+            except Exception as e:
+                print(f"   ⚠️  Could not generate SQL for {table}: {e}")
+        
+        print("=" * 60)
+        print("🔧 SQL TO FIX ALL MISSING COLUMNS:")
+        print("=" * 60)
+        print("\nCopy and paste this into your staging Supabase SQL Editor:\n")
+        print("\n".join(all_sql))
+        print("\n" + "=" * 60)
+        print("After running the SQL above, re-run this sync script.")
+        print("=" * 60 + "\n")
+        
+        sys.exit(1)
+    
     # Build user ID mapping (prod user_id -> staging user_id)
     user_id_mapping = get_user_id_mapping(prod_client, staging_client, verbose=args.verbose)
     
