@@ -49,8 +49,8 @@ def verify_jwt_token(token: str) -> Optional[str]:
                 return None
             
             # Construct JWKS endpoint URL
-            # Supabase JWKS endpoint is at: https://[project-ref].supabase.co/.well-known/jwks.json
-            jwks_url = f"{supabase_url.rstrip('/')}/.well-known/jwks.json"
+            # Supabase JWKS endpoint is at: https://[project-ref].supabase.co/auth/v1/.well-known/jwks.json
+            jwks_url = f"{supabase_url.rstrip('/')}/auth/v1/.well-known/jwks.json"
             
             try:
                 # Use PyJWKClient to fetch and cache keys from JWKS endpoint
