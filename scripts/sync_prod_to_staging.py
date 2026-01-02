@@ -82,15 +82,78 @@ def fetch_all_rows(client: Client, table: str, batch_size: int = 1000) -> List[D
     return all_rows
 
 
+def get_user_id_mapping(prod_client: Client, staging_client: Client, verbose: bool = True) -> dict:
+    """
+    Create a mapping from production user_id to staging user_id based on email.
+    Returns dict mapping prod_user_id -> staging_user_id
+    """
+    if verbose:
+        print("\n🔗 Building user ID mapping...")
+    
+    mapping = {}
+    
+    try:
+        # Get all users from production
+        prod_users_response = prod_client.auth.admin.list_users()
+        prod_users = prod_users_response if isinstance(prod_users_response, list) else prod_users_response.users if hasattr(prod_users_response, 'users') else []
+        
+        # Get all users from staging
+        staging_users_response = staging_client.auth.admin.list_users()
+        staging_users = staging_users_response if isinstance(staging_users_response, list) else staging_users_response.users if hasattr(staging_users_response, 'users') else []
+        
+        # Create email -> staging_user_id map
+        staging_email_to_id = {}
+        for user in staging_users:
+            if hasattr(user, 'email') and user.email:
+                staging_email_to_id[user.email.lower()] = user.id
+            elif isinstance(user, dict) and user.get('email'):
+                staging_email_to_id[user['email'].lower()] = user['id']
+        
+        # Map production user_id to staging user_id by email
+        for user in prod_users:
+            email = None
+            prod_id = None
+            
+            if hasattr(user, 'email'):
+                email = user.email
+                prod_id = user.id
+            elif isinstance(user, dict):
+                email = user.get('email')
+                prod_id = user.get('id')
+            
+            if email and prod_id:
+                email_lower = email.lower()
+                if email_lower in staging_email_to_id:
+                    mapping[prod_id] = staging_email_to_id[email_lower]
+                    if verbose:
+                        print(f"   ✅ Mapped {email}: {prod_id[:8]}... → {staging_email_to_id[email_lower][:8]}...")
+                else:
+                    if verbose:
+                        print(f"   ⚠️  No staging user found for {email}")
+        
+        if verbose:
+            print(f"   📊 Mapped {len(mapping)} users")
+        
+    except Exception as e:
+        print(f"   ⚠️  Warning: Could not build user mapping: {e}")
+        print(f"   ℹ️  Will attempt sync without user mapping (may fail on foreign keys)")
+    
+    return mapping
+
+
 def sync_table(
     prod_client: Client,
     staging_client: Client,
     table: str,
     full_sync: bool = False,
+    user_id_mapping: dict = None,
     verbose: bool = True
 ) -> tuple[int, int]:
     """
     Sync a single table from production to staging.
+    
+    Args:
+        user_id_mapping: Dict mapping prod_user_id -> staging_user_id
     
     Returns:
         (rows_fetched, rows_synced)
@@ -111,6 +174,16 @@ def sync_table(
         if verbose:
             print(f"   ℹ️  No rows to sync")
         return 0, 0
+    
+    # Map user_ids if mapping provided and table has user_id column
+    if user_id_mapping and 'user_id' in (prod_rows[0] if prod_rows else {}):
+        mapped_count = 0
+        for row in prod_rows:
+            if row.get('user_id') and row['user_id'] in user_id_mapping:
+                row['user_id'] = user_id_mapping[row['user_id']]
+                mapped_count += 1
+        if verbose and mapped_count > 0:
+            print(f"   🔄 Mapped {mapped_count} user_ids")
     
     # Full sync: truncate staging table first
     if full_sync:
@@ -237,6 +310,9 @@ def main():
         print(f"   ❌ Connection test failed: {e}")
         sys.exit(1)
     
+    # Build user ID mapping (prod user_id -> staging user_id)
+    user_id_mapping = get_user_id_mapping(prod_client, staging_client, verbose=args.verbose)
+    
     # Sync each table
     total_fetched = 0
     total_synced = 0
@@ -253,6 +329,7 @@ def main():
                 staging_client,
                 table,
                 full_sync=full_sync and table in FULL_SYNC_TABLES,
+                user_id_mapping=user_id_mapping,
                 verbose=args.verbose
             )
             total_fetched += fetched
