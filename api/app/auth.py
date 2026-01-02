@@ -5,7 +5,9 @@ from fastapi import HTTPException, status, Depends
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from supabase import create_client, Client
 import jwt
+from jwt import PyJWKClient
 import os
+import httpx
 
 from .config import get_settings
 
@@ -18,9 +20,9 @@ def verify_jwt_token(token: str) -> Optional[str]:
     Verify JWT token and return user_id.
     Returns None if token is invalid.
     
-    Supports both HS256 (legacy) and RS256 (new) Supabase JWT signing methods.
-    - HS256: Uses SUPABASE_JWT_SECRET (symmetric key)
-    - RS256: Uses SUPABASE_JWT_PUBLIC_KEY (public key from JWT Signing Keys tab)
+    Supports multiple Supabase JWT signing methods:
+    - HS256 (legacy): Uses SUPABASE_JWT_SECRET (symmetric key)
+    - ES256/RS256 (new): Uses JWKS endpoint from Supabase (automatic key fetching)
     
     The 'sub' claim contains the user UUID.
     """
@@ -36,33 +38,45 @@ def verify_jwt_token(token: str) -> Optional[str]:
         logger.debug(f"[AUTH] Token uses algorithm: {algorithm}")
         print(f"[AUTH] Token uses algorithm: {algorithm}")
         
-        # Try RS256 first (new Supabase projects)
-        if algorithm == "RS256":
-            jwt_public_key = os.getenv("SUPABASE_JWT_PUBLIC_KEY", "")
+        # Handle ES256/RS256 (new Supabase projects with JWKS)
+        if algorithm in ["ES256", "RS256"]:
+            supabase_url = os.getenv("SUPABASE_URL", "")
             
-            if not jwt_public_key:
-                error_msg = "[AUTH] RS256 token detected but SUPABASE_JWT_PUBLIC_KEY not set!"
+            if not supabase_url:
+                error_msg = "[AUTH] ES256/RS256 token detected but SUPABASE_URL not set!"
                 logger.error(error_msg)
                 print(error_msg)
                 return None
             
-            # RS256 uses public key for verification
-            # The public key should be in PEM format from Supabase JWT Signing Keys tab
+            # Construct JWKS endpoint URL
+            # Supabase JWKS endpoint is at: https://[project-ref].supabase.co/.well-known/jwks.json
+            jwks_url = f"{supabase_url.rstrip('/')}/.well-known/jwks.json"
+            
             try:
+                # Use PyJWKClient to fetch and cache keys from JWKS endpoint
+                jwks_client = PyJWKClient(jwks_url)
+                signing_key = jwks_client.get_signing_key_from_jwt(token)
+                
+                # Verify token with the key from JWKS
                 payload = jwt.decode(
                     token,
-                    jwt_public_key,
-                    algorithms=["RS256"],
+                    signing_key.key,
+                    algorithms=["ES256", "RS256"],  # Support both
                     audience="authenticated"
                 )
                 user_id = payload.get("sub")
-                success_msg = f"[AUTH] RS256 token verified successfully: user_id={user_id}"
+                success_msg = f"[AUTH] {algorithm} token verified successfully via JWKS: user_id={user_id}"
                 logger.info(success_msg)
                 print(success_msg)
                 return user_id
             except jwt.InvalidTokenError as e:
-                error_msg = f"[AUTH] RS256 token verification failed: {e}"
+                error_msg = f"[AUTH] {algorithm} token verification failed: {e}"
                 logger.warning(error_msg)
+                print(error_msg)
+                return None
+            except Exception as e:
+                error_msg = f"[AUTH] Error fetching JWKS: {type(e).__name__}: {e}"
+                logger.error(error_msg)
                 print(error_msg)
                 return None
         
