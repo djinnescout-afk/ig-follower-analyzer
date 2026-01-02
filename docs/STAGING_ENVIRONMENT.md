@@ -40,12 +40,17 @@ Staging:
 ### Set Up Database Schema
 
 1. Go to SQL Editor in your staging Supabase project
-2. Run all migration files in order:
-   - `docs/supabase_schema.sql` - Base schema
-   - `docs/add_multi_tenant_auth.sql` - Multi-tenant support
-   - `docs/add_va_categorization_fields.sql` - VA categorization fields
+2. Run all migration files in **this exact order**:
+   - `docs/supabase_schema.sql` - Base schema (creates core tables)
+   - `docs/add_va_categorization_fields.sql` - VA categorization fields (creates outreach_tracking table)
+   - `docs/add_multi_tenant_auth_STAGED.sql` - Multi-tenant support (adds user_id to all tables including outreach_tracking)
    - `docs/add_date_closed_to_clients.sql` - Date closed field
-   - Any other migration files in `docs/`
+   - `docs/add_client_count_column.sql` - Client count tracking
+   - `docs/change_successful_contact_method_to_array.sql` - Convert to array
+   - `docs/add_category_counts_function.sql` - Helper function
+   - `docs/add_concentration_sorting_rpc.sql` - Sorting function (optional)
+
+**Important**: Run `add_va_categorization_fields.sql` BEFORE `add_multi_tenant_auth_STAGED.sql` because the multi-tenant script needs the `outreach_tracking` table to exist.
 
 3. Verify all tables are created:
    - `clients`
@@ -69,25 +74,37 @@ Staging:
 
 1. Go to [Vercel Dashboard](https://vercel.com)
 2. Click "Add New Project"
-3. Import your Git repository
+3. Import your Git repository (same repo as production)
 4. Configure:
    - **Project Name**: `ig-follower-analyzer-staging`
    - **Framework Preset**: Next.js
    - **Root Directory**: `web`
    - **Build Command**: `npm run build`
    - **Output Directory**: `.next`
+   - **Production Branch**: Leave as `main` for now (we'll change this after)
 
-5. Go to Settings → Git
-   - **Production Branch**: `main`
-   - Add **Preview Branch**: `staging` → Deploy to staging URL
+5. **After project is created**, go to Settings → **Environments** (NOT Git)
+   - Scroll down to the **Production** environment section
+   - Find **Branch Tracking** or **Production Branch** setting
+   - Change it from `main` to `staging`
+   - Click **Save** to apply changes
+   - This makes the `staging` branch deploy to your staging URL
+   
+   **Note**: If you don't see this option, it might be in Settings → **Git** → look for "Production Branch" or "Branch" settings
 
 6. Go to Settings → Environment Variables
-   Add the following:
+   Add the following (use placeholders if you don't have values yet):
    ```
-   NEXT_PUBLIC_API_URL=https://your-staging-api.onrender.com
    NEXT_PUBLIC_SUPABASE_URL=https://your-staging-project.supabase.co
    NEXT_PUBLIC_SUPABASE_ANON_KEY=your-staging-anon-key
+   NEXT_PUBLIC_API_URL=https://placeholder.onrender.com
    ```
+   
+   **Note**: 
+   - Use your **staging Supabase** credentials (from Step 1)
+   - For `NEXT_PUBLIC_API_URL`, use a placeholder for now if Render staging isn't set up yet
+   - You can update `NEXT_PUBLIC_API_URL` later after Step 3 (Render setup)
+   - Make sure to select all environments: Production, Preview, Development
 
 ### Option B: Same Project, Different Branch
 
