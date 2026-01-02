@@ -242,6 +242,29 @@ Alternative formulas like `clients/price` don't account for audience size, so a 
 - Make sure the account is public (private accounts can't be scraped)
 - You might have hit rate limits - wait a bit
 
+## Staging Environment
+
+This project includes a staging environment for safe testing before deploying to production.
+
+### Quick Start
+
+1. **Staging Branch**: Code on the `staging` branch auto-deploys to staging
+2. **Data Sync**: Use `scripts/sync_prod_to_staging.py` to sync production data
+3. **Workflow**: Feature → Staging → Test → Production
+
+### Documentation
+
+- **Full Guide**: See `docs/STAGING_ENVIRONMENT.md` for complete setup instructions
+- **Git Workflow**: See `docs/GIT_WORKFLOW.md` for branch management
+- **Quick Reference**: See `scripts/README_STAGING.md` for common commands
+
+### Key Points
+
+- Staging uses a separate Supabase project (complete isolation)
+- Data sync is one-way: production → staging only
+- Staging branch auto-deploys on every push
+- Always test on staging before deploying to production
+
 ## Future Enhancements
 
 - [ ] Automatic price checking (if pages have standard rates posted)
