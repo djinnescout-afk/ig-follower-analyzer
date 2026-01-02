@@ -195,13 +195,54 @@ def sync_table(
         except Exception as e:
             print(f"   ⚠️  Warning: Could not clear staging table: {e}")
     
+    # Get staging table columns to filter out columns that don't exist
+    staging_columns = None
+    try:
+        # Try to fetch one row to see what columns staging has
+        test_response = staging_client.table(table).select('*').limit(1).execute()
+        if test_response.data and len(test_response.data) > 0:
+            staging_columns = set(test_response.data[0].keys())
+        else:
+            # If no data, try to infer from prod_rows structure
+            # We'll filter columns when inserting
+            staging_columns = set()
+    except Exception as e:
+        if verbose:
+            print(f"   ⚠️  Could not determine staging columns: {e}")
+        staging_columns = set()
+    
+    # Filter rows to only include columns that exist in staging (if we know them)
+    # If staging_columns is empty, we'll try all columns and let errors happen
+    filtered_rows = []
+    for row in prod_rows:
+        if staging_columns:
+            # Only include columns that exist in staging
+            filtered_row = {k: v for k, v in row.items() if k in staging_columns}
+            # Always include primary key columns
+            if 'id' in row:
+                filtered_row['id'] = row['id']
+            if table == 'client_following':
+                if 'client_id' in row:
+                    filtered_row['client_id'] = row['client_id']
+                if 'page_id' in row:
+                    filtered_row['page_id'] = row['page_id']
+            filtered_rows.append(filtered_row)
+        else:
+            # Don't filter if we don't know staging columns
+            filtered_rows.append(row)
+    
+    if staging_columns and len(staging_columns) > 0:
+        excluded_cols = set(prod_rows[0].keys() if prod_rows else []) - staging_columns
+        if excluded_cols and verbose:
+            print(f"   ⚠️  Excluding columns not in staging: {', '.join(excluded_cols)}")
+    
     # Insert rows into staging
     # Batch inserts for better performance
     batch_size = 100
     synced_count = 0
     
-    for i in range(0, len(prod_rows), batch_size):
-        batch = prod_rows[i:i + batch_size]
+    for i in range(0, len(filtered_rows), batch_size):
+        batch = filtered_rows[i:i + batch_size]
         
         try:
             # Use upsert to handle conflicts (based on primary key)
@@ -215,7 +256,7 @@ def sync_table(
             
             synced_count += len(batch)
             if verbose:
-                print(f"   ✅ Synced batch {i//batch_size + 1} ({synced_count}/{len(prod_rows)} rows)")
+                print(f"   ✅ Synced batch {i//batch_size + 1} ({synced_count}/{len(filtered_rows)} rows)")
         except Exception as e:
             print(f"   ❌ Error syncing batch: {e}")
             # Try individual inserts for this batch
