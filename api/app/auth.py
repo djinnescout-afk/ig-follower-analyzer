@@ -18,7 +18,10 @@ def verify_jwt_token(token: str) -> Optional[str]:
     Verify JWT token and return user_id.
     Returns None if token is invalid.
     
-    Supabase JWTs are signed with the JWT_SECRET (found in Supabase dashboard).
+    Supports both HS256 (legacy) and RS256 (new) Supabase JWT signing methods.
+    - HS256: Uses SUPABASE_JWT_SECRET (symmetric key)
+    - RS256: Uses SUPABASE_JWT_PUBLIC_KEY (public key from JWT Signing Keys tab)
+    
     The 'sub' claim contains the user UUID.
     """
     if not token:
@@ -26,45 +29,87 @@ def verify_jwt_token(token: str) -> Optional[str]:
         return None
     
     try:
-        # Get JWT secret from environment (set this in your .env)
-        jwt_secret = os.getenv("SUPABASE_JWT_SECRET", "")
+        # First, decode the header to see what algorithm is used
+        unverified_header = jwt.get_unverified_header(token)
+        algorithm = unverified_header.get("alg", "HS256")
         
-        if not jwt_secret:
-            # Check if we're in production
-            is_production = os.getenv("ENVIRONMENT", "development").lower() == "production"
+        logger.debug(f"[AUTH] Token uses algorithm: {algorithm}")
+        print(f"[AUTH] Token uses algorithm: {algorithm}")
+        
+        # Try RS256 first (new Supabase projects)
+        if algorithm == "RS256":
+            jwt_public_key = os.getenv("SUPABASE_JWT_PUBLIC_KEY", "")
             
-            if is_production:
-                # In production, fail hard - don't allow unverified tokens
-                error_msg = "[AUTH] CRITICAL: SUPABASE_JWT_SECRET not set in production!"
+            if not jwt_public_key:
+                error_msg = "[AUTH] RS256 token detected but SUPABASE_JWT_PUBLIC_KEY not set!"
                 logger.error(error_msg)
                 print(error_msg)
                 return None
             
-            # Development fallback: decode without verification (INSECURE)
-            logger.warning("[AUTH] SUPABASE_JWT_SECRET not set, decoding without verification (INSECURE - dev only)")
-            print("[AUTH] WARNING: SUPABASE_JWT_SECRET not set, decoding without verification")
-            payload = jwt.decode(token, options={"verify_signature": False})
+            # RS256 uses public key for verification
+            # The public key should be in PEM format from Supabase JWT Signing Keys tab
+            try:
+                payload = jwt.decode(
+                    token,
+                    jwt_public_key,
+                    algorithms=["RS256"],
+                    audience="authenticated"
+                )
+                user_id = payload.get("sub")
+                success_msg = f"[AUTH] RS256 token verified successfully: user_id={user_id}"
+                logger.info(success_msg)
+                print(success_msg)
+                return user_id
+            except jwt.InvalidTokenError as e:
+                error_msg = f"[AUTH] RS256 token verification failed: {e}"
+                logger.warning(error_msg)
+                print(error_msg)
+                return None
+        
+        # Fall back to HS256 (legacy Supabase projects)
+        elif algorithm == "HS256":
+            jwt_secret = os.getenv("SUPABASE_JWT_SECRET", "")
+            
+            if not jwt_secret:
+                # Check if we're in production
+                is_production = os.getenv("ENVIRONMENT", "development").lower() == "production"
+                
+                if is_production:
+                    error_msg = "[AUTH] CRITICAL: SUPABASE_JWT_SECRET not set in production!"
+                    logger.error(error_msg)
+                    print(error_msg)
+                    return None
+                
+                # Development fallback: decode without verification (INSECURE)
+                logger.warning("[AUTH] SUPABASE_JWT_SECRET not set, decoding without verification (INSECURE - dev only)")
+                print("[AUTH] WARNING: SUPABASE_JWT_SECRET not set, decoding without verification")
+                payload = jwt.decode(token, options={"verify_signature": False})
+                user_id = payload.get("sub")
+                logger.info(f"[AUTH] Token decoded (no verification): user_id={user_id}")
+                print(f"[AUTH] Token decoded (no verification): user_id={user_id}")
+                return user_id
+            
+            # Verify and decode the token with HS256
+            secret_length = len(jwt_secret)
+            logger.debug(f"[AUTH] Attempting to verify HS256 token with secret (length: {secret_length})")
+            print(f"[AUTH] Attempting to verify HS256 token with secret (length: {secret_length})")
+            payload = jwt.decode(
+                token,
+                jwt_secret,
+                algorithms=["HS256"],
+                audience="authenticated"
+            )
             user_id = payload.get("sub")
-            logger.info(f"[AUTH] Token decoded (no verification): user_id={user_id}")
-            print(f"[AUTH] Token decoded (no verification): user_id={user_id}")
+            success_msg = f"[AUTH] HS256 token verified successfully: user_id={user_id}"
+            logger.info(success_msg)
+            print(success_msg)
             return user_id
         
-        # Verify and decode the token
-        # Supabase JWTs require audience="authenticated" for authenticated users
-        secret_length = len(jwt_secret)
-        logger.debug(f"[AUTH] Attempting to verify token with secret (length: {secret_length})")
-        print(f"[AUTH] Attempting to verify token with secret (length: {secret_length})")  # Print for Render logs
-        payload = jwt.decode(
-            token, 
-            jwt_secret, 
-            algorithms=["HS256"],
-            audience="authenticated"  # Supabase JWTs require this audience
-        )
-        user_id = payload.get("sub")
-        success_msg = f"[AUTH] Token verified successfully: user_id={user_id}"
-        logger.info(success_msg)
-        print(success_msg)  # Print for Render logs
-        return user_id  # 'sub' is the user ID in Supabase JWTs
+        else:
+            error_msg = f"[AUTH] Unsupported algorithm: {algorithm}"
+            logger.error(error_msg)
+            print(error_msg)
+            return None
         
     except jwt.ExpiredSignatureError as e:
         error_msg = f"[AUTH] Token expired: {e}"
