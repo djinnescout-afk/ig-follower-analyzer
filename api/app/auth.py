@@ -49,36 +49,64 @@ def verify_jwt_token(token: str) -> Optional[str]:
                 return None
             
             # Construct JWKS endpoint URL
-            # Supabase JWKS endpoint is at: https://[project-ref].supabase.co/auth/v1/.well-known/jwks.json
-            jwks_url = f"{supabase_url.rstrip('/')}/auth/v1/.well-known/jwks.json"
+            # Supabase JWKS endpoint can be at different paths:
+            # - https://[project-ref].supabase.co/.well-known/jwks.json (standard)
+            # - https://[project-ref].supabase.co/auth/v1/.well-known/jwks.json (alternative)
+            base_url = supabase_url.rstrip('/')
+            jwks_urls = [
+                f"{base_url}/.well-known/jwks.json",  # Standard Supabase path
+                f"{base_url}/auth/v1/.well-known/jwks.json",  # Alternative path
+            ]
             
-            try:
-                # Use PyJWKClient to fetch and cache keys from JWKS endpoint
-                jwks_client = PyJWKClient(jwks_url)
-                signing_key = jwks_client.get_signing_key_from_jwt(token)
-                
-                # Verify token with the key from JWKS
-                payload = jwt.decode(
-                    token,
-                    signing_key.key,
-                    algorithms=["ES256", "RS256"],  # Support both
-                    audience="authenticated"
-                )
-                user_id = payload.get("sub")
-                success_msg = f"[AUTH] {algorithm} token verified successfully via JWKS: user_id={user_id}"
-                logger.info(success_msg)
-                print(success_msg)
-                return user_id
-            except jwt.InvalidTokenError as e:
-                error_msg = f"[AUTH] {algorithm} token verification failed: {e}"
-                logger.warning(error_msg)
-                print(error_msg)
-                return None
-            except Exception as e:
-                error_msg = f"[AUTH] Error fetching JWKS: {type(e).__name__}: {e}"
+            last_error = None
+            
+            # Try each JWKS URL until one works
+            for jwks_url in jwks_urls:
+                try:
+                    logger.debug(f"[AUTH] Trying JWKS URL: {jwks_url}")
+                    print(f"[AUTH] Trying JWKS URL: {jwks_url}")
+                    # Use PyJWKClient to fetch and cache keys from JWKS endpoint
+                    jwks_client = PyJWKClient(jwks_url, cache_ttl=3600)  # Cache for 1 hour
+                    signing_key = jwks_client.get_signing_key_from_jwt(token)
+                    
+                    # Verify token with the key from JWKS
+                    payload = jwt.decode(
+                        token,
+                        signing_key.key,
+                        algorithms=["ES256", "RS256"],  # Support both
+                        audience="authenticated"
+                    )
+                    user_id = payload.get("sub")
+                    success_msg = f"[AUTH] {algorithm} token verified successfully via JWKS ({jwks_url}): user_id={user_id}"
+                    logger.info(success_msg)
+                    print(success_msg)
+                    return user_id
+                except jwt.InvalidTokenError as e:
+                    # Token verification failed - don't try other URLs
+                    error_msg = f"[AUTH] {algorithm} token verification failed: {e}"
+                    logger.warning(error_msg)
+                    print(error_msg)
+                    import traceback
+                    print(traceback.format_exc())
+                    return None
+                except Exception as e:
+                    # JWKS fetch failed - try next URL
+                    last_error = e
+                    error_msg = f"[AUTH] Error with JWKS URL {jwks_url}: {type(e).__name__}: {e}"
+                    logger.warning(error_msg)
+                    print(error_msg)
+                    import traceback
+                    print(traceback.format_exc())
+                    continue
+            
+            # All JWKS URLs failed
+            if last_error:
+                error_msg = f"[AUTH] All JWKS URLs failed. Last error: {type(last_error).__name__}: {last_error}"
                 logger.error(error_msg)
                 print(error_msg)
-                return None
+                import traceback
+                print(traceback.format_exc())
+            return None
         
         # Fall back to HS256 (legacy Supabase projects)
         elif algorithm == "HS256":
