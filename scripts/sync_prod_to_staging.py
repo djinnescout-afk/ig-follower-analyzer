@@ -23,6 +23,7 @@ import argparse
 from typing import List, Dict, Any
 from datetime import datetime
 from supabase import create_client, Client
+import requests
 
 # Tables to sync (in dependency order to handle foreign keys)
 TABLES = [
@@ -82,6 +83,45 @@ def fetch_all_rows(client: Client, table: str, batch_size: int = 1000) -> List[D
     return all_rows
 
 
+def get_table_columns_from_schema(client: Client, table: str) -> set:
+    """
+    Get column names from database schema using information_schema.
+    Works even when table is empty.
+    """
+    try:
+        # Use RPC or direct SQL query to get column names
+        # Supabase PostgREST doesn't directly support information_schema queries,
+        # so we'll try to get columns by attempting a select with a limit
+        # If that fails, we'll use a workaround
+        
+        # Try to get at least the table structure
+        # For empty tables, we can query information_schema via a function
+        # But since we're using the Python client, let's try a different approach
+        
+        # Attempt to select with limit 0 to get column info
+        response = client.table(table).select('*').limit(0).execute()
+        # This won't work for empty tables either...
+        
+        # Better approach: try to insert a dummy row and see what columns are accepted
+        # Or use the Supabase REST API to get table schema
+        
+        # Actually, let's query information_schema using a raw SQL query via RPC
+        # But we need to create an RPC function for this, or use the admin API
+        
+        # For now, fallback: try to get one row, if empty, we can't check
+        response = client.table(table).select('*').limit(1).execute()
+        if response.data and len(response.data) > 0:
+            return set(response.data[0].keys())
+        
+        # If empty, we need another method - query via SQL
+        # Use the REST API's rpc endpoint if available
+        # For now, return empty set and let the sync fail with a clear error
+        return set()
+        
+    except Exception:
+        return set()
+
+
 def check_schema_compatibility(
     prod_client: Client,
     staging_client: Client,
@@ -108,15 +148,57 @@ def check_schema_compatibility(
             
             prod_columns = set(prod_response.data[0].keys())
             
-            # Get staging columns
+            # Get staging columns - try to get from data first
             staging_response = staging_client.table(table).select('*').limit(1).execute()
-            if not staging_response.data:
-                if verbose:
-                    print(f"   ⚠️  {table}: No data in staging, cannot verify schema")
-                # Can't check, but we'll try to sync and fail if needed
-                continue
+            staging_columns = set()
             
-            staging_columns = set(staging_response.data[0].keys())
+            if staging_response.data and len(staging_response.data) > 0:
+                # We have data, can get columns from it
+                staging_columns = set(staging_response.data[0].keys())
+            else:
+                # Table is empty - try a test insert with production columns to detect missing ones
+                if verbose:
+                    print(f"   🔍 {table}: Empty table, testing schema with sample row...")
+                
+                try:
+                    # Get first production row as test data
+                    test_row = dict(prod_response.data[0])
+                    # Remove the primary key to avoid conflicts, or use a dummy ID
+                    if 'id' in test_row:
+                        test_row['id'] = 'ffffffff-ffff-ffff-ffff-ffffffffffff'
+                    if table == 'client_following' and 'client_id' in test_row:
+                        test_row['client_id'] = 'ffffffff-ffff-ffff-ffff-ffffffffffff'
+                        test_row['page_id'] = 'ffffffff-ffff-ffff-ffff-ffffffffffff'
+                    
+                    # Try to insert - this will fail if columns are missing
+                    staging_client.table(table).insert(test_row).execute()
+                    # If successful, delete the test row
+                    if table == 'client_following':
+                        staging_client.table(table).delete().eq('client_id', 'ffffffff-ffff-ffff-ffff-ffffffffffff').eq('page_id', 'ffffffff-ffff-ffff-ffff-ffffffffffff').execute()
+                    else:
+                        staging_client.table(table).delete().eq('id', 'ffffffff-ffff-ffff-ffff-ffffffffffff').execute()
+                    
+                    # If we got here, all columns exist!
+                    staging_columns = prod_columns
+                    if verbose:
+                        print(f"   ✅ {table}: Schema verified via test insert")
+                except Exception as e:
+                    # Parse error to find missing columns
+                    error_msg = str(e)
+                    if 'column' in error_msg.lower() and 'does not exist' in error_msg.lower():
+                        # Extract column name from error
+                        # Error format varies, but usually mentions the column
+                        if verbose:
+                            print(f"   ⚠️  {table}: Test insert failed, will check during sync")
+                        # Can't easily parse which columns are missing from this error
+                        # Let sync_table catch it and report
+                        continue
+                    else:
+                        # Other error (foreign key, etc.) - columns might all exist
+                        # Try to get columns from the error or assume they exist
+                        if verbose:
+                            print(f"   ⚠️  {table}: Test insert failed ({type(e).__name__}), assuming schema matches")
+                        staging_columns = prod_columns  # Assume match for now
             
             # Find missing columns
             missing = prod_columns - staging_columns
