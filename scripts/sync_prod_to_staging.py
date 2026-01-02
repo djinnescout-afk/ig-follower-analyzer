@@ -195,54 +195,66 @@ def sync_table(
         except Exception as e:
             print(f"   ⚠️  Warning: Could not clear staging table: {e}")
     
-    # Get staging table columns to filter out columns that don't exist
-    staging_columns = None
-    try:
-        # Try to fetch one row to see what columns staging has
-        test_response = staging_client.table(table).select('*').limit(1).execute()
-        if test_response.data and len(test_response.data) > 0:
-            staging_columns = set(test_response.data[0].keys())
-        else:
-            # If no data, try to infer from prod_rows structure
-            # We'll filter columns when inserting
-            staging_columns = set()
-    except Exception as e:
-        if verbose:
-            print(f"   ⚠️  Could not determine staging columns: {e}")
+    # Check for schema mismatches - staging must have all production columns
+    if prod_rows:
+        prod_columns = set(prod_rows[0].keys())
         staging_columns = set()
-    
-    # Filter rows to only include columns that exist in staging (if we know them)
-    # If staging_columns is empty, we'll try all columns and let errors happen
-    filtered_rows = []
-    for row in prod_rows:
+        
+        try:
+            # Try to get staging columns by fetching a row or checking schema
+            test_response = staging_client.table(table).select('*').limit(1).execute()
+            if test_response.data and len(test_response.data) > 0:
+                staging_columns = set(test_response.data[0].keys())
+            else:
+                # If no data, we can't check - will fail on insert which is fine
+                if verbose:
+                    print(f"   ⚠️  No data in staging table, cannot verify schema")
+        except Exception as e:
+            if verbose:
+                print(f"   ⚠️  Could not check staging schema: {e}")
+        
+        # Check for missing columns in staging
         if staging_columns:
-            # Only include columns that exist in staging
-            filtered_row = {k: v for k, v in row.items() if k in staging_columns}
-            # Always include primary key columns
-            if 'id' in row:
-                filtered_row['id'] = row['id']
-            if table == 'client_following':
-                if 'client_id' in row:
-                    filtered_row['client_id'] = row['client_id']
-                if 'page_id' in row:
-                    filtered_row['page_id'] = row['page_id']
-            filtered_rows.append(filtered_row)
-        else:
-            # Don't filter if we don't know staging columns
-            filtered_rows.append(row)
-    
-    if staging_columns and len(staging_columns) > 0:
-        excluded_cols = set(prod_rows[0].keys() if prod_rows else []) - staging_columns
-        if excluded_cols and verbose:
-            print(f"   ⚠️  Excluding columns not in staging: {', '.join(excluded_cols)}")
+            missing_columns = prod_columns - staging_columns
+            if missing_columns:
+                print(f"\n❌ SCHEMA MISMATCH DETECTED!")
+                print(f"   Table: {table}")
+                print(f"   Missing columns in staging: {', '.join(sorted(missing_columns))}")
+                print(f"   Production columns: {len(prod_columns)}")
+                print(f"   Staging columns: {len(staging_columns)}")
+                print(f"\n   🔧 FIX REQUIRED:")
+                print(f"   Add the missing columns to staging database before syncing.")
+                print(f"   Run this SQL in your staging Supabase SQL Editor:")
+                print(f"\n   -- Add missing columns to {table}:")
+                for col in sorted(missing_columns):
+                    # Try to infer column type from production data
+                    sample_value = next((row.get(col) for row in prod_rows if col in row and row[col] is not None), None)
+                    if sample_value is not None:
+                        if isinstance(sample_value, bool):
+                            col_type = "BOOLEAN"
+                        elif isinstance(sample_value, int):
+                            col_type = "INTEGER"
+                        elif isinstance(sample_value, float):
+                            col_type = "DECIMAL"
+                        elif isinstance(sample_value, list):
+                            col_type = "TEXT[]"
+                        elif isinstance(sample_value, dict):
+                            col_type = "JSONB"
+                        else:
+                            col_type = "TEXT"
+                        print(f"   ALTER TABLE {table} ADD COLUMN IF NOT EXISTS {col} {col_type};")
+                    else:
+                        print(f"   ALTER TABLE {table} ADD COLUMN IF NOT EXISTS {col} TEXT;")
+                print()
+                raise ValueError(f"Schema mismatch: staging table '{table}' is missing columns: {', '.join(sorted(missing_columns))}")
     
     # Insert rows into staging
     # Batch inserts for better performance
     batch_size = 100
     synced_count = 0
     
-    for i in range(0, len(filtered_rows), batch_size):
-        batch = filtered_rows[i:i + batch_size]
+    for i in range(0, len(prod_rows), batch_size):
+        batch = prod_rows[i:i + batch_size]
         
         try:
             # Use upsert to handle conflicts (based on primary key)
