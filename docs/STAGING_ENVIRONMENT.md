@@ -93,18 +93,19 @@ Staging:
    **Note**: If you don't see this option, it might be in Settings → **Git** → look for "Production Branch" or "Branch" settings
 
 6. Go to Settings → Environment Variables
-   Add the following (use placeholders if you don't have values yet):
+   Add the following:
    ```
    NEXT_PUBLIC_SUPABASE_URL=https://your-staging-project.supabase.co
    NEXT_PUBLIC_SUPABASE_ANON_KEY=your-staging-anon-key
-   NEXT_PUBLIC_API_URL=https://placeholder.onrender.com
+   NEXT_PUBLIC_API_URL=https://your-staging-api.onrender.com
    ```
    
-   **Note**: 
-   - Use your **staging Supabase** credentials (from Step 1)
-   - For `NEXT_PUBLIC_API_URL`, use a placeholder for now if Render staging isn't set up yet
-   - You can update `NEXT_PUBLIC_API_URL` later after Step 3 (Render setup)
+   **CRITICAL**: 
+   - `NEXT_PUBLIC_API_URL` **MUST** be set to your staging Render API URL
+   - If this is missing or wrong, ALL API calls will fail (clients, pages, admin, everything)
+   - Get the exact URL from Render Dashboard → Your Staging Service → Overview
    - Make sure to select all environments: Production, Preview, Development
+   - **After setting, redeploy** the staging branch to apply changes
 
 ### Option B: Same Project, Different Branch
 
@@ -127,7 +128,7 @@ Staging:
    - **Root Directory**: `api` ← **IMPORTANT: Set this to `api`**
    - **Runtime**: Python 3
    - **Build Command**: `pip install -r api/requirements.txt` ← **CRITICAL: Must use explicit path**
-   - **Start Command**: `python -m uvicorn app.main:app --host 0.0.0.0 --port $PORT`
+   - **Start Command**: `cd api && python -m uvicorn main:app --host 0.0.0.0 --port $PORT`
    
    **Important**: 
    - **Build Command MUST use `api/requirements.txt`** - Render's build runs from repo root, not Root Directory
