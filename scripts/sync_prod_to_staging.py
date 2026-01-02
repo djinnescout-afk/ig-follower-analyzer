@@ -387,24 +387,33 @@ def sync_table(
                 print(f"   Run this SQL in your staging Supabase SQL Editor:")
                 print(f"\n   -- Add missing columns to {table}:")
                 for col in sorted(missing_columns):
-                    # Try to infer column type from production data
-                    sample_value = next((row.get(col) for row in prod_rows if col in row and row[col] is not None), None)
-                    if sample_value is not None:
-                        if isinstance(sample_value, bool):
-                            col_type = "BOOLEAN"
-                        elif isinstance(sample_value, int):
-                            col_type = "INTEGER"
-                        elif isinstance(sample_value, float):
-                            col_type = "DECIMAL"
-                        elif isinstance(sample_value, list):
-                            col_type = "TEXT[]"
-                        elif isinstance(sample_value, dict):
-                            col_type = "JSONB"
-                        else:
-                            col_type = "TEXT"
-                        print(f"   ALTER TABLE {table} ADD COLUMN IF NOT EXISTS {col} {col_type};")
+                    # Check for invalid column names (with spaces)
+                    col_quoted = f'"{col}"' if ' ' in col else col
+                    col_suggested = col.replace(' ', '_') if ' ' in col else col
+                    
+                    if ' ' in col:
+                        print(f"   ⚠️  WARNING: Column '{col}' has spaces (invalid SQL identifier)")
+                        print(f"   💡 Suggested fix: Rename to '{col_suggested}' in production first")
+                        print(f"   📝 SQL to add (with quotes): ALTER TABLE {table} ADD COLUMN IF NOT EXISTS {col_quoted} TEXT;")
                     else:
-                        print(f"   ALTER TABLE {table} ADD COLUMN IF NOT EXISTS {col} TEXT;")
+                        # Try to infer column type from production data
+                        sample_value = next((row.get(col) for row in prod_rows if col in row and row[col] is not None), None)
+                        if sample_value is not None:
+                            if isinstance(sample_value, bool):
+                                col_type = "BOOLEAN"
+                            elif isinstance(sample_value, int):
+                                col_type = "INTEGER"
+                            elif isinstance(sample_value, float):
+                                col_type = "DECIMAL"
+                            elif isinstance(sample_value, list):
+                                col_type = "TEXT[]"
+                            elif isinstance(sample_value, dict):
+                                col_type = "JSONB"
+                            else:
+                                col_type = "TEXT"
+                            print(f"   ALTER TABLE {table} ADD COLUMN IF NOT EXISTS {col} {col_type};")
+                        else:
+                            print(f"   ALTER TABLE {table} ADD COLUMN IF NOT EXISTS {col} TEXT;")
                 print()
                 raise ValueError(f"Schema mismatch: staging table '{table}' is missing columns: {', '.join(sorted(missing_columns))}")
     
