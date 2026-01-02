@@ -49,13 +49,12 @@ def verify_jwt_token(token: str) -> Optional[str]:
                 return None
             
             # Construct JWKS endpoint URL
-            # Supabase JWKS endpoint can be at different paths:
-            # - https://[project-ref].supabase.co/.well-known/jwks.json (standard)
-            # - https://[project-ref].supabase.co/auth/v1/.well-known/jwks.json (alternative)
+            # Supabase JWKS endpoint is at: https://[project-ref].supabase.co/.well-known/jwks.json
+            # Note: Some older docs mention /auth/v1/ path, but current Supabase uses root path
             base_url = supabase_url.rstrip('/')
             jwks_urls = [
-                f"{base_url}/.well-known/jwks.json",  # Standard Supabase path
-                f"{base_url}/auth/v1/.well-known/jwks.json",  # Alternative path
+                f"{base_url}/.well-known/jwks.json",  # Current Supabase standard path
+                f"{base_url}/auth/v1/.well-known/jwks.json",  # Legacy path (try as fallback)
             ]
             
             last_error = None
