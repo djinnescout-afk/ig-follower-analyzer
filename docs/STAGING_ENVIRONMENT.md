@@ -241,11 +241,25 @@ git push origin staging
 After setup, you'll have:
 
 - **Production Frontend**: `https://ig-follower-analyzer.vercel.app`
-- **Staging Frontend**: `https://ig-follower-analyzer-staging.vercel.app` (or preview URL)
+- **Staging Frontend**: 
+  - If separate Vercel project: `https://ig-follower-analyzer-staging.vercel.app`
+  - If using branch previews: `https://ig-follower-analyzer-git-staging-[username].vercel.app`
+  - **Check your Vercel dashboard** for the exact staging URL after deployment
 - **Production API**: `https://ig-analyzer-api.onrender.com`
-- **Staging API**: `https://ig-analyzer-api-staging.onrender.com`
+- **Staging API**: `https://ig-analyzer-api-staging.onrender.com` (check Render dashboard for exact URL)
 - **Production Database**: Your production Supabase project
 - **Staging Database**: Your staging Supabase project
+
+### Finding Your Staging URL
+
+1. **Vercel Dashboard**:
+   - Go to your Vercel project
+   - Click on the deployment for the `staging` branch
+   - The URL will be shown at the top (e.g., `https://ig-follower-analyzer-staging.vercel.app`)
+
+2. **Render Dashboard**:
+   - Go to your staging service
+   - The URL will be shown in the service overview (e.g., `https://ig-analyzer-api-staging.onrender.com`)
 
 ## Testing Checklist
 

@@ -2,6 +2,16 @@
 
 This guide explains the Git workflow for deploying to staging and production.
 
+## ⚠️ CRITICAL REMINDER
+
+**ALWAYS push to `staging` branch first, NEVER directly to `main`!**
+
+- ✅ **DO**: Push changes to `staging` → Test → Merge to `main`
+- ❌ **DON'T**: Push directly to `main` (except urgent hotfixes)
+- 🔒 **RULE**: Production (`main`) should only receive code that has been tested on staging
+
+This prevents catastrophic changes from affecting production clients.
+
 ## Branch Structure
 
 ```
@@ -299,10 +309,22 @@ Hotfix Branch → Main → Production → Staging (sync)
 ```
 
 **Key Rules:**
-1. ✅ Always test on staging first
-2. ✅ Keep staging and main in sync
-3. ✅ Use descriptive branch names
-4. ✅ Write clear commit messages
-5. ❌ Never skip staging
-6. ❌ Never commit directly to main (except hotfixes)
+1. ✅ **ALWAYS push to staging first, NEVER directly to main**
+2. ✅ Always test on staging first
+3. ✅ Keep staging and main in sync
+4. ✅ Use descriptive branch names
+5. ✅ Write clear commit messages
+6. ❌ Never skip staging
+7. ❌ Never commit directly to main (except hotfixes)
+
+## Finding Your Staging URL
+
+After pushing to the `staging` branch:
+
+1. **Vercel**: Go to your Vercel dashboard → Find the deployment for `staging` branch → Copy the URL
+   - Typically: `https://ig-follower-analyzer-staging.vercel.app` or a preview URL
+2. **Render**: Go to your Render dashboard → Find your staging service → Copy the service URL
+   - Typically: `https://ig-analyzer-api-staging.onrender.com`
+
+**This is the URL you'll visit to test changes before deploying to production!**
 
