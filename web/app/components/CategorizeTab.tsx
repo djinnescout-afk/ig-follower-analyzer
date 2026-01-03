@@ -3,7 +3,8 @@
 import { useState, useEffect } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { pagesApi, outreachApi, Page, PageProfile, OutreachTracking } from '../lib/api'
-import { CATEGORIES, CONTACT_METHODS, OUTREACH_STATUSES, PROMO_STATUSES, getPriorityTier, TIER_LABELS, TIER_COLORS } from '../lib/categories'
+import { CONTACT_METHODS, OUTREACH_STATUSES, PROMO_STATUSES, getPriorityTier, TIER_LABELS, TIER_COLORS } from '../lib/categories'
+import { useCategorySet } from '../lib/hooks/useCategorySet'
 import { ChevronLeft, ChevronRight, Save, SkipForward, Archive } from 'lucide-react'
 import { DateRangePicker, DateRange } from './DateRangePicker'
 import ClientFollowersModal from './ClientFollowersModal'
@@ -14,6 +15,7 @@ export default function CategorizeTab() {
   const [vaName, setVaName] = useState('')
   const [dateRange, setDateRange] = useState<DateRange>({ from: null, to: null, preset: 'all_time' })
   const queryClient = useQueryClient()
+  const { categories } = useCategorySet()
   
   // Batch loading progress state
   const [batchProgress, setBatchProgress] = useState<{
@@ -567,7 +569,7 @@ export default function CategorizeTab() {
                 required
               >
                 <option value="">Select a category...</option>
-                {CATEGORIES.map((cat) => (
+                {categories.map((cat) => (
                   <option key={cat} value={cat}>
                     {cat}
                   </option>

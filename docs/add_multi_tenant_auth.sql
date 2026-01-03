@@ -189,3 +189,4 @@ BEGIN
     RAISE NOTICE '   3. Create user accounts manually via Supabase dashboard or admin API';
 END $$;
 
+

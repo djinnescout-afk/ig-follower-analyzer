@@ -3,13 +3,15 @@
 import { useState, useEffect } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { pagesApi, outreachApi, scrapesApi, Page } from '../lib/api'
-import { CATEGORIES, CONTACT_METHODS, OUTREACH_STATUSES } from '../lib/categories'
+import { CONTACT_METHODS, OUTREACH_STATUSES } from '../lib/categories'
+import { useCategorySet } from '../lib/hooks/useCategorySet'
 import { Search, Save, RefreshCw } from 'lucide-react'
 import { useDebounce } from '../lib/hooks/useDebounce'
 import { DateRangePicker, DateRange } from './DateRangePicker'
 import ClientFollowersModal from './ClientFollowersModal'
 
 export default function EditPageTab() {
+  const { categories } = useCategorySet()
   const [searchQuery, setSearchQuery] = useState('')
   const [selectedPage, setSelectedPage] = useState<Page | null>(null)
   const [formData, setFormData] = useState<any>({})
@@ -582,7 +584,7 @@ export default function EditPageTab() {
                     className="w-full px-3 py-2 border border-gray-300 rounded-md"
                   >
                     <option value="">Select a category...</option>
-                    {CATEGORIES.map((cat) => (
+                    {categories.map((cat) => (
                       <option key={cat} value={cat}>
                         {cat}
                       </option>

@@ -1,4 +1,4 @@
-from . import clients, pages, scrapes, admin  # noqa: F401
+from . import clients, pages, scrapes, admin, settings  # noqa: F401
 
-__all__ = ["clients", "pages", "scrapes", "admin"]
+__all__ = ["clients", "pages", "scrapes", "admin", "settings"]
 

@@ -12,9 +12,10 @@ import ViewCategorizedTab from './components/ViewCategorizedTab'
 import PagesTab from './components/PagesTab'
 import ScrapesTab from './components/ScrapesTab'
 import AdminTab from './components/AdminTab'
+import SettingsTab from './components/SettingsTab'
 
 function DashboardContent() {
-  const [activeTab, setActiveTab] = useState<'clients' | 'categorize' | 'edit' | 'view-categorized' | 'pages' | 'scrapes' | 'admin'>('clients')
+  const [activeTab, setActiveTab] = useState<'clients' | 'categorize' | 'edit' | 'view-categorized' | 'pages' | 'scrapes' | 'admin' | 'settings'>('clients')
   const { user, signOut } = useAuth()
 
   // Check if user is admin
@@ -155,6 +156,18 @@ function DashboardContent() {
             >
               -
             </button>
+            <button
+              onClick={() => setActiveTab('settings')}
+              className={`
+                py-4 px-1 border-b-2 font-medium text-sm
+                ${activeTab === 'settings'
+                  ? 'border-blue-500 text-blue-600'
+                  : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                }
+              `}
+            >
+              Settings
+            </button>
           </nav>
         </div>
 
@@ -167,6 +180,7 @@ function DashboardContent() {
           {activeTab === 'pages' && <PagesTab />}
           {activeTab === 'scrapes' && <ScrapesTab />}
           {activeTab === 'admin' && <AdminTab />}
+          {activeTab === 'settings' && <SettingsTab />}
         </div>
       </div>
     </div>
