@@ -56,3 +56,4 @@ SELECT 'page_profiles', COUNT(*), COUNT(user_id), COUNT(*) - COUNT(user_id) FROM
 UNION ALL
 SELECT 'outreach_tracking', COUNT(*), COUNT(user_id), COUNT(*) - COUNT(user_id) FROM outreach_tracking;
 
+

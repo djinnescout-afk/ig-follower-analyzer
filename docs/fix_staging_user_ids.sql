@@ -51,3 +51,4 @@ WHERE ot.page_id = p.id AND (ot.user_id IS NULL OR ot.user_id != p.user_id);
 SELECT COUNT(*) as client_count FROM clients WHERE user_id = 'YOUR_USER_ID';
 SELECT COUNT(*) as page_count FROM pages WHERE user_id = 'YOUR_USER_ID';
 
+

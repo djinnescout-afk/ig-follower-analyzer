@@ -1,4 +1,37 @@
-export const CATEGORIES = [
+// Category Set 1 (Option 1 - Default): Theme-based categories
+export const CATEGORY_SET_1 = [
+  'Theme page (General)',
+  'BUSINESS Theme Page',
+  'FITNESS Theme Page',
+  'AI Theme Page',
+  'MASCULINITY Theme Page',
+  'QUOTES Theme Page',
+  'HEALTH Theme Page',
+  'CHRISTIAN Theme Page',
+  'MODELS/OF Theme Page',
+  'WOMEN\'S Theme Page',
+  'POLITICAL Theme Page',
+  'SPIRITUAL Theme Page',
+  'FASHION Theme Page',
+  'LUXURY Theme Page',
+  'NATURE/ANIMALS Theme Page',
+  'COUPLES Theme Page',
+  'PHILOSOPHY Theme Page',
+  'TRAVEL Theme Page',
+  'CARS/BIKES Theme Page',
+  'ART Theme Page',
+  'MISCELLANEOUS Theme Page',
+  'Celebrity',
+  'Non-Celebrity Public Figure',
+  'Entrepreneur',
+  'Other (Miscellaneous)',
+  'Extra category A (optional use)',
+  'Extra category B (optional use)',
+  'Extra category C (optional use)',
+] as const
+
+// Category Set 2 (Option 2 - Current): Existing categories
+export const CATEGORY_SET_2 = [
   'Black Theme Page',
   'Mixed Theme Page',
   'White Theme Page',
@@ -17,7 +50,16 @@ export const CATEGORIES = [
   'Other',
 ] as const
 
-export type Category = typeof CATEGORIES[number]
+// Legacy export for backward compatibility (defaults to Option 2 for now)
+// Components should use useCategorySet() hook instead
+export const CATEGORIES = CATEGORY_SET_2
+
+export type Category = typeof CATEGORY_SET_1[number] | typeof CATEGORY_SET_2[number]
+
+// Get categories for a specific set
+export function getCategoriesForSet(set: 'option1' | 'option2'): readonly string[] {
+  return set === 'option1' ? CATEGORY_SET_1 : CATEGORY_SET_2
+}
 
 // Hotlist keywords for priority categorization
 // Note: Uses partial matching - "black" matches "blacksuccess", "hustl" matches "hustlersimage"

@@ -3,13 +3,15 @@
 import { useState, useMemo } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { pagesApi, Page, calculateConcentration, calculateConcentrationPerDollar, calculateQuartiles, getConcentrationTier } from '../lib/api'
-import { CATEGORIES, CONTACT_METHODS, PROMO_STATUSES, OUTREACH_STATUSES } from '../lib/categories'
+import { CONTACT_METHODS, PROMO_STATUSES, OUTREACH_STATUSES } from '../lib/categories'
+import { useCategorySet } from '../lib/hooks/useCategorySet'
 import { useDebounce } from '../lib/hooks/useDebounce'
 import { DateRangePicker, DateRange } from './DateRangePicker'
 import ClientFollowersModal from './ClientFollowersModal'
 
 export default function ViewCategorizedTab() {
   const queryClient = useQueryClient()
+  const { categories } = useCategorySet()
   const [selectedCategory, setSelectedCategory] = useState<string>('')
   const [page, setPage] = useState(0)
   const [pageSize, setPageSize] = useState(100)
@@ -234,7 +236,7 @@ export default function ViewCategorizedTab() {
       <div className="bg-white rounded-lg shadow p-6">
         <h2 className="text-xl font-semibold mb-4">Select Category</h2>
         <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-3">
-          {CATEGORIES.map((category) => {
+          {categories.map((category) => {
             const count = categoryCounts?.[category] || 0
             return (
               <button

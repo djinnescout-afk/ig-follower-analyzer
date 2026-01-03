@@ -32,3 +32,4 @@ UPDATE clients SET date_closed = created_at WHERE date_closed IS NULL;
 -- Create index for efficient date filtering
 CREATE INDEX IF NOT EXISTS idx_clients_date_closed ON clients(date_closed);
 
+

@@ -62,3 +62,4 @@ SELECT
     (SELECT COUNT(*) FROM clients WHERE user_id = (SELECT id FROM auth.users WHERE email = 'djinnescout@gmail.com')) as clients_on_djinnescout,
     (SELECT COUNT(*) FROM pages WHERE user_id = (SELECT id FROM auth.users WHERE email = 'djinnescout@gmail.com')) as pages_on_djinnescout;
 
+

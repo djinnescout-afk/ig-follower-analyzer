@@ -64,3 +64,4 @@ STAGING_SUPABASE_SERVICE_KEY=your-staging-service-key
 
 For detailed information, see `docs/STAGING_ENVIRONMENT.md`
 
+

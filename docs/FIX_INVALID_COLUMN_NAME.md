@@ -62,3 +62,4 @@ python scripts/sync_prod_to_staging.py --full
 
 When creating columns manually in Supabase UI, ensure there are no spaces. If you must use SQL, always use unquoted identifiers with underscores.
 
+

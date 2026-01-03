@@ -249,6 +249,17 @@ export const adminApi = {
     }),
 }
 
+// Settings API
+export interface UserPreferences {
+  category_set: 'option1' | 'option2'
+}
+
+export const settingsApi = {
+  getPreferences: () => api.get<UserPreferences>('/settings/preferences'),
+  updatePreferences: (data: { category_set: 'option1' | 'option2' }) =>
+    api.put<UserPreferences>('/settings/preferences', data),
+}
+
 // Concentration calculation utilities
 export function calculateConcentration(page: Page): number | null {
   if (!page.client_count || page.client_count === 0) return null

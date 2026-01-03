@@ -227,3 +227,4 @@ CREATE TRIGGER set_outreach_tracking_user_id
     FOR EACH ROW
     EXECUTE FUNCTION set_user_id();
 
+

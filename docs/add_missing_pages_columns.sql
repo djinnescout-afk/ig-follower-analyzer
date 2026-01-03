@@ -40,3 +40,4 @@ BEGIN
     RAISE NOTICE '✅ All missing columns added to pages table successfully!';
 END $$;
 
+

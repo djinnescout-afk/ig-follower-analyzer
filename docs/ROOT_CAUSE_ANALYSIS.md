@@ -84,3 +84,4 @@ Staging environment had multiple issues:
 3. **Documentation > Memory**: Write it down, don't rely on remembering
 4. **Systematic > Ad-hoc**: Follow a process, don't wing it
 
+

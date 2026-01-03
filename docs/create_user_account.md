@@ -64,3 +64,4 @@ After creating a user account:
 3. You should be redirected to the dashboard
 4. All data will be automatically filtered to that user's data
 
+

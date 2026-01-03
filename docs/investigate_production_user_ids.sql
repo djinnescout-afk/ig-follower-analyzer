@@ -43,3 +43,4 @@ SELECT
     (SELECT COUNT(*) FROM clients WHERE user_id = '63df0039-313c-4555-959f-55c28be8d7b2') as clients,
     (SELECT COUNT(*) FROM pages WHERE user_id = '63df0039-313c-4555-959f-55c28be8d7b2') as pages;
 
+
