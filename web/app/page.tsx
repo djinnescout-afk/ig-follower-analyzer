@@ -13,6 +13,7 @@ import PagesTab from './components/PagesTab'
 import ScrapesTab from './components/ScrapesTab'
 import AdminTab from './components/AdminTab'
 import SettingsTab from './components/SettingsTab'
+import { AccountStatusGuard } from './components/AccountStatusGuard'
 
 function DashboardContent() {
   const [activeTab, setActiveTab] = useState<'clients' | 'categorize' | 'edit' | 'view-categorized' | 'pages' | 'scrapes' | 'admin' | 'settings'>('clients')
@@ -190,7 +191,9 @@ function DashboardContent() {
 export default function Dashboard() {
   return (
     <AuthGuard>
-      <DashboardContent />
+      <AccountStatusGuard>
+        <DashboardContent />
+      </AccountStatusGuard>
     </AuthGuard>
   )
 }

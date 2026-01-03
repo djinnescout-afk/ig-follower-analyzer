@@ -4,7 +4,7 @@ import { useState } from 'react'
 import { useQuery, useMutation } from '@tanstack/react-query'
 import { adminApi, AdminUser } from '../lib/api'
 import { format } from 'date-fns'
-import { Mail, ExternalLink, RefreshCw } from 'lucide-react'
+import { Mail, ExternalLink, RefreshCw, Pause, Play } from 'lucide-react'
 
 export default function AdminTab() {
   const [selectedUserId, setSelectedUserId] = useState<string | null>(null)
@@ -51,6 +51,25 @@ export default function AdminTab() {
         alert('You do not have admin access. Contact your administrator.')
       } else {
         alert(`Error generating magic link: ${error.response?.data?.detail || error.message}`)
+      }
+    },
+  })
+
+  // Set account state mutation
+  const setAccountStateMutation = useMutation({
+    mutationFn: async ({ userId, state }: { userId: string; state: 'active' | 'paused' }) => {
+      const response = await adminApi.setAccountState(userId, state)
+      return response.data
+    },
+    onSuccess: () => {
+      // Refetch users to update the list
+      refetch()
+    },
+    onError: (error: any) => {
+      if (error.response?.status === 403) {
+        alert('You do not have admin access. Contact your administrator.')
+      } else {
+        alert(`Error updating account state: ${error.response?.data?.detail || error.message}`)
       }
     },
   })
@@ -163,7 +182,7 @@ export default function AdminTab() {
         </div>
 
         <p className="text-sm text-gray-600 mb-4">
-          Generate magic links to sign in as any user for debugging purposes.
+          Manage user accounts: generate magic links for debugging, or pause/activate accounts.
         </p>
 
         <div className="overflow-x-auto">
@@ -181,6 +200,9 @@ export default function AdminTab() {
                 </th>
                 <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">
                   Email Confirmed
+                </th>
+                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">
+                  Account State
                 </th>
                 <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">
                   Actions
@@ -211,23 +233,63 @@ export default function AdminTab() {
                     )}
                   </td>
                   <td className="px-4 py-4 text-sm">
-                    <button
-                      onClick={() => generateLinkMutation.mutate(user.id)}
-                      disabled={generateLinkMutation.isPending && selectedUserId === user.id}
-                      className="flex items-center gap-2 px-3 py-1.5 bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed text-xs"
-                    >
-                      {generateLinkMutation.isPending && selectedUserId === user.id ? (
-                        <>
-                          <RefreshCw size={14} className="animate-spin" />
-                          Generating...
-                        </>
+                    <span className={`px-2 py-1 rounded-full text-xs font-medium ${
+                      (user.account_state || 'active') === 'active'
+                        ? 'bg-green-100 text-green-800'
+                        : 'bg-yellow-100 text-yellow-800'
+                    }`}>
+                      {(user.account_state || 'active') === 'active' ? 'Active' : 'Paused'}
+                    </span>
+                  </td>
+                  <td className="px-4 py-4 text-sm">
+                    <div className="flex items-center gap-2">
+                      <button
+                        onClick={() => generateLinkMutation.mutate(user.id)}
+                        disabled={generateLinkMutation.isPending && selectedUserId === user.id}
+                        className="flex items-center gap-1 px-2 py-1 bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed text-xs"
+                      >
+                        {generateLinkMutation.isPending && selectedUserId === user.id ? (
+                          <>
+                            <RefreshCw size={12} className="animate-spin" />
+                            Generating...
+                          </>
+                        ) : (
+                          <>
+                            <Mail size={12} />
+                            Sign In
+                          </>
+                        )}
+                      </button>
+                      {(user.account_state || 'active') === 'active' ? (
+                        <button
+                          onClick={() => {
+                            if (confirm(`Pause account for ${user.email}? They will lose access to all features.`)) {
+                              setAccountStateMutation.mutate({ userId: user.id, state: 'paused' })
+                            }
+                          }}
+                          disabled={setAccountStateMutation.isPending}
+                          className="flex items-center gap-1 px-2 py-1 bg-yellow-600 text-white rounded-md hover:bg-yellow-700 disabled:opacity-50 disabled:cursor-not-allowed text-xs"
+                          title="Pause account"
+                        >
+                          <Pause size={12} />
+                          Pause
+                        </button>
                       ) : (
-                        <>
-                          <Mail size={14} />
-                          Sign In As User
-                        </>
+                        <button
+                          onClick={() => {
+                            if (confirm(`Activate account for ${user.email}?`)) {
+                              setAccountStateMutation.mutate({ userId: user.id, state: 'active' })
+                            }
+                          }}
+                          disabled={setAccountStateMutation.isPending}
+                          className="flex items-center gap-1 px-2 py-1 bg-green-600 text-white rounded-md hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed text-xs"
+                          title="Activate account"
+                        >
+                          <Play size={12} />
+                          Activate
+                        </button>
                       )}
-                    </button>
+                    </div>
                   </td>
                 </tr>
               ))}

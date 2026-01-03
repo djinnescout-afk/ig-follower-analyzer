@@ -2,7 +2,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from .config import get_settings
-from .routes import clients, pages, scrapes, outreach, admin, settings as settings_router
+from .routes import clients, pages, scrapes, outreach, admin, settings as settings_router, account
 
 
 def create_app() -> FastAPI:
@@ -26,6 +26,7 @@ def create_app() -> FastAPI:
     app.include_router(outreach.router, prefix=settings.api_prefix)
     app.include_router(admin.router, prefix=settings.api_prefix)
     app.include_router(settings_router.router, prefix=settings.api_prefix)
+    app.include_router(account.router, prefix=settings.api_prefix)
 
     @app.get("/health")
     def health():

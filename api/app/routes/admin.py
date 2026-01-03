@@ -123,12 +123,16 @@ def list_users(user_id: str = Depends(get_current_user_id)):
         users = []
         for user in user_list:
             # Handle user object attributes safely
+            user_metadata = getattr(user, 'user_metadata', None) or {}
+            account_state = user_metadata.get("account_state", "active")
+            
             user_dict = {
                 "id": getattr(user, 'id', None),
                 "email": getattr(user, 'email', None),
                 "created_at": getattr(user, 'created_at', None),
                 "last_sign_in_at": getattr(user, 'last_sign_in_at', None),
                 "email_confirmed_at": getattr(user, 'email_confirmed_at', None),
+                "account_state": account_state,
             }
             users.append(user_dict)
         
@@ -145,6 +149,10 @@ def list_users(user_id: str = Depends(get_current_user_id)):
 class GenerateMagicLinkRequest(BaseModel):
     target_user_id: str
     redirect_to: Optional[str] = None
+
+
+class SetAccountStateRequest(BaseModel):
+    account_state: str  # "active" or "paused"
 
 
 @router.post("/generate-magic-link")
@@ -241,5 +249,74 @@ def generate_magic_link(
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Error generating magic link: {str(e)}"
+        )
+
+
+class SetAccountStateRequest(BaseModel):
+    account_state: str  # "active" or "paused"
+
+
+@router.put("/users/{target_user_id}/account-state")
+def set_user_account_state(
+    target_user_id: str,
+    request: SetAccountStateRequest,
+    user_id: str = Depends(get_current_user_id)
+):
+    """Set a user's account state (admin only)"""
+    if not check_is_admin(user_id):
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Admin access required"
+        )
+    
+    if request.account_state not in ["active", "paused"]:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="account_state must be 'active' or 'paused'"
+        )
+    
+    try:
+        admin_client = get_supabase_admin_client()
+        
+        # Get current user metadata
+        user_response = admin_client.auth.admin.get_user_by_id(target_user_id)
+        if not user_response or not user_response.user:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="User not found"
+            )
+        
+        current_user = user_response.user
+        current_metadata = current_user.user_metadata or {}
+        
+        # Update metadata with new account_state
+        updated_metadata = {**current_metadata, "account_state": request.account_state}
+        
+        # Update user via admin API
+        update_response = admin_client.auth.admin.update_user_by_id(
+            target_user_id,
+            {"user_metadata": updated_metadata}
+        )
+        
+        if not update_response or not update_response.user:
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail="Failed to update user account state"
+            )
+        
+        logger.info(f"[ADMIN] User {target_user_id} account state set to {request.account_state} by admin {user_id}")
+        
+        return {
+            "user_id": target_user_id,
+            "account_state": request.account_state,
+            "email": update_response.user.email
+        }
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"[ADMIN] Error setting account state: {e}", exc_info=True)
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Error setting account state: {str(e)}"
         )
 

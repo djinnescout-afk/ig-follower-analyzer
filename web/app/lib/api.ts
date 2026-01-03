@@ -237,6 +237,7 @@ export interface AdminUser {
   created_at: string
   last_sign_in_at: string | null
   email_confirmed_at: string | null
+  account_state?: 'active' | 'paused'
 }
 
 export const adminApi = {
@@ -246,6 +247,10 @@ export const adminApi = {
     api.post<{ magic_link: string; user_email: string; user_id: string }>('/admin/generate-magic-link', {
       target_user_id: targetUserId,
       redirect_to: redirectTo
+    }),
+  setAccountState: (userId: string, accountState: 'active' | 'paused') =>
+    api.put<{ user_id: string; account_state: string; email: string }>(`/admin/users/${userId}/account-state`, {
+      account_state: accountState
     }),
 }
 
@@ -258,6 +263,15 @@ export const settingsApi = {
   getPreferences: () => api.get<UserPreferences>('/settings/preferences'),
   updatePreferences: (data: { category_set: 'option1' | 'option2' }) =>
     api.put<UserPreferences>('/settings/preferences', data),
+}
+
+// Account API
+export interface AccountStatus {
+  account_state: 'active' | 'paused'
+}
+
+export const accountApi = {
+  getStatus: () => api.get<AccountStatus>('/account/status'),
 }
 
 // Concentration calculation utilities
