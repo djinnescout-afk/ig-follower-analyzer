@@ -10,7 +10,7 @@ from ..config import get_settings
 from ..db import get_supabase_client
 
 logger = logging.getLogger(__name__)
-router = APIRouter(tags=["settings"])
+router = APIRouter(prefix="/settings", tags=["settings"])
 
 
 class PreferencesResponse(BaseModel):
